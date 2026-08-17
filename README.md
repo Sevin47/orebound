@@ -121,38 +121,50 @@ Measured uptime (share of time with balls actually in flight):
 
 | Stage | Uptime | Drain cycles / 2min |
 |---|---|---|
-| Fresh start, 1 ball | 31% | 1 |
-| With Auto-Launcher | 34% | 3 |
-| Early-mid upgrades | 60% | 3 |
-| Mid game | 66% | 2 |
-| Late game, big swarm | 50% | 6 |
+| Fresh start, 1 ball | ~100% | 0 |
+| Early-mid upgrades | 93% | 1 |
+| Mid game | 73% | 3 |
+| Late game, big swarm | 41% | 8 |
 
-It tightens again late because swarm size outgrows the tank faster than regeneration
-grows. Maxed regeneration sustains ~166 impacts/sec (~332 with the energy Monolith
-powers) — a real ceiling rather than an unreachable one.
+Energy is a **swarm tax**: with one or two balls it barely binds, and it tightens
+steadily as the swarm grows until it is the hard limit on the whole late game. Base
+regeneration is deliberately looser than it once was — tightening it throttles the
+opening directly, which made the first hours a slog.
 
 ## Balance notes
 
-Block HP scales exponentially with distance from the origin (`DEPTH_POW`), because an
-incremental player curves exponentially and a fixed-HP board cannot keep up.
+Block HP scales with distance from the origin, but not as a flat exponential. Depth
+sits inside a power law (`exp(DEPTH_K * d^1.35)`), so the curve *accelerates*: about
+1.6x at r60, 9x at r180, 500x at r400, 17,000x at r560. A flat `pow^d` could not
+separate the two ends — raising it to lengthen the endgame slowed the opening by the
+same factor.
 
-Ore **value** scales far more slowly than HP (`DEPTH_POW^0.32`). This is deliberate:
-when income tracked HP, deep ore paid for the whole upgrade tree in a handful of
-blocks and the late game collapsed.
+Damage is exponential too (`1.34^level`), for the same reason. When it was linear the
+player fell further behind the HP curve every hour, stalled at damage level 11 of 34,
+and could never catch up even fully maxed.
 
-A progression simulator (`sim.js`, in the scratchpad) plays these formulas forward and
-estimates a full clear at about **8h10m**. After the opening ramp the mining rate
-holds roughly flat at 65-90 blocks/sec all the way to 100%, with no cliff. Two things
-got it there: capping energy throughput (impacts/sec tops out near 80 instead of
-1,100) and making raw ore, not diamonds, the binding cost.
+Ore **value** climbs far slower than HP (`depthMul^0.30`). When income tracked HP,
+deep ore paid for the whole tree in a handful of blocks.
 
-Its ball-travel model and its assumption of perfectly efficient buying are both
-approximations — real play will differ.
+A progression simulator (`sim.js`, in the scratchpad) plays these formulas forward:
+
+| Progress | Time | Limited by |
+|---|---|---|
+| 1% | 19m | energy |
+| 5% | 1h 05 | travel |
+| 10% | 1h 58 | travel |
+| 25% | 2h 08 | energy |
+| 50% | 2h 33 | energy |
+| 75% | 3h 45 | energy |
+| 100% | **5h 48** | energy |
+
+Early play is limited by ball count x speed / cavern radius; from the midgame on it is
+limited by energy throughput. Its ball-travel model and its assumption of perfectly
+efficient buying are both approximations, so real play will differ.
 
 ## Known limitations
 
 - No sound, no touch controls.
-- The first 10% of the board takes roughly 4h45 of the 8h10 total. A slow open is
-  normal for the genre, but this is the remaining rough edge; the fix if it drags is
-  to delay ore gating on the first Damage levels rather than touch energy.
+- The first 10% still takes about a third of the total. It is far better than it was
+  (5% now lands at ~1h instead of ~3h) but remains the least even stretch.
 - The save is run-length encoded and stays small early, but grows as the board clears.

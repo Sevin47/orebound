@@ -261,8 +261,12 @@ const MONO_COUNT   = 16;
 // The single most important balance constant. Block HP and ore value both scale by
 // this per cell of depth, so the board curves exponentially the same way the player
 // does. Without it, damage upgrades outrun the board and the game ends in minutes.
-const DEPTH_POW = 1.011;
-const depthMul = d => Math.pow(DEPTH_POW, d);
+// A flat exponential (pow^d) could not separate the two ends: raising it to slow the
+// late game slowed the opening just as much. Putting the depth inside a power law
+// makes the curve accelerate — nearly flat near the origin, very steep at the rim.
+//   r60 ~1.6x   r180 ~9x   r400 ~500x   r560 ~17000x
+const DEPTH_K = 0.0019, DEPTH_E = 1.35;
+const depthMul = d => Math.exp(DEPTH_K * Math.pow(d, DEPTH_E));
 
 //--------------------------------------------------------------- tier table
 const T_MONO = 10, T_BED = 11;
@@ -411,7 +415,7 @@ function cellHP(x, y, t) {
 // pay for the entire upgrade tree in a few blocks and the late game would collapse.
 function cellVal(x, y, t) {
   const d = Math.hypot(x - CX, y - CY);
-  return TIERS[t].val * Math.pow(DEPTH_POW, d * 0.32) * 0.55;
+  return TIERS[t].val * Math.pow(depthMul(d), 0.30) * 0.55;
 }
 
 //=========================================================== upgrade catalog
@@ -432,16 +436,16 @@ const BR = {
 // need Amber (depth 270) before you could buy the damage that gets you to depth 270.
 // Ore costs climb steeply on top of their own growth. Raw ore — not diamonds — is
 // the real gate, and the shallow-ore branches buy out far too quickly without this.
-const ORE_STEEP = 1.35;
+const ORE_STEEP = 1.10;
 const og = (base, growth, from) => l =>
   l < from ? 0 : base * Math.pow(growth, l - from) * Math.pow(ORE_STEEP, l);
 
 const UPG = [
   { id:"dmg",   br:"core", name:"Damage",      max:34, cost:l=>16*Math.pow(1.72,l),  ore:og(40,1.5,4),
-    desc:"Damage every impact deals.", fmt:l=>(1+l) },
-  { id:"speed", br:"core", name:"Speed",       max:14, cost:l=>400*Math.pow(3.15,l),  ore:og(60,1.62,3),
+    desc:"Damage every impact deals.", fmt:l=>fmt(Math.pow(1.34,l)) },
+  { id:"speed", br:"core", name:"Speed",       max:18, cost:l=>150*Math.pow(2.05,l),  ore:og(60,1.62,3),
     desc:"Ball travel speed. Vital as the cavern widens.", fmt:l=>"x"+Math.pow(1.26,l).toFixed(2) },
-  { id:"count", br:"core", name:"Extra Ball",  max:14, cost:l=>200*Math.pow(3.15,l), ore:og(120,1.72,2),
+  { id:"count", br:"core", name:"Extra Ball",  max:20, cost:l=>80*Math.pow(1.95,l), ore:og(120,1.72,2),
     desc:"One more ball of every unlocked colour.", fmt:l=>"x"+(1+l) },
   { id:"crit",  br:"core", name:"Fracture",    max:12, cost:l=>320*Math.pow(1.9,l),  ore:og(160,1.7,1),
     desc:"Chance an impact deals 9x damage.", fmt:l=>(l*3)+"%" },
@@ -449,9 +453,9 @@ const UPG = [
   { id:"emax",  br:"energy", name:"Capacity",     max:24, cost:l=>26*Math.pow(1.6,l), ore:og(30,1.5,3),
     desc:"Maximum stored energy — how long a run lasts.", fmt:l=>(120+l*55) },
   { id:"eregen",br:"energy", name:"Regeneration", max:26, cost:l=>44*Math.pow(1.62,l),ore:og(50,1.55,3),
-    desc:"Energy per second, online or off. Your hard throughput limit.", fmt:l=>(0.8+l*0.70).toFixed(2)+"/s" },
+    desc:"Energy per second, online or off. Your hard throughput limit.", fmt:l=>(4+l*1.2).toFixed(1)+"/s" },
   { id:"eeff",  br:"energy", name:"Efficiency",   max:16, cost:l=>110*Math.pow(1.8,l),ore:og(90,1.65,2),
-    desc:"Cuts the energy each bounce costs.", fmt:l=>"-"+Math.round((1-Math.pow(.95,l))*100)+"%" },
+    desc:"Cuts the energy each bounce costs.", fmt:l=>"-"+Math.round((1-Math.pow(.965,l))*100)+"%" },
 
   { id:"redball",br:"red", name:"Smash Ball",   max:1,  cost:()=>700,                ore:()=>60, ball:true,
     desc:"Detonates the rock around every impact." },
@@ -491,7 +495,7 @@ const UPG = [
   { id:"overch", br:"prime", name:"Overcharge",  max:14, cur:"core", cost:l=>Math.ceil(2*Math.pow(1.42,l)),
     desc:"Multiplies all impact damage.", fmt:l=>"x"+Math.pow(1.22,l).toFixed(2) },
   { id:"reactor",br:"prime", name:"Core Reactor",max:12, cur:"core", cost:l=>Math.ceil(3*Math.pow(1.45,l)),
-    desc:"Flat boost to energy regeneration.", fmt:l=>"+"+(l*2.0).toFixed(1)+"/s" },
+    desc:"Flat boost to energy regeneration.", fmt:l=>"+"+(l*1.2).toFixed(1)+"/s" },
   { id:"swarm",  br:"prime", name:"Swarm",       max:10, cur:"core", cost:l=>Math.ceil(4*Math.pow(1.5,l)),
     desc:"Two more balls of every colour per level.", fmt:l=>"+"+(l*2) },
   { id:"prosp",  br:"prime", name:"Prospector",  max:12, cur:"core", cost:l=>Math.ceil(3*Math.pow(1.45,l)),
@@ -503,7 +507,7 @@ const UPGBY = {}; UPG.forEach(u => UPGBY[u.id] = u);
 // Modules cost mixed raw ore, so every tier stays useful long after its branch is done.
 const MODS = [
   { id:"coil",   name:"Resonance Coil",  max:8,  ores:{6:220, 4:160},
-    desc:"Each level cuts bounce energy cost by 3%.", eff:l=>"-"+Math.round((1-Math.pow(.97,l))*100)+"%" },
+    desc:"Each level cuts bounce energy cost by 1.5%.", eff:l=>"-"+Math.round((1-Math.pow(.985,l))*100)+"%" },
   { id:"lens",   name:"Fracture Lens",   max:8,  ores:{3:400, 8:120},
     desc:"Each level adds 25% to Fracture crit damage.", eff:l=>"x"+(9*(1+l*.25)).toFixed(1) },
   { id:"vein",   name:"Vein Sense",      max:10, ores:{4:300, 5:220},
@@ -537,9 +541,9 @@ const ML   = id => S.mods[id] || 0;
 const purse= cur => cur === "core" ? S.cores : S.dia;
 
 const eMax    = () => 120 + L("emax") * 55;
-const eRegen  = () => (0.8 + L("eregen") * 0.70 + L("reactor") * 2.0) * (hasPower("solar") ? 1.5 : 1);
-const eCost   = () => 0.75 * Math.pow(0.95, L("eeff")) * Math.pow(0.97, ML("coil")) * (hasPower("cheap") ? .75 : 1);
-const baseDmg = () => (1 + L("dmg")) * Math.pow(1.22, L("overch")) * (1 + ML("ballast") * .07);
+const eRegen  = () => (4 + L("eregen") * 1.2 + L("reactor") * 1.2) * (hasPower("solar") ? 1.5 : 1);
+const eCost   = () => 0.75 * Math.pow(0.965, L("eeff")) * Math.pow(0.985, ML("coil")) * (hasPower("cheap") ? .75 : 1);
+const baseDmg = () => Math.pow(1.34, L("dmg")) * Math.pow(1.22, L("overch")) * (1 + ML("ballast") * .07);
 // Speed must scale exponentially: bounce rate falls as 1/cavern-radius, so linear
 // speed gains get swallowed as the cavern widens and the game grinds to a halt.
 const ballSpd = () => 55 * Math.pow(1.26, L("speed")) * (hasPower("veloc") ? 1.6 : 1);
