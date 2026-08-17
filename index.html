@@ -688,7 +688,14 @@ function spawnShard(b) {
 
 // Any ball that crosses a lot of open ground without hitting anything re-aims at the
 // nearest rock. This is what stops drills (and everything else) idling in a big cavern.
-const STALL_DIST = 70;
+// A fixed threshold fired during ordinary travel once the cavern grew past it, so
+// balls appeared to steer themselves in mid-air. A normal crossing is up to 2x the
+// cavern radius, so only treat a ball as stuck well beyond that.
+const STALL_MIN = 140;
+function stallLimit() {
+  const r = Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0) / 2;
+  return Math.max(STALL_MIN, r * 3);
+}
 function reseek(b) {
   b.stall = 0;
   let best = null, bestD = 1e9;
@@ -767,7 +774,7 @@ function stepBall(b, dt) {
     }
     b.x = nx; b.y = ny; b.stall += s;
   }
-  if (b.stall > STALL_DIST) reseek(b);
+  if (b.stall > stallLimit()) reseek(b);
 }
 
 //--------------------------------------------------------------- collisions

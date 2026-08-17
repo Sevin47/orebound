@@ -58,9 +58,12 @@ the rest keep bouncing. The camera never follows a ball; it frames the cavern.
 | Poison | green | Infects rock; poison erodes and spreads on its own |
 
 Balls **collide with each other**. With the Mass Driver module, collisions shatter
-the rock around them. Any ball that crosses 70 cells of open ground without hitting
-anything **re-aims at the nearest rock**, which is what stops balls idling in a
-cavern that has outgrown them.
+the rock around them.
+
+A ball only ever changes course from a wall bounce, a collision, or the Lodestone
+Monolith power. There is one safety net — a ball that crosses more than 3x the
+cavern radius without touching anything re-aims at the nearest rock — but a normal
+crossing is about 1.3x the radius, so in ordinary play it never fires.
 
 ## Economy
 
