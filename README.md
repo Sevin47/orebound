@@ -33,7 +33,7 @@ Open `index.html` in any browser. No build step, no dependencies.
 | Tap | Fire one ball at that point |
 | Drag | Pan the camera |
 | Pinch | Zoom |
-| Bottom bar | Upgrades, Forge, Codex, Recall, Menu |
+| Bottom bar | Upgrades, Forge, Codex, Descend, Lodestone, Recall, Menu |
 
 The layout switches to a single-column, touch-sized version below 820px wide, and the
 energy bar moves to full width across the top.
@@ -114,14 +114,13 @@ multipliers — head starts compress the slow opening, multipliers only move it:
 | Ignition | Arrive with the Auto-Launcher already running |
 | Supply Cache | Arrive holding diamonds and raw ore |
 | Deep Roots | Permanent damage multiplier |
-| Reservoir | Permanent energy regeneration multiplier |
-| Survey | Monoliths charted immediately |
+| Velocity | Permanent ball speed multiplier |
+| Chamber Time / Volley / Force / Munitions | Upgrade the Lodestone Chamber |
 | Assay | Permanent ore and Core yield multiplier |
 
-Monolith **powers are kept forever**. A Monolith whose power you already own pays
-Residue instead, so cracking them is always worth it. Every stratum rotates its
-Monolith spiral and reseeds its ore, so no two are the same map. Rock gets harder
-(x3.2 HP) and richer (x2.9 value) each stratum.
+Lodestone **powers are kept forever**. Every stratum reseeds its ore, so no two are
+the same map. Rock gets harder (x1.55 HP) and richer (x1.8 value) each stratum — gentle
+enough that the meta tree stays ahead, so every run reaches deeper than the last.
 
 Cleared strata are archived in the Codex — your excavations are finished and filed,
 not deleted.
