@@ -1288,8 +1288,10 @@ function buildForge() {
 }
 const modCost = (m, l) => Object.entries(m.ores).map(([t,a]) => [ +t, Math.ceil(a*Math.pow(1.85,l)) ]);
 function refreshForge() {
-  for (const d of document.querySelectorAll(".mod")) {
-    const m = MODBY[d.dataset.id], lv = ML(m.id), maxed = lv >= m.max;
+  for (const d of document.querySelectorAll("#forgegrid .mod")) {
+    const m = MODBY[d.dataset.id];
+    if (!m) continue;                          // never trust a stray card
+    const lv = ML(m.id), maxed = lv >= m.max;
     d.querySelector(".mlv").textContent = maxed ? "MAX  ("+m.eff(lv)+")"
       : "Lv "+lv+" → "+(lv+1)+"   "+m.eff(lv)+" → "+m.eff(lv+1);
     let can = true, html = "";
@@ -1627,8 +1629,8 @@ function descend() {
   S.residue += gain;
   S.totalPlaytime += S.playtime;
   S.stratum++;
-  newStratum();
-  save();
+  try { newStratum(); }
+  finally { save(); }
   return gain;
 }
 
@@ -1673,7 +1675,9 @@ function refreshDescent() {
   $("dbtn").disabled = gain <= 0;
   $("dbtn").textContent = gain > 0 ? ("DESCEND TO STRATUM "+(S.stratum+1)) : "NOT DEEP ENOUGH";
   for (const d of document.querySelectorAll("#metagrid .mod")) {
-    const m = METABY[d.dataset.id], lv = MT(m.id), maxed = lv >= m.max;
+    const m = METABY[d.dataset.id];
+    if (!m) continue;
+    const lv = MT(m.id), maxed = lv >= m.max;
     d.querySelector(".mlv").textContent = maxed
       ? "MAX" + (m.fmt ? "  ("+m.fmt(lv)+")" : "")
       : (m.fmt ? m.fmt(lv)+" → "+m.fmt(lv+1) : "Lv "+lv+" → "+(lv+1));
@@ -1712,10 +1716,12 @@ function resetGame() {
   cam.manual = false; fitCamera(); cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz;
   rateT = 0; rateMark = 0; spentAcc = 0; spendRate = 0; autoT = 0; autoCycle = 0;
   aim = null; hudAcc = 0;
-  refreshTree(); refreshForge();
-
-  saveLocked = false;
-  save();                                      // persist the clean slate right away
+  try { refreshTree(); refreshForge(); }
+  catch (err) { console.warn("panel refresh failed", err); }
+  finally {
+    saveLocked = false;
+    save();                                    // persist the clean slate right away
+  }
 }
 
 let paused = true, armed = 0, sessionStarted = false;
