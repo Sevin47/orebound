@@ -1142,7 +1142,8 @@ function tickAuto(dt) {
 }
 
 function frame(now) {
-  const dt = paused ? 0 : Math.min((now-last)/1000, .05); last = now;
+  const real = Math.min((now-last)/1000, .05); last = now;
+  const dt = paused ? 0 : real;                // arena freezes; the chamber must not
   if (!paused) {
     const sub = 3;
     for (let s=0;s<sub;s++) for (const b of balls) if (b.state==="fly") stepBall(b, dt/sub);
@@ -1158,7 +1159,7 @@ function frame(now) {
   const k = Math.min(1, dt*(cam.manual ? 9 : .9));
   cam.x += (cam.tx-cam.x)*k; cam.y += (cam.ty-cam.y)*k; cam.z += (cam.tz-cam.z)*k;
 
-  if (CH.on || CH.done) { chamberStep(dt); drawChamber(dt); refreshChamber(); }
+  if (CH.on || CH.done) { chamberStep(real); drawChamber(real); refreshChamber(); }
   else draw(dt);
   updateHUD();
   requestAnimationFrame(frame);
@@ -1616,16 +1617,20 @@ function load() {
 const cacheDia = l => l ? 400 * Math.pow(2.4, l-1) : 0;
 const cacheOre = l => l ? 150 * Math.pow(2.2, l-1) : 0;
 
+function grantCache(from, to) {
+  const dia = cacheDia(to) - cacheDia(from);
+  const amt = cacheOre(to) - cacheOre(from);
+  if (dia > 0) S.dia += dia;
+  if (amt > 0) for (let t = ORE_LO; t <= ORE_HI; t++) S.ore[t] += amt / Math.pow(1.9, t - ORE_LO);
+}
 function applyHeadStart() {
   const lg = MT("legacy");
-  if (lg) { S.lv.dmg = lg; S.lv.speed = lg; S.lv.count = lg; }
+  if (lg) { S.lv.dmg = Math.max(S.lv.dmg||0, lg);
+            S.lv.speed = Math.max(S.lv.speed||0, lg);
+            S.lv.count = Math.max(S.lv.count||0, lg); }
   if (MT("ignition")) S.lv.autofire = 1;
-  const c = MT("cache");
-  if (c) {
-    S.dia += cacheDia(c);
-    const amt = cacheOre(c);
-    for (let t = ORE_LO; t <= ORE_HI; t++) S.ore[t] += amt / Math.pow(1.9, t - ORE_LO);
-  }
+  grantCache(0, MT("cache"));
+  syncRoster();
 }
 
 // Wipes the run but keeps everything that makes a descent worthwhile.
@@ -1671,7 +1676,11 @@ function buyMeta(id) {
   const c = m.cost(lv);
   if (S.residue < c) { toast("NOT ENOUGH RESIDUE"); return; }
   S.residue -= c; S.meta[id] = lv + 1;
-  refreshDescent(); save();
+  // take effect on the run you are already in, not the one after next
+  if (id === "cache") grantCache(lv, lv + 1);
+  else applyHeadStart();
+  drawDock();
+  refreshDescent(); refreshTree(); save();
 }
 
 function buildDescent() {
