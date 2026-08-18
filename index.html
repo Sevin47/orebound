@@ -22,6 +22,7 @@
   #topleft { top:10px; left:12px; font-size:13px; line-height:1.5; }
   #dia { font-size:20px; color:#fff; letter-spacing:.5px; }
   #cores { font-size:14px; color:#8ef; text-shadow:0 0 8px #2ee6 }
+  #residue { font-size:13px; color:#d9bcff; text-shadow:0 0 8px #a06ff66 }
   .ores { margin-top:7px; display:grid; grid-template-columns:auto auto; gap:2px 10px; font-size:11px }
   .ores span { display:flex; align-items:center; gap:4px; opacity:.9 }
   .sw { width:8px;height:8px;display:inline-block;box-shadow:0 0 5px currentColor;background:currentColor }
@@ -80,7 +81,7 @@
   .node .desc { font-size:10px; opacity:.5; margin-top:4px; line-height:1.3 }
   .ballnode { border-style:dashed }
 
-  #forgegrid, #codexgrid { display:flex; gap:14px; justify-content:center; flex-wrap:wrap;
+  #forgegrid, #codexgrid, #metagrid { display:flex; gap:14px; justify-content:center; flex-wrap:wrap;
     max-width:1180px; margin:0 auto }
   .mod { width:250px; border:2px solid #6ad; background:rgba(0,0,0,.6); padding:11px 12px }
   .mod h4 { font-size:12.5px; font-weight:normal; color:#9df; letter-spacing:1px }
@@ -93,6 +94,17 @@
   .mod button:disabled { opacity:.3; cursor:not-allowed }
   .mod.maxed { opacity:.4 }
 
+  #dcard { max-width:440px; margin:0 auto 22px; border:2px solid #c9a6ff;
+    background:rgba(0,0,0,.6); padding:16px 18px }
+  .drow { display:flex; justify-content:space-between; font-size:12px; padding:4px 0; gap:16px }
+  .drow span { opacity:.55 } .drow b { font-weight:normal; color:#fff }
+  .dnote { font-size:10px; opacity:.5; line-height:1.45; margin-top:9px }
+  #dbtn { width:100%; margin-top:14px; background:none; border:1px solid #c9a6ff; color:#d9bcff;
+    padding:11px; font-family:inherit; font-size:11px; letter-spacing:2px; cursor:pointer }
+  #dbtn:hover:not(:disabled) { background:#c9a6ff22 }
+  #dbtn:disabled { opacity:.3; cursor:not-allowed }
+  #metagrid { display:flex; gap:14px; justify-content:center; flex-wrap:wrap;
+    max-width:1180px; margin:0 auto }
   .cxbox { width:290px; border:1px solid #2a4a3c; background:rgba(0,0,0,.5); padding:12px 14px }
   .cxbox h4 { font-size:11px; font-weight:normal; letter-spacing:2px; color:#7ec; margin-bottom:9px }
   .cxrow { display:flex; justify-content:space-between; font-size:11px; padding:3px 0; gap:14px }
@@ -195,6 +207,7 @@
 <div class="hud" id="topleft">
   <div id="dia">◆ 0</div>
   <div id="cores">◈ 0</div>
+  <div id="residue">◇ 0</div>
   <div class="ores" id="ores"></div>
 </div>
 
@@ -204,6 +217,7 @@
 </div>
 
 <div class="hud" id="topright">
+  <div>stratum <b id="strat">1</b></div>
   <div>board <b id="pct">0%</b></div>
   <div>mined <b id="mined">0</b></div>
   <div>rate <b id="rate">0/s</b></div>
@@ -221,6 +235,7 @@
   <button data-a="tree">UPGRADES</button>
   <button data-a="forge">FORGE</button>
   <button data-a="codex">CODEX</button>
+  <button data-a="descent">DESCEND</button>
   <button data-a="recall">RECALL</button>
   <button data-a="menu">MENU</button>
 </div>
@@ -228,6 +243,10 @@
 
 <div class="panel" id="tree"><div class="ptitle">UPGRADES — [U] TO CLOSE</div><div id="branches"></div></div>
 <div class="panel" id="forge"><div class="ptitle">FORGE — SPEND RAW ORE — [C] TO CLOSE</div><div id="forgegrid"></div></div>
+<div class="panel" id="descent"><div class="ptitle">DESCENT — [D] TO CLOSE</div>
+  <div id="dcard"><div id="dhead"></div><button id="dbtn">DESCEND</button></div>
+  <div id="metagrid"></div>
+</div>
 <div class="panel" id="codex"><div class="ptitle">CODEX — [K] TO CLOSE</div><div id="codexgrid"></div></div>
 
 <div id="menu"><div class="mcard">
@@ -255,6 +274,16 @@
 const GRID = 1024, CX = GRID >> 1, CY = GRID >> 1;
 const SEED = 1337, SAVEKEY = "orebound.v1";
 const OLDKEYS = ["pixelbouncer.v3"];           // carry a run across the rename
+
+// ---- Descent -------------------------------------------------------------
+// Clearing a stratum does not wipe your progress, it moves you down to a new one.
+// Rock gets harder and richer each time; what you carry is Residue and the meta tree.
+const STRAT_HP  = 3.2;                         // block HP multiplier per stratum
+const STRAT_VAL = 2.9;                         // ore value multiplier per stratum
+const DESCEND_MIN_BLOCKS = 40000;              // ~4% of the board, so it cannot be farmed
+const stratSeed = n => SEED + n * 7919;
+const stratHP   = () => Math.pow(STRAT_HP,  S.stratum - 1);
+const stratVal  = () => Math.pow(STRAT_VAL, S.stratum - 1);
 const BEDROCK_EDGE = 16;              // thickness of the immune outer shell
 const MONO_COUNT   = 16;
 
@@ -330,14 +359,19 @@ const fbm = (x, y, s) => vnoise(x, y, s) * .55 + vnoise(x*2.1, y*2.1, s+7) * .3 
 
 //--------------------------------------------------------------- monoliths
 // Placed deterministically on a spiral so every seed has landmarks at every depth.
+// Rebuilt whenever the stratum changes, so no two strata share a map. Radius stays
+// inside GRID/2 minus the bedrock shell, or the outermost monoliths land off-board
+// with zero cells and their powers become unobtainable.
 const MONOS = [];
-for (let i = 0; i < MONO_COUNT; i++) {
-  // radius must stay inside GRID/2 minus the bedrock shell, or the outermost
-  // monoliths land off-board with zero cells and their powers become unobtainable
-  const a = i * 2.39996, r = 120 + i * 22;
-  MONOS.push({ id:i+1, x:Math.round(CX + Math.cos(a)*r), y:Math.round(CY + Math.sin(a)*r),
-               rad: 4 + (i % 3), total:0, left:0 });
+function rebuildMonos() {
+  MONOS.length = 0;
+  for (let i = 0; i < MONO_COUNT; i++) {
+    const a = i * 2.39996 + (S.stratum - 1) * 0.7, r = 120 + i * 22;
+    MONOS.push({ id:i+1, x:Math.round(CX + Math.cos(a)*r), y:Math.round(CY + Math.sin(a)*r),
+                 rad: 4 + (i % 3), total:0, left:0 });
+  }
 }
+
 
 // Unique permanent powers. These are mechanics, not percentages — that is the point
 // of hunting them down.
@@ -377,9 +411,10 @@ function generate() {
       if (d < 7) { tier[i] = 0; continue; }
 
       let t = d < 55 ? 1 : d < 170 ? 2 : 3;
-      const vein = ((fbm(x/14, y/14, SEED) * .76 + fbm(x/3.2, y/3.2, SEED+9) * .24) - .5) * 4;
+      const SD = stratSeed(S.stratum);
+      const vein = ((fbm(x/14, y/14, SD) * .76 + fbm(x/3.2, y/3.2, SD+9) * .24) - .5) * 4;
       if (vein > 0.30 && d > 18) {
-        const q = (fbm(x/31, y/31, SEED+55) - .5) * 4;
+        const q = (fbm(x/31, y/31, SD+55) - .5) * 4;
         t = 4;
         if (d >  80 && q > -0.35) t = 5;
         if (d > 170 && q > -0.05) t = 6;
@@ -407,15 +442,15 @@ function generate() {
 }
 
 function cellHP(x, y, t) {
-  if (t === T_BED) return hasPower("solvent") ? 40000 * depthMul(500) : Infinity;
+  if (t === T_BED) return hasPower("solvent") ? 40000 * depthMul(500) * stratHP() : Infinity;
   const d = Math.hypot(x - CX, y - CY);
-  return Math.ceil(TIERS[t].hp * depthMul(d));
+  return Math.ceil(TIERS[t].hp * depthMul(d) * stratHP());
 }
 // Value deliberately climbs far slower than HP. If income tracked HP, deep ore would
 // pay for the entire upgrade tree in a few blocks and the late game would collapse.
 function cellVal(x, y, t) {
   const d = Math.hypot(x - CX, y - CY);
-  return TIERS[t].val * Math.pow(depthMul(d), 0.30) * 0.55;
+  return TIERS[t].val * Math.pow(depthMul(d), 0.30) * 0.55 * stratVal();
 }
 
 //=========================================================== upgrade catalog
@@ -525,6 +560,40 @@ const MODS = [
 ];
 const MODBY = {}; MODS.forEach(m => MODBY[m.id] = m);
 
+//=================================================================== descent
+// Bought with Residue and kept forever. Weighted toward head starts rather than
+// flat multipliers: head starts compress the slow opening, multipliers only move it.
+const META = [
+  { id:"legacy",  name:"Legacy",        max:12, cost:l=>Math.ceil(18*Math.pow(1.55,l)),
+    desc:"Start each stratum with this many levels of Damage, Speed and Extra Ball.", fmt:l=>l },
+  { id:"fleet",   name:"Fleet Start",   max:10, cost:l=>Math.ceil(30*Math.pow(1.62,l)),
+    desc:"Extra balls of every unlocked colour, from the moment you arrive.", fmt:l=>"+"+l },
+  { id:"ignition",name:"Ignition",      max:1,  cost:()=>120,
+    desc:"Arrive with the Auto-Launcher already running." },
+  { id:"cache",   name:"Supply Cache",  max:12, cost:l=>Math.ceil(22*Math.pow(1.6,l)),
+    desc:"Arrive holding diamonds and raw ore.", fmt:l=>"◆"+fmt(400*Math.pow(2.4,l))+" +ore" },
+  { id:"roots",   name:"Deep Roots",    max:20, cost:l=>Math.ceil(25*Math.pow(1.5,l)),
+    desc:"Permanent damage multiplier, every stratum.", fmt:l=>"x"+Math.pow(1.25,l).toFixed(2) },
+  { id:"reservoir",name:"Reservoir",    max:16, cost:l=>Math.ceil(28*Math.pow(1.52,l)),
+    desc:"Permanent energy regeneration multiplier.", fmt:l=>"x"+Math.pow(1.22,l).toFixed(2) },
+  { id:"survey",  name:"Survey",        max:1,  cost:()=>200,
+    desc:"Monoliths are charted the moment you arrive, however deep." },
+  { id:"assay",   name:"Assay",         max:16, cost:l=>Math.ceil(24*Math.pow(1.5,l)),
+    desc:"Permanent raw ore and Core yield multiplier.", fmt:l=>"x"+(1+l*0.3).toFixed(2) },
+];
+const METABY = {}; META.forEach(m => METABY[m.id] = m);
+const MT = id => (S.meta && S.meta[id]) || 0;
+
+// Residue scales with how much of the stratum you took apart, how deep you reached,
+// and how many Monoliths you cracked -- so leaving early is viable, not optimal.
+function residueGain() {
+  if (S.minedCount < DESCEND_MIN_BLOCKS) return 0;
+  const base  = Math.pow(S.minedCount / 800, 0.62);
+  const depth = 1 + S.maxDepth / 260;
+  const mono  = 1 + S.monoCracked * 0.12;
+  return Math.floor(base * depth * mono * Math.pow(1.9, S.stratum - 1));
+}
+
 //================================================================ game state
 const S = {
   dia:0, cores:0, lv:{}, mods:{}, powers:{},
@@ -532,6 +601,8 @@ const S = {
   oreLife:[0,0,0,0,0,0,0,0,0,0,0,0],    // lifetime mined, for the codex
   minedCount:0, energy:150, maxDepth:0, rate:0,
   monoLeft:{}, monoCracked:0, bestRate:0, playtime:0,
+  // --- persists across descents ---
+  stratum:1, residue:0, meta:{}, strata:[], totalPlaytime:0,
 };
 UPG.forEach(u => S.lv[u.id] = 0);
 MODS.forEach(m => S.mods[m.id] = 0);
@@ -541,18 +612,21 @@ const ML   = id => S.mods[id] || 0;
 const purse= cur => cur === "core" ? S.cores : S.dia;
 
 const eMax    = () => 120 + L("emax") * 55;
-const eRegen  = () => (4 + L("eregen") * 1.2 + L("reactor") * 1.2) * (hasPower("solar") ? 1.5 : 1);
+const eRegen  = () => (4 + L("eregen") * 1.2 + L("reactor") * 1.2)
+  * (hasPower("solar") ? 1.5 : 1) * Math.pow(1.22, MT("reservoir"));
 const eCost   = () => 0.75 * Math.pow(0.965, L("eeff")) * Math.pow(0.985, ML("coil")) * (hasPower("cheap") ? .75 : 1);
-const baseDmg = () => Math.pow(1.34, L("dmg")) * Math.pow(1.22, L("overch")) * (1 + ML("ballast") * .07);
+const baseDmg = () => Math.pow(1.34, L("dmg")) * Math.pow(1.22, L("overch"))
+  * (1 + ML("ballast") * .07) * Math.pow(1.25, MT("roots"));
 // Speed must scale exponentially: bounce rate falls as 1/cavern-radius, so linear
 // speed gains get swallowed as the cavern widens and the game grinds to a halt.
 const ballSpd = () => 55 * Math.pow(1.26, L("speed")) * (hasPower("veloc") ? 1.6 : 1);
-const perType = () => 1 + L("count") + L("swarm") * 2 + (hasPower("swarm2") ? 3 : 0);
+const perType = () => 1 + L("count") + L("swarm") * 2 + (hasPower("swarm2") ? 3 : 0) + MT("fleet");
 const critCh  = () => L("crit") * .03;
 const critMul = () => 9 * (1 + ML("lens") * .25);
 const valMul  = () => (1 + L("value") * .20) * (hasPower("greed") ? 2 : 1) * (1 + ML("lantern") * .06);
-const oreMul  = () => 1 + L("oreyld") * .35;
-const coreMul = () => (1 + L("prosp") * .45) * (1 + ML("tap") * .30) * (hasPower("prosp") ? 2 : 1);
+const oreMul  = () => (1 + L("oreyld") * .35) * (1 + MT("assay") * .3);
+const coreMul = () => (1 + L("prosp") * .45) * (1 + ML("tap") * .30)
+  * (hasPower("prosp") ? 2 : 1) * (1 + MT("assay") * .3);
 const autoInt = () => 3.2 * Math.pow(.86, L("autorate"));
 const offFrac = () => L("autofire") ? .40 + L("offline") * .05 : 0;
 const oreDmgMul = () => (1 + ML("vein") * .18) * (hasPower("tough") ? 2 : 1);
@@ -609,7 +683,11 @@ function crackMonolith(m) {
   m.left = 0;
   S.monoLeft[m.id] = 0;
   const p = POWERS[m.id - 1];
-  if (!S.powers[p.k]) {
+  if (S.powers[p.k]) {                          // already earned: pay out instead
+    const r = Math.ceil(12 * Math.pow(1.9, S.stratum - 1));
+    S.residue += r; S.monoCracked++;
+    toast("MONOLITH BROKEN — +◇ " + fmt(r) + " RESIDUE");
+  } else if (!S.powers[p.k]) {
     S.powers[p.k] = 1; S.monoCracked++;
     syncRoster();
     toast("MONOLITH BROKEN — " + p.name.toUpperCase() + "\n" + p.desc);
@@ -1054,6 +1132,8 @@ let hudAcc = 0;
 function updateHUD() {
   $("dia").textContent = "◆ "+fmt(S.dia);
   $("cores").textContent = "◈ "+fmt(S.cores);
+  $("residue").textContent = "◇ "+fmt(S.residue);
+  $("strat").textContent = S.stratum;
   $("pct").textContent = (S.minedCount/(GRID*GRID)*100).toFixed(3)+"%";
   $("mined").textContent = fmt(S.minedCount);
   $("rate").textContent = fmt(S.rate)+"/s";
@@ -1077,6 +1157,7 @@ function updateHUD() {
     if (panelOpen === "tree") refreshTree();
     if (panelOpen === "forge") refreshForge();
     if (panelOpen === "codex") refreshCodex();
+    if (panelOpen === "descent") refreshDescent();
   }
 }
 let dockSig = "";
@@ -1107,11 +1188,12 @@ function toast(msg) {
 let panelOpen = null;
 function openPanel(name) {
   panelOpen = panelOpen === name ? null : name;
-  for (const p of ["tree","forge","codex"]) $(p).classList.toggle("on", panelOpen === p);
+  for (const p of ["tree","forge","codex","descent"]) $(p).classList.toggle("on", panelOpen === p);
   $("pclose").classList.toggle("on", !!panelOpen);
   if (panelOpen === "tree") refreshTree();
   if (panelOpen === "forge") refreshForge();
   if (panelOpen === "codex") refreshCodex();
+  if (panelOpen === "descent") refreshDescent();
 }
 const oreSpan = (t, amt, enough) =>
   '<s style="color:rgb('+TIERS[t].col+')" class="'+(enough?"":"short")+'">●'+fmt(amt)+'</s>';
@@ -1251,12 +1333,21 @@ function refreshCodex() {
     ["Monoliths", S.monoCracked+" / "+MONO_COUNT],
     ["Cores found", fmt(S.cores)],
     ["Playtime", Math.floor(S.playtime/3600)+"h "+Math.floor(S.playtime%3600/60)+"m"],
+    ["Stratum", S.stratum],
+    ["Residue", "◇ "+fmt(S.residue)],
+    ["Total playtime", Math.floor((S.totalPlaytime+S.playtime)/3600)+"h "
+       +Math.floor(((S.totalPlaytime+S.playtime)%3600)/60)+"m"],
     ["Bedrock", hasPower("solvent") ? "breakable" : "sealed"],
   ].map(([a,b]) => '<div class="cxrow"><span>'+a+'</span><b>'+b+'</b></div>').join("");
   $("codexgrid").innerHTML =
       '<div class="cxbox"><h4>ORE DISCOVERED</h4>'+ores+'</div>'
     + '<div class="cxbox"><h4>MONOLITHS</h4>'+mono+'</div>'
-    + '<div class="cxbox"><h4>RECORDS</h4>'+recs+'</div>';
+    + '<div class="cxbox"><h4>RECORDS</h4>'+recs+'</div>'
+    + '<div class="cxbox"><h4>STRATA CLEARED</h4>'+(S.strata.length
+        ? S.strata.slice().reverse().map(a =>
+            '<div class="cxrow"><span>Stratum '+a.n+' &middot; '+a.pct+'% &middot; r'+a.depth+'</span>'
+            +'<b>◇'+fmt(a.res)+'</b></div>').join("")
+        : '<div class="cxrow dim"><span>none yet</span><b>—</b></div>')+'</div>';
 }
 
 //==================================================================== input
@@ -1341,7 +1432,7 @@ addEventListener("keydown", e => {
   const k = e.key.toLowerCase();
   if (k === "escape") {                        // close a panel first, else toggle the menu
     if (panelOpen) { panelOpen = null; $("pclose").classList.remove("on");
-      for (const p of ["tree","forge","codex"]) $(p).classList.remove("on"); }
+      for (const p of ["tree","forge","codex","descent"]) $(p).classList.remove("on"); }
     else if (paused) { if (!$("mcont").disabled) $("mcont").click(); }
     else openMenu();
     return;
@@ -1351,6 +1442,7 @@ addEventListener("keydown", e => {
   if (k === "u") openPanel("tree");
   if (k === "c") openPanel("forge");
   if (k === "k") openPanel("codex");
+  if (k === "d") openPanel("descent");
   if (k === "f") { cam.manual = false; toast("CAMERA REFIT"); }
   if (k === " ") { e.preventDefault(); parkAll(); }
   if (k === "r") openMenu();
@@ -1427,7 +1519,8 @@ function save() {
     const dm = [];
     for (let i=0;i<dmg.length;i++) if (dmg[i]) dm.push(i, dmg[i]);
     localStorage.setItem(SAVEKEY, JSON.stringify({
-      v:3, dia:S.dia, cores:S.cores, rate:S.rate, lv:S.lv, mods:S.mods, powers:S.powers,
+      v:4, dia:S.dia, cores:S.cores, rate:S.rate, lv:S.lv, mods:S.mods, powers:S.powers,
+      stratum:S.stratum, residue:S.residue, meta:S.meta, strata:S.strata, tpt:S.totalPlaytime,
       ore:S.ore, oreLife:S.oreLife, mc:S.minedCount, e:S.energy, md:S.maxDepth,
       br:S.bestRate, pt:S.playtime, mono:S.monoLeft, mcr:S.monoCracked,
       t:Date.now(), mined:rle(mined), dm
@@ -1459,6 +1552,8 @@ function load() {
     S.dia = d.dia||0; S.cores = d.cores||0; S.rate = d.rate||0;
     S.minedCount = d.mc||0; S.maxDepth = d.md||0; S.bestRate = d.br||0; S.playtime = d.pt||0;
     S.monoCracked = d.mcr||0;
+    S.stratum = d.stratum||1; S.residue = d.residue||0;
+    S.meta = d.meta||{}; S.strata = d.strata||[]; S.totalPlaytime = d.tpt||0;
     Object.assign(S.lv, d.lv||{}); Object.assign(S.mods, d.mods||{});
     S.powers = d.powers||{}; S.monoLeft = d.mono||{};
     if (d.ore) S.ore = d.ore;
@@ -1483,6 +1578,113 @@ function load() {
   } catch (err) { console.warn("load failed", err); }
 }
 
+//=================================================================== descend
+const cacheDia = l => l ? 400 * Math.pow(2.4, l-1) : 0;
+const cacheOre = l => l ? 150 * Math.pow(2.2, l-1) : 0;
+
+function applyHeadStart() {
+  const lg = MT("legacy");
+  if (lg) { S.lv.dmg = lg; S.lv.speed = lg; S.lv.count = lg; }
+  if (MT("ignition")) S.lv.autofire = 1;
+  const c = MT("cache");
+  if (c) {
+    S.dia += cacheDia(c);
+    const amt = cacheOre(c);
+    for (let t = ORE_LO; t <= ORE_HI; t++) S.ore[t] += amt / Math.pow(1.9, t - ORE_LO);
+  }
+}
+
+// Wipes the run but keeps everything that makes a descent worthwhile.
+function newStratum() {
+  S.dia = 0; S.cores = 0; S.minedCount = 0; S.maxDepth = 0; S.rate = 0;
+  S.bestRate = 0; S.playtime = 0; S.monoCracked = 0; S.monoLeft = {};
+  S.lv = {};   UPG.forEach(u => S.lv[u.id] = 0);
+  S.mods = {}; MODS.forEach(m => S.mods[m.id] = 0);
+  S.ore = new Array(12).fill(0);
+  S.oreLife = new Array(12).fill(0);
+  rebuildMonos();
+  generate();
+  poison.clear(); sparks.length = 0; dirty.length = 0;
+  balls = []; selKind = 0; dockSig = "";
+  bb.x0 = CX-8; bb.y0 = CY-8; bb.x1 = CX+8; bb.y1 = CY+8;
+  applyHeadStart();
+  relight(); paintAll();
+  syncRoster(); drawDock();
+  S.energy = eMax();
+  cam.manual = false; fitCamera(); cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz;
+  rateT = 0; rateMark = 0; spentAcc = 0; spendRate = 0; autoT = 0; autoCycle = 0;
+  aim = null; hudAcc = 0;
+  refreshTree(); refreshForge();
+}
+
+function descend() {
+  const gain = residueGain();
+  if (gain <= 0) return 0;
+  S.strata.push({ n:S.stratum, mined:S.minedCount,
+    pct:+(S.minedCount/(GRID*GRID)*100).toFixed(2), depth:Math.round(S.maxDepth),
+    monos:S.monoCracked, secs:Math.round(S.playtime), res:gain });
+  if (S.strata.length > 80) S.strata.shift();
+  S.residue += gain;
+  S.totalPlaytime += S.playtime;
+  S.stratum++;
+  newStratum();
+  save();
+  return gain;
+}
+
+function buyMeta(id) {
+  const m = METABY[id], lv = MT(id);
+  if (lv >= m.max) return;
+  const c = m.cost(lv);
+  if (S.residue < c) { toast("NOT ENOUGH RESIDUE"); return; }
+  S.residue -= c; S.meta[id] = lv + 1;
+  refreshDescent(); save();
+}
+
+function buildDescent() {
+  const g = $("metagrid"); g.innerHTML = "";
+  for (const m of META) {
+    const d = document.createElement("div");
+    d.className = "mod"; d.dataset.id = m.id;
+    d.style.borderColor = "#c9a6ff";
+    d.innerHTML = '<h4 style="color:#d9bcff">'+m.name+'</h4><div class="mlv"></div>'
+                + '<div class="mdesc">'+m.desc+'</div><div class="cost"></div>'
+                + '<button style="border-color:#c9a6ff;color:#d9bcff">BUY</button>';
+    d.querySelector("button").onclick = () => buyMeta(m.id);
+    g.appendChild(d);
+  }
+  refreshDescent();
+}
+
+function refreshDescent() {
+  const gain = residueGain();
+  const need = Math.max(0, DESCEND_MIN_BLOCKS - S.minedCount);
+  $("dhead").innerHTML =
+      '<div class="drow"><span>Stratum</span><b>'+S.stratum+'</b></div>'
+    + '<div class="drow"><span>Residue held</span><b>◇ '+fmt(S.residue)+'</b></div>'
+    + '<div class="drow"><span>This stratum cleared</span><b>'
+      + (S.minedCount/(GRID*GRID)*100).toFixed(2)+'%</b></div>'
+    + '<div class="drow"><span>Residue on descent</span><b style="color:#d9bcff">◇ '
+      + fmt(gain)+'</b></div>'
+    + (need > 0 ? '<div class="dnote">Mine '+fmt(need)+' more blocks before you can descend.</div>'
+                : '<div class="dnote">Descending rebuilds the arena and resets this run’s '
+                  + 'upgrades, ore and Forge. Residue, the tree below, and every Monolith power '
+                  + 'you have earned are kept.</div>');
+  $("dbtn").disabled = gain <= 0;
+  $("dbtn").textContent = gain > 0 ? ("DESCEND TO STRATUM "+(S.stratum+1)) : "NOT DEEP ENOUGH";
+  for (const d of document.querySelectorAll("#metagrid .mod")) {
+    const m = METABY[d.dataset.id], lv = MT(m.id), maxed = lv >= m.max;
+    d.querySelector(".mlv").textContent = maxed
+      ? "MAX" + (m.fmt ? "  ("+m.fmt(lv)+")" : "")
+      : (m.fmt ? m.fmt(lv)+" → "+m.fmt(lv+1) : "Lv "+lv+" → "+(lv+1));
+    const c = m.cost(lv), can = S.residue >= c;
+    d.querySelector(".cost").innerHTML = maxed ? ""
+      : '<s style="color:'+(can?"#d9bcff":"#e66")+'">◇ '+fmt(c)+'</s>';
+    d.querySelector("button").disabled = maxed || !can;
+    d.classList.toggle("maxed", maxed);
+  }
+}
+
 //================================================================ start menu
 // Wipes every scrap of progression AND rebuilds the arena from scratch, in memory,
 // with no reload — so there is no unload event that could resurrect the old save.
@@ -1497,7 +1699,9 @@ function resetGame() {
   S.powers = {}; S.monoLeft = {};
   S.ore = new Array(12).fill(0);
   S.oreLife = new Array(12).fill(0);
+  S.stratum = 1; S.residue = 0; S.meta = {}; S.strata = []; S.totalPlaytime = 0;
 
+  rebuildMonos();
   generate();                                  // fresh arena, monoliths restocked
   poison.clear(); sparks.length = 0; dirty.length = 0;
   balls = []; selKind = 0; dockSig = "";
@@ -1565,6 +1769,19 @@ $("mnew").onclick = () => {
 };
 
 //====================================================================== boot
+// The world depends on which stratum you are on, but load() needs the terrain to
+// exist before it can apply the mined mask -- so read the stratum first.
+(function peekStratum() {
+  try {
+    const raw = readSave();
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    S.stratum = d.stratum || 1;
+    S.powers  = d.powers  || {};
+    S.meta    = d.meta    || {};
+  } catch {}
+})();
+rebuildMonos();
 generate();
 const away = savedAway();
 load();
@@ -1573,10 +1790,15 @@ let pendingOffline = runOffline(away);
 if (pendingOffline) relight();
 paintAll();
 resize();
-buildTree(); buildForge();
+buildTree(); buildForge(); buildDescent();
 syncRoster(); drawDock();
 fitCamera(); cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz;
 $("wok").onclick = () => { $("welcome").style.display = "none"; };
+$("dbtn").onclick = () => {
+  const g = descend();
+  if (g) toast("DESCENT — STRATUM " + S.stratum + " · +◇ " + fmt(g) + " RESIDUE");
+  refreshDescent();
+};
 openMenu();                                    // every session starts at the menu
 setInterval(save, 10000);
 addEventListener("beforeunload", save);

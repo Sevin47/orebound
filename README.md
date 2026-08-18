@@ -22,6 +22,7 @@ Open `index.html` in any browser. No build step, no dependencies.
 | `C` | Forge |
 | `K` | Codex |
 | `Space` | Recall every ball |
+| `D` | Descent and the meta tree |
 | `Esc` / `R` | Start menu (pauses the game) |
 
 ### Touch
@@ -92,6 +93,46 @@ by the deepest. Branch colour still matches its ore colour throughout.
 
 The **Forge** (`C`) spends mixed raw ore on eight permanent modules, so every tier
 stays useful long after its branch is finished.
+
+## Descent
+
+Clearing a stratum does not end the game and descending does not wipe your work — it
+moves you **down** to a new one. Open the Descent panel with `D`.
+
+Each descent pays **Residue ◇**, scaled by how much of the stratum you took apart,
+how deep you reached, and how many Monoliths you cracked. You can leave whenever you
+like once you have mined ~4% of the board, so "when do I cash out?" is a real
+decision rather than a six-hour commitment.
+
+Residue buys a permanent meta tree, weighted toward **head starts** rather than flat
+multipliers — head starts compress the slow opening, multipliers only move it:
+
+| Node | Effect |
+|---|---|
+| Legacy | Arrive with N levels of Damage, Speed and Extra Ball |
+| Fleet Start | Extra balls of every colour from the moment you arrive |
+| Ignition | Arrive with the Auto-Launcher already running |
+| Supply Cache | Arrive holding diamonds and raw ore |
+| Deep Roots | Permanent damage multiplier |
+| Reservoir | Permanent energy regeneration multiplier |
+| Survey | Monoliths charted immediately |
+| Assay | Permanent ore and Core yield multiplier |
+
+Monolith **powers are kept forever**. A Monolith whose power you already own pays
+Residue instead, so cracking them is always worth it. Every stratum rotates its
+Monolith spiral and reseeds its ore, so no two are the same map. Rock gets harder
+(x3.2 HP) and richer (x2.9 value) each stratum.
+
+Cleared strata are archived in the Codex — your excavations are finished and filed,
+not deleted.
+
+Simulated clear times as the meta tree grows:
+
+| | Full clear | 50% | 5% |
+|---|---|---|---|
+| Stratum 1 | 5h 33 | 2h 27 | 1h 03 |
+| Stratum 2 | 4h 56 | 1h 02 | 11 min |
+| Stratum 4 | 1h 04 | 16 min | 3 min |
 
 ## Monoliths, Bedrock, Codex
 
