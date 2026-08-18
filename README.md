@@ -99,10 +99,9 @@ stays useful long after its branch is finished.
 Clearing a stratum does not end the game and descending does not wipe your work — it
 moves you **down** to a new one. Open the Descent panel with `D`.
 
-Each descent pays **Residue ◇**, scaled by how much of the stratum you took apart,
-how deep you reached, and how many Monoliths you cracked. You can leave whenever you
-like once you have mined ~4% of the board, so "when do I cash out?" is a real
-decision rather than a six-hour commitment.
+Each descent pays **Residue ◇**, keyed to one number you can actually see: **how deep
+you got**. "I reached r340 last run, this time r410" is a decision you can reason
+about. Descend any time past depth r60.
 
 Residue buys a permanent meta tree, weighted toward **head starts** rather than flat
 multipliers — head starts compress the slow opening, multipliers only move it:
@@ -126,13 +125,17 @@ Monolith spiral and reseeds its ore, so no two are the same map. Rock gets harde
 Cleared strata are archived in the Codex — your excavations are finished and filed,
 not deleted.
 
-Simulated clear times as the meta tree grows:
+A run is not meant to exhaust a stratum — you push until the rock outruns your damage,
+bank the Residue, and go again. Depth reached at the 30-minute mark:
 
-| | Full clear | 50% | 5% |
-|---|---|---|---|
-| Stratum 1 | 5h 33 | 2h 27 | 1h 03 |
-| Stratum 2 | 4h 56 | 1h 02 | 11 min |
-| Stratum 4 | 1h 04 | 16 min | 3 min |
+| | Depth at 30 min |
+|---|---|
+| Stratum 1 (no meta) | r316 |
+| Stratum 2 | r416 |
+| Stratum 4 | r451 |
+| Stratum 6 | r479 |
+
+Later strata reach those depths far faster — stratum 6 passes r417 in five minutes.
 
 ## Monoliths, Bedrock, Codex
 
@@ -147,30 +150,28 @@ Offline mining deliberately skips Monoliths and Bedrock — those must be earned
 
 The **Codex** (`K`) tracks ore discovered, Monolith progress, and records.
 
-## Energy
+## Momentum (there is no energy)
 
-Energy is the hard throughput limit on the whole game, not a formality. Base
-regeneration is **0.8/s** against a **0.75** cost per bounce, so roughly one impact
-per second is all you can sustain at the start. Release a few balls and the tank
-drains; they park, and you wait.
+Energy was removed. It existed to throttle throughput, which fought directly against
+short runs, and prestige made it worse: head starts handed you a swarm while Capacity
+and Regeneration reset every stratum, so each descent parked you more often — by
+stratum 6, every ~7 seconds.
 
-That is the loop the Auto-Launcher plugs into: when energy bottoms out every ball
-parks, and once the tank is back above 22% the launcher trickles them out again by
-itself. Energy regen is what you are really buying when you invest in that branch.
+Its branch became **Momentum**, which solves a real problem instead of taxing you:
 
-Measured uptime (share of time with balls actually in flight):
+| Node | Effect |
+|---|---|
+| Momentum | Balls build speed the further they fly without hitting anything |
+| Rebound | Chance a bounce lands a second free hit |
+| Impact Force | Flat multiplier on impact damage |
 
-| Stage | Uptime | Drain cycles / 2min |
-|---|---|---|
-| Fresh start, 1 ball | ~100% | 0 |
-| Early-mid upgrades | 93% | 1 |
-| Mid game | 73% | 3 |
-| Late game, big swarm | 41% | 8 |
+Momentum is worth nothing in a tight cavern and enormous in a wide one, so it directly
+counters the travel-time bottleneck that a growing cavern creates. Sunwell now doubles
+how fast Momentum builds; Twin Strike (was Flux Regulator) adds a half-damage second
+hit; Kinetic Core and Velocity are permanent speed multipliers.
 
-Energy is a **swarm tax**: with one or two balls it barely binds, and it tightens
-steadily as the swarm grows until it is the hard limit on the whole late game. Base
-regeneration is deliberately looser than it once was — tightening it throttles the
-opening directly, which made the first hours a slog.
+Balls never park now except on a manual recall, so the Auto-Launcher's job is firing
+your opening volley and enabling offline mining.
 
 ## Balance notes
 

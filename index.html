@@ -27,14 +27,6 @@
   .ores span { display:flex; align-items:center; gap:4px; opacity:.9 }
   .sw { width:8px;height:8px;display:inline-block;box-shadow:0 0 5px currentColor;background:currentColor }
 
-  #energywrap { position:absolute; top:12px; left:50%; transform:translateX(-50%); width:320px; }
-  #ebar { height:12px; border:1px solid #2c4a3c; background:#0a1512; position:relative; overflow:hidden }
-  #efill { position:absolute; inset:0; width:0%; background:linear-gradient(90deg,#1d7,#6f8);
-    box-shadow:0 0 12px #1d7a; transition:width .08s linear }
-  #elabel { text-align:center; font-size:11px; margin-top:3px; opacity:.75; letter-spacing:1px }
-  #energywrap.dry #efill { background:#833; box-shadow:none }
-  #energywrap.dry #elabel { color:#f66; opacity:1 }
-
   #topright { top:10px; right:12px; text-align:right; font-size:11px; line-height:1.6; opacity:.75 }
   #topright b { color:#8fd; font-weight:normal }
 
@@ -169,14 +161,10 @@
     #mobibar { display:flex }
     .panel { backdrop-filter:none; background:rgba(4,10,8,.95); padding:58px 10px 30px }
 
-    #energywrap { top:calc(6px + env(safe-area-inset-top)); left:8px; right:8px;
-      width:auto; transform:none }
-    #ebar { height:15px }
-    #elabel { font-size:10px }
-    #topleft { top:calc(48px + env(safe-area-inset-top)); left:8px; font-size:11px }
+    #topleft { top:calc(8px + env(safe-area-inset-top)); left:8px; font-size:11px }
     #dia { font-size:16px } #cores { font-size:12px }
     .ores { font-size:9.5px; gap:1px 8px; margin-top:5px }
-    #topright { top:calc(48px + env(safe-area-inset-top)); right:8px; font-size:9.5px; line-height:1.5 }
+    #topright { top:calc(8px + env(safe-area-inset-top)); right:8px; font-size:9.5px; line-height:1.5 }
 
     #dock { bottom:56px; gap:6px; flex-wrap:wrap; justify-content:center; max-width:100%; padding:0 6px }
     .slot { min-width:0; flex:1 1 68px; max-width:92px; padding:7px 4px 6px }
@@ -195,7 +183,7 @@
     .wcard { min-width:0; width:calc(100vw - 48px); max-width:340px }
   }
   @media (max-width: 820px) and (orientation: landscape) {
-    #topleft, #topright { top:calc(40px + env(safe-area-inset-top)) }
+    #topleft, #topright { top:calc(8px + env(safe-area-inset-top)) }
     #dock { bottom:52px } .slot { padding:5px 4px }
     #prompt { bottom:120px }
   }
@@ -209,11 +197,6 @@
   <div id="cores">◈ 0</div>
   <div id="residue">◇ 0</div>
   <div class="ores" id="ores"></div>
-</div>
-
-<div class="hud" id="energywrap">
-  <div id="ebar"><div id="efill"></div></div>
-  <div id="elabel">ENERGY</div>
 </div>
 
 <div class="hud" id="topright">
@@ -278,9 +261,9 @@ const OLDKEYS = ["pixelbouncer.v3"];           // carry a run across the rename
 // ---- Descent -------------------------------------------------------------
 // Clearing a stratum does not wipe your progress, it moves you down to a new one.
 // Rock gets harder and richer each time; what you carry is Residue and the meta tree.
-const STRAT_HP  = 3.2;                         // block HP multiplier per stratum
-const STRAT_VAL = 2.9;                         // ore value multiplier per stratum
-const DESCEND_MIN_BLOCKS = 40000;              // ~4% of the board, so it cannot be farmed
+const STRAT_HP  = 1.55;                         // block HP multiplier per stratum
+const STRAT_VAL = 1.8;                         // ore value multiplier per stratum
+const DESCEND_MIN_DEPTH = 60;                  // a marker you pass, not a map you exhaust
 const stratSeed = n => SEED + n * 7919;
 const stratHP   = () => Math.pow(STRAT_HP,  S.stratum - 1);
 const stratVal  = () => Math.pow(STRAT_VAL, S.stratum - 1);
@@ -293,8 +276,8 @@ const MONO_COUNT   = 16;
 // A flat exponential (pow^d) could not separate the two ends: raising it to slow the
 // late game slowed the opening just as much. Putting the depth inside a power law
 // makes the curve accelerate — nearly flat near the origin, very steep at the rim.
-//   r60 ~1.6x   r180 ~9x   r400 ~500x   r560 ~17000x
-const DEPTH_K = 0.0019, DEPTH_E = 1.35;
+//   Tuned so a run stalls out around 25-30 min; you descend, you do not exhaust it.
+const DEPTH_K = 0.0040, DEPTH_E = 1.35;
 const depthMul = d => Math.exp(DEPTH_K * Math.pow(d, DEPTH_E));
 
 //--------------------------------------------------------------- tier table
@@ -320,7 +303,7 @@ const ORE_LO = 4, ORE_HI = 9;                 // tiers that count as spendable o
 const CORECH = [0,0,0,0.00004,0.00012,0.0003,0.0008,0.0022,0.006,0.02,0.5,0];
 
 //--------------------------------------------------------------- world data
-let tier, dmg, lit, monoId;
+let tier, dmg, lit, monoId;      // dmg is Float64: block HP exceeds Uint32 at depth
 const poison = new Map();
 
 const LITMUL = [0.10, 0.34, 0.66, 1.0];
@@ -379,14 +362,14 @@ const POWERS = [
   { k:"split",   name:"Fissure Core",   desc:"Impacts sometimes split off a temporary shard ball." },
   { k:"chain",   name:"Arc Conductor",  desc:"Every impact arcs extra damage into nearby rock." },
   { k:"magnet",  name:"Lodestone",      desc:"Balls curve toward unmined ore." },
-  { k:"solar",   name:"Sunwell",        desc:"Energy regeneration +50%." },
+  { k:"solar",   name:"Sunwell",        desc:"Balls build Momentum twice as fast." },
   { k:"pierce",  name:"Phase Edge",     desc:"Balls occasionally pass through a cell instead of bouncing." },
   { k:"deton",   name:"Detonator",      desc:"Every 12th impact of a ball is a massive blast." },
   { k:"prosp",   name:"Prospector's Eye",desc:"Core drop chance doubled." },
   { k:"veloc",   name:"Overdrive",      desc:"All balls travel 60% faster." },
   { k:"greed",   name:"Midas Vein",     desc:"All ore is worth 2x diamonds." },
   { k:"tough",   name:"Rock Reader",    desc:"Ore blocks take 2x damage." },
-  { k:"cheap",   name:"Flux Regulator", desc:"Bounces cost 25% less energy." },
+  { k:"cheap",   name:"Twin Strike",    desc:"Every impact lands a second hit for half damage." },
   { k:"swarm2",  name:"Hive Sigil",     desc:"+3 balls of every colour." },
   { k:"poison2", name:"Blight Engine",  desc:"Poison ticks twice as hard and spreads freely." },
   { k:"blast2",  name:"Shockwave Ring", desc:"Smash blasts are 60% wider." },
@@ -398,7 +381,7 @@ const hasPower = k => !!S.powers[k];
 //--------------------------------------------------------------- generation
 function generate() {
   tier   = new Uint8Array(GRID * GRID);
-  dmg    = new Uint32Array(GRID * GRID);
+  dmg    = new Float64Array(GRID * GRID);
   monoId = new Uint8Array(GRID * GRID);
 
   for (let y = 0; y < GRID; y++) {
@@ -442,7 +425,9 @@ function generate() {
 }
 
 function cellHP(x, y, t) {
-  if (t === T_BED) return hasPower("solvent") ? 40000 * depthMul(500) * stratHP() : Infinity;
+  // pegged to the toughest ore at the rim rather than an arbitrary constant, so it
+  // stays a final wall instead of drifting out of reach when the depth curve changes
+  if (t === T_BED) return hasPower("solvent") ? TIERS[9].hp * 2.5 * depthMul(520) * stratHP() : Infinity;
   const d = Math.hypot(x - CX, y - CY);
   return Math.ceil(TIERS[t].hp * depthMul(d) * stratHP());
 }
@@ -458,7 +443,7 @@ function cellVal(x, y, t) {
 // makes exploration directed: you cannot upgrade Smash until you reach red rock.
 const BR = {
   core  : { col:"#f0862a", name:"CORE",       ore:4 },   // Amber,    from r18
-  energy: { col:"#e8d43a", name:"ENERGY",     ore:5 },   // Sulfur,   from r80
+  energy: { col:"#e8d43a", name:"MOMENTUM",   ore:5 },   // Sulfur,   from r80
   red   : { col:"#e83c3c", name:"SMASH",      ore:6 },   // Cinnabar, from r170
   blue  : { col:"#3ac8f0", name:"DRILL",      ore:7 },   // Azurite,  from r270
   green : { col:"#3edc52", name:"POISON",     ore:8 },   // Verdite,  from r370
@@ -485,12 +470,13 @@ const UPG = [
   { id:"crit",  br:"core", name:"Fracture",    max:12, cost:l=>320*Math.pow(1.9,l),  ore:og(160,1.7,1),
     desc:"Chance an impact deals 9x damage.", fmt:l=>(l*3)+"%" },
 
-  { id:"emax",  br:"energy", name:"Capacity",     max:24, cost:l=>26*Math.pow(1.6,l), ore:og(30,1.5,3),
-    desc:"Maximum stored energy — how long a run lasts.", fmt:l=>(120+l*55) },
-  { id:"eregen",br:"energy", name:"Regeneration", max:26, cost:l=>44*Math.pow(1.62,l),ore:og(50,1.55,3),
-    desc:"Energy per second, online or off. Your hard throughput limit.", fmt:l=>(4+l*1.2).toFixed(1)+"/s" },
-  { id:"eeff",  br:"energy", name:"Efficiency",   max:16, cost:l=>110*Math.pow(1.8,l),ore:og(90,1.65,2),
-    desc:"Cuts the energy each bounce costs.", fmt:l=>"-"+Math.round((1-Math.pow(.965,l))*100)+"%" },
+  { id:"momentum",br:"energy", name:"Momentum",   max:20, cost:l=>40*Math.pow(1.62,l), ore:og(40,1.55,3),
+    desc:"Balls build speed the further they fly without hitting anything. Worth most in a wide cavern.",
+    fmt:l=>"up to x"+(1+l*1.05).toFixed(1) },
+  { id:"rebound",br:"energy", name:"Rebound",     max:16, cost:l=>90*Math.pow(1.7,l),  ore:og(70,1.6,2),
+    desc:"Chance a bounce lands a second free hit.", fmt:l=>(l*4)+"%" },
+  { id:"force",  br:"energy", name:"Impact Force",max:18, cost:l=>70*Math.pow(1.66,l), ore:og(60,1.58,2),
+    desc:"Flat multiplier on all impact damage.", fmt:l=>"x"+Math.pow(1.18,l).toFixed(2) },
 
   { id:"redball",br:"red", name:"Smash Ball",   max:1,  cost:()=>700,                ore:()=>60, ball:true,
     desc:"Detonates the rock around every impact." },
@@ -529,8 +515,8 @@ const UPG = [
 
   { id:"overch", br:"prime", name:"Overcharge",  max:14, cur:"core", cost:l=>Math.ceil(2*Math.pow(1.42,l)),
     desc:"Multiplies all impact damage.", fmt:l=>"x"+Math.pow(1.22,l).toFixed(2) },
-  { id:"reactor",br:"prime", name:"Core Reactor",max:12, cur:"core", cost:l=>Math.ceil(3*Math.pow(1.45,l)),
-    desc:"Flat boost to energy regeneration.", fmt:l=>"+"+(l*1.2).toFixed(1)+"/s" },
+  { id:"reactor",br:"prime", name:"Kinetic Core", max:12, cur:"core", cost:l=>Math.ceil(3*Math.pow(1.45,l)),
+    desc:"Permanent ball speed multiplier.", fmt:l=>"x"+Math.pow(1.18,l).toFixed(2) },
   { id:"swarm",  br:"prime", name:"Swarm",       max:10, cur:"core", cost:l=>Math.ceil(4*Math.pow(1.5,l)),
     desc:"Two more balls of every colour per level.", fmt:l=>"+"+(l*2) },
   { id:"prosp",  br:"prime", name:"Prospector",  max:12, cur:"core", cost:l=>Math.ceil(3*Math.pow(1.45,l)),
@@ -541,8 +527,8 @@ const UPGBY = {}; UPG.forEach(u => UPGBY[u.id] = u);
 //===================================================================== forge
 // Modules cost mixed raw ore, so every tier stays useful long after its branch is done.
 const MODS = [
-  { id:"coil",   name:"Resonance Coil",  max:8,  ores:{6:220, 4:160},
-    desc:"Each level cuts bounce energy cost by 1.5%.", eff:l=>"-"+Math.round((1-Math.pow(.985,l))*100)+"%" },
+  { id:"coil",   name:"Impact Prism",    max:8,  ores:{6:220, 4:160},
+    desc:"Each level adds 12% to all impact damage.", eff:l=>"x"+(1+l*0.12).toFixed(2) },
   { id:"lens",   name:"Fracture Lens",   max:8,  ores:{3:400, 8:120},
     desc:"Each level adds 25% to Fracture crit damage.", eff:l=>"x"+(9*(1+l*.25)).toFixed(1) },
   { id:"vein",   name:"Vein Sense",      max:10, ores:{4:300, 5:220},
@@ -574,8 +560,8 @@ const META = [
     desc:"Arrive holding diamonds and raw ore.", fmt:l=>"◆"+fmt(400*Math.pow(2.4,l))+" +ore" },
   { id:"roots",   name:"Deep Roots",    max:20, cost:l=>Math.ceil(25*Math.pow(1.5,l)),
     desc:"Permanent damage multiplier, every stratum.", fmt:l=>"x"+Math.pow(1.25,l).toFixed(2) },
-  { id:"reservoir",name:"Reservoir",    max:16, cost:l=>Math.ceil(28*Math.pow(1.52,l)),
-    desc:"Permanent energy regeneration multiplier.", fmt:l=>"x"+Math.pow(1.22,l).toFixed(2) },
+  { id:"reservoir",name:"Velocity",      max:16, cost:l=>Math.ceil(28*Math.pow(1.52,l)),
+    desc:"Permanent ball speed multiplier, every stratum.", fmt:l=>"x"+Math.pow(1.14,l).toFixed(2) },
   { id:"survey",  name:"Survey",        max:1,  cost:()=>200,
     desc:"Monoliths are charted the moment you arrive, however deep." },
   { id:"assay",   name:"Assay",         max:16, cost:l=>Math.ceil(24*Math.pow(1.5,l)),
@@ -584,14 +570,13 @@ const META = [
 const METABY = {}; META.forEach(m => METABY[m.id] = m);
 const MT = id => (S.meta && S.meta[id]) || 0;
 
-// Residue scales with how much of the stratum you took apart, how deep you reached,
-// and how many Monoliths you cracked -- so leaving early is viable, not optimal.
+// Keyed to one number you can actually see: how deep you got. "I reached r340 last
+// run, this time r410" is a decision you can reason about; a four-term formula is not.
 function residueGain() {
-  if (S.minedCount < DESCEND_MIN_BLOCKS) return 0;
-  const base  = Math.pow(S.minedCount / 800, 0.62);
-  const depth = 1 + S.maxDepth / 260;
-  const mono  = 1 + S.monoCracked * 0.12;
-  return Math.floor(base * depth * mono * Math.pow(1.9, S.stratum - 1));
+  if (S.maxDepth < DESCEND_MIN_DEPTH) return 0;
+  const base = Math.pow(S.maxDepth / 25, 1.7);
+  const mono = 1 + S.monoCracked * 0.10;
+  return Math.floor(base * mono * Math.pow(1.9, S.stratum - 1));
 }
 
 //================================================================ game state
@@ -599,7 +584,7 @@ const S = {
   dia:0, cores:0, lv:{}, mods:{}, powers:{},
   ore:[0,0,0,0,0,0,0,0,0,0,0,0],        // spendable stock, by tier
   oreLife:[0,0,0,0,0,0,0,0,0,0,0,0],    // lifetime mined, for the codex
-  minedCount:0, energy:150, maxDepth:0, rate:0,
+  minedCount:0, maxDepth:0, rate:0,
   monoLeft:{}, monoCracked:0, bestRate:0, playtime:0,
   // --- persists across descents ---
   stratum:1, residue:0, meta:{}, strata:[], totalPlaytime:0,
@@ -611,15 +596,25 @@ const L    = id => S.lv[id] || 0;
 const ML   = id => S.mods[id] || 0;
 const purse= cur => cur === "core" ? S.cores : S.dia;
 
-const eMax    = () => 120 + L("emax") * 55;
-const eRegen  = () => (4 + L("eregen") * 1.2 + L("reactor") * 1.2)
-  * (hasPower("solar") ? 1.5 : 1) * Math.pow(1.22, MT("reservoir"));
-const eCost   = () => 0.75 * Math.pow(0.965, L("eeff")) * Math.pow(0.985, ML("coil")) * (hasPower("cheap") ? .75 : 1);
+
+
+
 const baseDmg = () => Math.pow(1.34, L("dmg")) * Math.pow(1.22, L("overch"))
-  * (1 + ML("ballast") * .07) * Math.pow(1.25, MT("roots"));
+  * (1 + ML("ballast") * .07) * Math.pow(1.25, MT("roots"))
+  * Math.pow(1.18, L("force")) * (1 + ML("coil") * .12);
 // Speed must scale exponentially: bounce rate falls as 1/cavern-radius, so linear
 // speed gains get swallowed as the cavern widens and the game grinds to a halt.
-const ballSpd = () => 55 * Math.pow(1.26, L("speed")) * (hasPower("veloc") ? 1.6 : 1);
+const ballSpd = () => 55 * Math.pow(1.26, L("speed")) * (hasPower("veloc") ? 1.6 : 1)
+  * Math.pow(1.18, L("reactor")) * Math.pow(1.14, MT("reservoir"));
+// Momentum: a ball accelerates the further it flies without an impact, which is
+// exactly the regime where a widening cavern used to starve throughput.
+const MOM_SPAN = 80;
+function momMul(b) {
+  const lv = L("momentum");
+  if (!lv) return 1;
+  const ramp = Math.min(3, (b.stall || 0) / MOM_SPAN) * (hasPower("solar") ? 2 : 1);
+  return 1 + lv * 0.35 * Math.min(3, ramp);
+}
 const perType = () => 1 + L("count") + L("swarm") * 2 + (hasPower("swarm2") ? 3 : 0) + MT("fleet");
 const critCh  = () => L("crit") * .03;
 const critMul = () => 9 * (1 + ML("lens") * .25);
@@ -756,9 +751,8 @@ function onImpact(b, hx, hy) {
   if (ML("echo") && Math.random() < ML("echo")*.04) hitCell(hx, hy, d);
   if (hasPower("split") && Math.random() < .04) spawnShard(b);
 
-  const c = eCost();
-  S.energy -= c; spentAcc += c;
-  if (S.energy <= 0) { S.energy = 0; parkAll(); toast("OUT OF ENERGY — BALLS PARKED"); }
+  if (hasPower("cheap")) hitCell(hx, hy, d * .5);          // Twin Strike
+  if (L("rebound") && Math.random() < L("rebound") * .04) hitCell(hx, hy, d);
 }
 
 function spawnShard(b) {
@@ -818,7 +812,7 @@ function stepBall(b, dt) {
       const n = Math.hypot(b.vx,b.vy)||1; b.vx = b.vx/n*sp; b.vy = b.vy/n*sp; }
   }
 
-  const speed = Math.hypot(b.vx, b.vy) || 1;
+  const speed = (Math.hypot(b.vx, b.vy) || 1) * momMul(b);
   let remain = speed * dt;
   const ux = b.vx/speed, uy = b.vy/speed;
 
@@ -1039,7 +1033,7 @@ function draw(dt) {
   }
   ctx.globalCompositeOperation = "source-over";
 
-  if (aim !== null && idleOf(selKind) && S.energy > 5) {
+  if (aim !== null && idleOf(selKind)) {
     const [X,Y] = toS(CX+.5, CY+.5);
     ctx.strokeStyle = KINDCOL[selKind]; ctx.globalAlpha = .8;
     ctx.setLineDash([4,6]); ctx.lineWidth = 1.5;
@@ -1072,15 +1066,14 @@ function draw(dt) {
 
 //===================================================================== loop
 let last = performance.now(), aim = null;
-let rateT = 0, rateMark = 0, spentAcc = 0, spendRate = 0;
+let rateT = 0, rateMark = 0;
 function tickRate(dt) {
   rateT += dt; S.playtime += dt;
   if (rateT < 1) return;
   const obs = (S.minedCount - rateMark)/rateT;
   S.rate = S.rate ? S.rate*.75 + obs*.25 : obs;
   if (S.rate > S.bestRate) S.bestRate = S.rate;
-  spendRate = spendRate*.5 + (spentAcc/rateT)*.5;
-  spentAcc = 0; rateMark = S.minedCount; rateT = 0;
+  rateMark = S.minedCount; rateT = 0;
 }
 let autoT = 0, autoCycle = 0;
 // Auto-launches always pick a random heading. Steering them at the richest rock
@@ -1091,7 +1084,6 @@ function tickAuto(dt) {
   autoT += dt;
   if (autoT < autoInt()) return;
   autoT = 0;
-  if (S.energy < eMax()*.22) return;      // let the tank build so relaunches last
   for (let k=0;k<4;k++) {
     const kk = (autoCycle+k)%4;
     if (owned(kk) && idleOf(kk)) { launchOne(kk, bestAngle()); autoCycle = (kk+1)%4; return; }
@@ -1108,8 +1100,7 @@ function frame(now) {
       const b = balls[i];
       if (b.temp) { b.life -= dt; if (b.life <= 0) balls.splice(i,1); }
     }
-    S.energy = Math.min(eMax(), S.energy + eRegen()*dt);
-    tickPoison(dt); tickAuto(dt); tickRate(dt);
+      tickPoison(dt); tickAuto(dt); tickRate(dt);
   }
 
   if (!cam.manual) fitCamera();
@@ -1140,14 +1131,7 @@ function updateHUD() {
   $("ballct").textContent = flying().length+" / "+balls.length;
   $("depth").textContent = Math.round(S.maxDepth);
   $("monoct").textContent = S.monoCracked+"/"+MONO_COUNT;
-  const pct = S.energy/eMax()*100;
-  $("efill").style.width = pct+"%";
-  $("energywrap").classList.toggle("dry", S.energy < eCost()*2);
-  const net = eRegen() - spendRate;
-  $("elabel").innerHTML = Math.floor(S.energy)+" / "+eMax()
-    + '  <span style="opacity:.55">+'+eRegen().toFixed(1)+'</span>'
-    + '  <span style="color:'+(net<0?"#f88":"#8f8")+'">'+(net<0?"":"+")+net.toFixed(1)+'/s</span>';
-  $("prompt").classList.toggle("on", S.minedCount < 30 && !!idleOf(selKind) && S.energy > 5);
+  $("prompt").classList.toggle("on", S.minedCount < 30 && !!idleOf(selKind));
   drawDock();
   if (++hudAcc % 20 === 0) {
     let h = "";
@@ -1369,7 +1353,6 @@ function pinchSpan() {
   return a.length < 2 ? 0 : Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y);
 }
 function fire(e) {
-  if (S.energy < 5) { toast("NEED ENERGY"); return; }
   if (!idleOf(selKind)) { toast(KINDNAME[selKind].toUpperCase()+" — NONE READY"); return; }
   launchOne(selKind, aimAt(e));
 }
@@ -1523,7 +1506,7 @@ function save() {
     localStorage.setItem(SAVEKEY, JSON.stringify({
       v:4, dia:S.dia, cores:S.cores, rate:S.rate, lv:S.lv, mods:S.mods, powers:S.powers,
       stratum:S.stratum, residue:S.residue, meta:S.meta, strata:S.strata, tpt:S.totalPlaytime,
-      ore:S.ore, oreLife:S.oreLife, mc:S.minedCount, e:S.energy, md:S.maxDepth,
+      ore:S.ore, oreLife:S.oreLife, mc:S.minedCount, md:S.maxDepth,
       br:S.bestRate, pt:S.playtime, mono:S.monoLeft, mcr:S.monoCracked,
       t:Date.now(), mined:rle(mined), dm
     }));
@@ -1576,7 +1559,6 @@ function load() {
       }
       m.left = n; S.monoLeft[m.id] = n;
     }
-    S.energy = Math.min(eMax(), (d.e||0) + eRegen()*awaySecs(d));
   } catch (err) { console.warn("load failed", err); }
 }
 
@@ -1612,9 +1594,8 @@ function newStratum() {
   applyHeadStart();
   relight(); paintAll();
   syncRoster(); drawDock();
-  S.energy = eMax();
   cam.manual = false; fitCamera(); cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz;
-  rateT = 0; rateMark = 0; spentAcc = 0; spendRate = 0; autoT = 0; autoCycle = 0;
+  rateT = 0; rateMark = 0; autoT = 0; autoCycle = 0;
   aim = null; hudAcc = 0;
   refreshTree(); refreshForge();
 }
@@ -1660,15 +1641,16 @@ function buildDescent() {
 
 function refreshDescent() {
   const gain = residueGain();
-  const need = Math.max(0, DESCEND_MIN_BLOCKS - S.minedCount);
+  const need = Math.max(0, DESCEND_MIN_DEPTH - Math.round(S.maxDepth));
   $("dhead").innerHTML =
       '<div class="drow"><span>Stratum</span><b>'+S.stratum+'</b></div>'
     + '<div class="drow"><span>Residue held</span><b>◇ '+fmt(S.residue)+'</b></div>'
+    + '<div class="drow"><span>Depth reached</span><b>r'+Math.round(S.maxDepth)+'</b></div>'
     + '<div class="drow"><span>This stratum cleared</span><b>'
       + (S.minedCount/(GRID*GRID)*100).toFixed(2)+'%</b></div>'
     + '<div class="drow"><span>Residue on descent</span><b style="color:#d9bcff">◇ '
       + fmt(gain)+'</b></div>'
-    + (need > 0 ? '<div class="dnote">Mine '+fmt(need)+' more blocks before you can descend.</div>'
+    + (need > 0 ? '<div class="dnote">Reach depth r'+DESCEND_MIN_DEPTH+' before you can descend.</div>'
                 : '<div class="dnote">Descending rebuilds the arena and resets this run’s '
                   + 'upgrades, ore and Forge. Residue, the tree below, and every Monolith power '
                   + 'you have earned are kept.</div>');
@@ -1712,9 +1694,8 @@ function resetGame() {
   bb.x0 = CX-8; bb.y0 = CY-8; bb.x1 = CX+8; bb.y1 = CY+8;
   relight(); paintAll();
   syncRoster(); drawDock();
-  S.energy = eMax();
   cam.manual = false; fitCamera(); cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz;
-  rateT = 0; rateMark = 0; spentAcc = 0; spendRate = 0; autoT = 0; autoCycle = 0;
+  rateT = 0; rateMark = 0; autoT = 0; autoCycle = 0;
   aim = null; hudAcc = 0;
   try { refreshTree(); refreshForge(); }
   catch (err) { console.warn("panel refresh failed", err); }
