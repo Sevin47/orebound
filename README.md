@@ -21,6 +21,7 @@ Open `index.html` in any browser. No build step, no dependencies.
 | `U` | Upgrades |
 | `C` | Forge |
 | `K` | Codex |
+| `L` | Lodestone Chamber |
 | `Space` | Recall every ball |
 | `D` | Descent and the meta tree |
 | `Esc` / `R` | Start menu (pauses the game) |
@@ -137,18 +138,38 @@ bank the Residue, and go again. Depth reached at the 30-minute mark:
 
 Later strata reach those depths far faster — stratum 6 passes r417 in five minutes.
 
-## Monoliths, Bedrock, Codex
+## The Lodestone Chamber
 
-Sixteen Monoliths sit on a spiral from r120 to r450, rendered as glowing landmarks
-visible through unmined dark, with off-screen edge markers pointing the way. Each has
-enormous HP and grants a unique **mechanic** when broken — not a percentage. Arc
-Conductor makes impacts chain. Lodestone curves balls toward ore. Phase Edge lets
-balls pass through rock. The sixteenth is **Bedrock Solvent**, which unseals the
-outer shell and makes 100% completion possible.
+Lodestones are no longer buried in the arena. Descending banks a **Lodestone
+Attempt**, and you spend attempts whenever you like — so a fast stratum never forces
+a mini-game on you, and leaving the game idle never blocks a descent.
 
-Offline mining deliberately skips Monoliths and Bedrock — those must be earned live.
+Open the chamber with `L`. You get a timer and a volley of balls; click to fire, and
+they keep ricocheting off the chamber walls until the clock runs out. Damage banks
+between attempts, so a Lodestone takes several visits to shatter. Break one and it
+grants its permanent power, then the next — tougher — Lodestone unlocks. All 16 in
+sequence.
 
-The **Codex** (`K`) tracks ore discovered, Monolith progress, and records.
+Residue buys the chamber directly:
+
+| Node | Effect |
+|---|---|
+| Chamber Time | Seconds per attempt |
+| Volley | Balls you may fire |
+| Chamber Force | Damage per strike |
+| Munitions | Unlocks Smash, then Drill, then Poison balls in the chamber |
+
+Smash hits hardest, so Munitions changes how you aim rather than just adding numbers.
+
+Bedrock is gone entirely — the outer shell existed to be a final wall, and under the
+current pacing you are never meant to exhaust a stratum. Its reward slot became
+**Anchor Stone** (+40% Residue per descent), so all 16 Lodestones grant something real.
+
+The arena is now pure rock, edge to edge.
+
+## Codex
+
+Tracks ore discovered, Lodestone progress, cleared strata and records.
 
 ## Momentum (there is no energy)
 

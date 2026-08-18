@@ -14,8 +14,9 @@
     font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; color:#cfe8dc;
     overscroll-behavior:none; -webkit-tap-highlight-color:transparent;
     -webkit-user-select:none; user-select:none; touch-action:none; }
-  canvas { display:block; position:absolute; inset:0; image-rendering:pixelated;
+  #c { display:block; position:absolute; inset:0; image-rendering:pixelated;
     cursor:crosshair; touch-action:none; }
+  #cc { display:block; position:static; }
 
   .hud { position:absolute; pointer-events:none; user-select:none; text-shadow:0 0 6px #000; }
 
@@ -123,6 +124,22 @@
   #boot { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     background:#040806; z-index:99; font-size:13px; letter-spacing:3px; color:#6d9 }
 
+  #chamber { position:absolute; inset:0; display:none; flex-direction:column;
+    align-items:center; justify-content:center; gap:10px; background:rgba(3,6,10,.97); z-index:70 }
+  #chamber.on { display:flex }
+  #cc { border:2px solid #7ad; box-shadow:0 0 40px -10px #7ad9; background:#050a12;
+    max-width:min(88vw,88vh); max-height:min(88vw,88vh); touch-action:none; cursor:crosshair }
+  #chhead { font-size:12px; letter-spacing:2px; text-align:center; line-height:1.7;
+    max-width:min(88vw,88vh) }
+  #chhead b { color:#9df; font-weight:normal } #chhead i { font-style:normal; opacity:.5 }
+  #chbar { width:622px; max-width:min(88vw,88vh); height:9px; border:1px solid #2a4a5c; background:#08121a; margin-top:5px }
+  #chbar div { height:100%; background:linear-gradient(90deg,#3ad,#9ef); width:0% }
+  #chfoot { font-size:11px; opacity:.75; text-align:center; min-height:34px; line-height:1.6;
+    max-width:min(88vw,88vh); white-space:pre-line }
+  #chexit { background:none; border:1px solid #7ad; color:#9df; padding:9px 26px;
+    font-family:inherit; font-size:11px; letter-spacing:2px; cursor:pointer }
+  #chexit:hover { background:#7ad2 }
+
   #menu { position:absolute; inset:0; display:none; align-items:center; justify-content:center;
     background:rgba(4,8,6,.93); z-index:80 }
   #menu.on { display:flex }
@@ -206,19 +223,20 @@
   <div>rate <b id="rate">0/s</b></div>
   <div>balls <b id="ballct">0</b></div>
   <div>depth <b id="depth">0</b></div>
-  <div>monoliths <b id="monoct">0/16</b></div>
+  <div>lodestones <b id="monoct">0/16</b></div>
 </div>
 
 <div class="hud" id="prompt">CLICK TO AIM &amp; LAUNCH</div>
 <div id="dock"></div>
 <div class="hud" id="toast"></div>
-<div class="hud" id="hint">[1-4] ball · [click] fire · [drag] pan · [wheel] zoom · [F] refit · [U] upgrades · [C] forge · [K] codex · [space] recall · [Esc] menu</div>
+<div class="hud" id="hint">[1-4] ball · [click] fire · [drag] pan · [wheel] zoom · [F] refit · [U] upgrades · [C] forge · [K] codex · [L] lodestone · [space] recall · [Esc] menu</div>
 
 <div id="mobibar">
   <button data-a="tree">UPGRADES</button>
   <button data-a="forge">FORGE</button>
   <button data-a="codex">CODEX</button>
   <button data-a="descent">DESCEND</button>
+  <button data-a="lode">LODESTONE</button>
   <button data-a="recall">RECALL</button>
   <button data-a="menu">MENU</button>
 </div>
@@ -231,6 +249,13 @@
   <div id="metagrid"></div>
 </div>
 <div class="panel" id="codex"><div class="ptitle">CODEX — [K] TO CLOSE</div><div id="codexgrid"></div></div>
+
+<div id="chamber">
+  <div id="chhead"></div>
+  <canvas id="cc" width="620" height="620"></canvas>
+  <div id="chfoot"></div>
+  <button id="chexit">LEAVE CHAMBER</button>
+</div>
 
 <div id="menu"><div class="mcard">
   <div class="mtitle">OREBOUND</div>
@@ -267,7 +292,6 @@ const DESCEND_MIN_DEPTH = 60;                  // a marker you pass, not a map y
 const stratSeed = n => SEED + n * 7919;
 const stratHP   = () => Math.pow(STRAT_HP,  S.stratum - 1);
 const stratVal  = () => Math.pow(STRAT_VAL, S.stratum - 1);
-const BEDROCK_EDGE = 16;              // thickness of the immune outer shell
 const MONO_COUNT   = 16;
 
 // The single most important balance constant. Block HP and ore value both scale by
@@ -281,7 +305,6 @@ const DEPTH_K = 0.0040, DEPTH_E = 1.35;
 const depthMul = d => Math.exp(DEPTH_K * Math.pow(d, DEPTH_E));
 
 //--------------------------------------------------------------- tier table
-const T_MONO = 10, T_BED = 11;
 const TIERS = [
   null,
   { name:"Dust",     hp:1,    val:1,    col:[ 74, 78, 76] },
@@ -303,7 +326,7 @@ const ORE_LO = 4, ORE_HI = 9;                 // tiers that count as spendable o
 const CORECH = [0,0,0,0.00004,0.00012,0.0003,0.0008,0.0022,0.006,0.02,0.5,0];
 
 //--------------------------------------------------------------- world data
-let tier, dmg, lit, monoId;      // dmg is Float64: block HP exceeds Uint32 at depth
+let tier, dmg, lit;              // dmg is Float64: block HP exceeds Uint32 at depth
 const poison = new Map();
 
 const LITMUL = [0.10, 0.34, 0.66, 1.0];
@@ -345,15 +368,6 @@ const fbm = (x, y, s) => vnoise(x, y, s) * .55 + vnoise(x*2.1, y*2.1, s+7) * .3 
 // Rebuilt whenever the stratum changes, so no two strata share a map. Radius stays
 // inside GRID/2 minus the bedrock shell, or the outermost monoliths land off-board
 // with zero cells and their powers become unobtainable.
-const MONOS = [];
-function rebuildMonos() {
-  MONOS.length = 0;
-  for (let i = 0; i < MONO_COUNT; i++) {
-    const a = i * 2.39996 + (S.stratum - 1) * 0.7, r = 120 + i * 22;
-    MONOS.push({ id:i+1, x:Math.round(CX + Math.cos(a)*r), y:Math.round(CY + Math.sin(a)*r),
-                 rad: 4 + (i % 3), total:0, left:0 });
-  }
-}
 
 
 // Unique permanent powers. These are mechanics, not percentages — that is the point
@@ -374,7 +388,7 @@ const POWERS = [
   { k:"poison2", name:"Blight Engine",  desc:"Poison ticks twice as hard and spreads freely." },
   { k:"blast2",  name:"Shockwave Ring", desc:"Smash blasts are 60% wider." },
   { k:"drill2",  name:"Boring Head",    desc:"Drill balls pierce 4 extra cells." },
-  { k:"solvent", name:"Bedrock Solvent",desc:"The outer Bedrock shell can finally be broken." },
+  { k:"anchor",  name:"Anchor Stone",   desc:"Every descent grants +40% Residue." },
 ];
 const hasPower = k => !!S.powers[k];
 
@@ -382,14 +396,10 @@ const hasPower = k => !!S.powers[k];
 function generate() {
   tier   = new Uint8Array(GRID * GRID);
   dmg    = new Float64Array(GRID * GRID);
-  monoId = new Uint8Array(GRID * GRID);
 
   for (let y = 0; y < GRID; y++) {
     for (let x = 0; x < GRID; x++) {
       const i = y * GRID + x;
-      if (x < BEDROCK_EDGE || y < BEDROCK_EDGE || x >= GRID - BEDROCK_EDGE || y >= GRID - BEDROCK_EDGE) {
-        tier[i] = T_BED; continue;
-      }
       const dx = x - CX, dy = y - CY, d = Math.sqrt(dx*dx + dy*dy);
       if (d < 7) { tier[i] = 0; continue; }
 
@@ -408,26 +418,9 @@ function generate() {
       tier[i] = t;
     }
   }
-  // stamp monoliths last so they always win the cell
-  for (const m of MONOS) {
-    m.total = 0;
-    for (let oy = -m.rad; oy <= m.rad; oy++)
-      for (let ox = -m.rad; ox <= m.rad; ox++) {
-        if (Math.hypot(ox, oy) > m.rad) continue;
-        const x = m.x + ox, y = m.y + oy;
-        if (x < 0 || y < 0 || x >= GRID || y >= GRID) continue;
-        const i = y * GRID + x;
-        if (tier[i] === T_BED) continue;
-        tier[i] = T_MONO; monoId[i] = m.id; m.total++;
-      }
-    m.left = m.total;
-  }
 }
 
 function cellHP(x, y, t) {
-  // pegged to the toughest ore at the rim rather than an arbitrary constant, so it
-  // stays a final wall instead of drifting out of reach when the depth curve changes
-  if (t === T_BED) return hasPower("solvent") ? TIERS[9].hp * 2.5 * depthMul(520) * stratHP() : Infinity;
   const d = Math.hypot(x - CX, y - CY);
   return Math.ceil(TIERS[t].hp * depthMul(d) * stratHP());
 }
@@ -562,21 +555,113 @@ const META = [
     desc:"Permanent damage multiplier, every stratum.", fmt:l=>"x"+Math.pow(1.25,l).toFixed(2) },
   { id:"reservoir",name:"Velocity",      max:16, cost:l=>Math.ceil(28*Math.pow(1.52,l)),
     desc:"Permanent ball speed multiplier, every stratum.", fmt:l=>"x"+Math.pow(1.14,l).toFixed(2) },
-  { id:"survey",  name:"Survey",        max:1,  cost:()=>200,
-    desc:"Monoliths are charted the moment you arrive, however deep." },
+  { id:"chtime",  name:"Chamber Time",  max:12, cost:l=>Math.ceil(26*Math.pow(1.5,l)),
+    desc:"Seconds per Lodestone attempt.", fmt:l=>(18+l*6)+"s" },
+  { id:"chvolley",name:"Volley",        max:12, cost:l=>Math.ceil(30*Math.pow(1.55,l)),
+    desc:"Balls you may fire in a Lodestone attempt.", fmt:l=>(3+l) },
+  { id:"chforce", name:"Chamber Force", max:20, cost:l=>Math.ceil(22*Math.pow(1.48,l)),
+    desc:"Damage each strike on a Lodestone deals.", fmt:l=>fmt(20*Math.pow(1.32,l)) },
+  { id:"chtypes", name:"Munitions",     max:3,  cost:l=>Math.ceil(140*Math.pow(2.2,l)),
+    desc:"Unlocks Smash, Drill then Poison balls in the chamber. Smash hits hardest.",
+    fmt:l=>["Basic","+Smash","+Drill","+Poison"][l] },
   { id:"assay",   name:"Assay",         max:16, cost:l=>Math.ceil(24*Math.pow(1.5,l)),
     desc:"Permanent raw ore and Core yield multiplier.", fmt:l=>"x"+(1+l*0.3).toFixed(2) },
 ];
 const METABY = {}; META.forEach(m => METABY[m.id] = m);
+
+//========================================================= lodestone chamber
+// Descending banks an attempt. You spend attempts whenever you like, so a fast
+// stratum never forces a mini-game on you and idle play is never blocked.
+const LODE_BASE_HP = 900, LODE_GROWTH = 1.55;
+const lodeHP  = i => Math.round(LODE_BASE_HP * Math.pow(LODE_GROWTH, i));
+const lodeCur = () => Math.min(S.lodeIndex, MONO_COUNT - 1);
+const chTime  = () => 18 + MT("chtime") * 6;
+const chBalls = () => 3 + MT("chvolley");
+const chDmg   = () => 20 * Math.pow(1.32, MT("chforce")) * (1 + S.lodeIndex * 0.15);
+const chKinds = () => 1 + MT("chtypes");            // basic, smash, drill, poison
+const attemptGain = () => 1 + (hasPower("anchor") ? 0 : 0);
+
+const CH = { on:false, t:0, balls:[], fired:0, dealt:0, aim:0, done:false, msg:"" };
+
+function lodeStart() {
+  if (S.attempts <= 0 || S.lodeIndex >= MONO_COUNT) return false;
+  S.attempts--;
+  CH.on = true; CH.t = chTime(); CH.balls = []; CH.fired = 0;
+  CH.dealt = 0; CH.done = false; CH.msg = "";
+  paused = true;
+  $("chamber").classList.add("on");
+  return true;
+}
+function lodeFire(ang) {
+  if (!CH.on || CH.fired >= chBalls() || CH.t <= 0) return;
+  const kind = CH.fired % chKinds();
+  const sp = 210 + MT("chforce") * 8;
+  CH.balls.push({ x:0, y:0.62, vx:Math.cos(ang)*sp/500, vy:Math.sin(ang)*sp/500,
+                  kind, trail:[] });
+  CH.fired++;
+}
+function lodeEnd() {
+  CH.on = false;
+  S.lodeDmg += CH.dealt;
+  const hp = lodeHP(lodeCur());
+  if (S.lodeDmg >= hp) {
+    const p = POWERS[lodeCur()];
+    S.powers[p.k] = 1;
+    S.lodeIndex++; S.lodeDmg = 0;
+    syncRoster();
+    CH.msg = "LODESTONE SHATTERED\n" + p.name + " \u2014 " + p.desc;
+  } else {
+    CH.msg = "DEALT " + fmt(CH.dealt) + "  \u2014  " + fmt(hp - S.lodeDmg) + " REMAINING";
+  }
+  CH.done = true;
+  save();
+  refreshChamber();
+}
+function lodeExit() {
+  CH.on = false; CH.done = false;
+  $("chamber").classList.remove("on");
+  paused = false;
+  refreshChamber();
+}
+
+// simple square arena in normalised -1..1 space, lodestone at the centre
+function chamberStep(dt) {
+  if (!CH.on || CH.done) return;
+  CH.t -= dt;
+  for (const b of CH.balls) {
+    b.trail.push(b.x, b.y); if (b.trail.length > 24) b.trail.splice(0, 2);
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    if (b.x < -1) { b.x = -1; b.vx = -b.vx; } if (b.x > 1) { b.x = 1; b.vx = -b.vx; }
+    if (b.y < -1) { b.y = -1; b.vy = -b.vy; } if (b.y > 1) { b.y = 1; b.vy = -b.vy; }
+    const d = Math.hypot(b.x, b.y), R = 0.30;
+    if (d < R) {                                    // struck the lodestone
+      const nx = b.x/d, ny = b.y/d;
+      const p = b.vx*nx + b.vy*ny;
+      b.vx -= 2*p*nx; b.vy -= 2*p*ny;
+      b.x = nx*R*1.02; b.y = ny*R*1.02;
+      const mult = [1, 2.1, 1.5, 1.2][b.kind] || 1;
+      CH.dealt += chDmg() * mult;
+      chSpark(b.x, b.y, b.kind);
+    }
+  }
+  if (CH.t <= 0) lodeEnd();
+}
+const chSparks = [];
+function chSpark(x, y, kind) {
+  if (chSparks.length > 260) return;
+  for (let i = 0; i < 7; i++) {
+    const a = Math.random()*6.283, sp = .15+Math.random()*.5;
+    chSparks.push({ x, y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life:.4, t:0, kind });
+  }
+}
 const MT = id => (S.meta && S.meta[id]) || 0;
 
 // Keyed to one number you can actually see: how deep you got. "I reached r340 last
 // run, this time r410" is a decision you can reason about; a four-term formula is not.
 function residueGain() {
   if (S.maxDepth < DESCEND_MIN_DEPTH) return 0;
-  const base = Math.pow(S.maxDepth / 25, 1.7);
-  const mono = 1 + S.monoCracked * 0.10;
-  return Math.floor(base * mono * Math.pow(1.9, S.stratum - 1));
+  const base = Math.pow(S.maxDepth / 25, 1.7) * (hasPower("anchor") ? 1.4 : 1);
+  return Math.floor(base * Math.pow(1.9, S.stratum - 1));
 }
 
 //================================================================ game state
@@ -585,7 +670,9 @@ const S = {
   ore:[0,0,0,0,0,0,0,0,0,0,0,0],        // spendable stock, by tier
   oreLife:[0,0,0,0,0,0,0,0,0,0,0,0],    // lifetime mined, for the codex
   minedCount:0, maxDepth:0, rate:0,
-  monoLeft:{}, monoCracked:0, bestRate:0, playtime:0,
+  bestRate:0, playtime:0,
+  // --- Lodestone Chamber ---
+  attempts:0, lodeIndex:0, lodeDmg:0,
   // --- persists across descents ---
   stratum:1, residue:0, meta:{}, strata:[], totalPlaytime:0,
 };
@@ -674,37 +761,17 @@ function payout(x, y, t) {
   if (d > S.maxDepth) S.maxDepth = d;
 }
 
-function crackMonolith(m) {
-  m.left = 0;
-  S.monoLeft[m.id] = 0;
-  const p = POWERS[m.id - 1];
-  if (S.powers[p.k]) {                          // already earned: pay out instead
-    const r = Math.ceil(12 * Math.pow(1.9, S.stratum - 1));
-    S.residue += r; S.monoCracked++;
-    toast("MONOLITH BROKEN — +◇ " + fmt(r) + " RESIDUE");
-  } else if (!S.powers[p.k]) {
-    S.powers[p.k] = 1; S.monoCracked++;
-    syncRoster();
-    toast("MONOLITH BROKEN — " + p.name.toUpperCase() + "\n" + p.desc);
-    if (S.monoCracked === MONO_COUNT) setTimeout(() => toast("ALL MONOLITHS BROKEN — THE BEDROCK YIELDS"), 3000);
-  }
-}
 
 function hitCell(x, y, amount) {
   if (x < 0 || y < 0 || x >= GRID || y >= GRID) return;
   const i = y * GRID + x, t = tier[i];
   if (!t) return;
-  if (t === T_BED && !hasPower("solvent")) return;
   const hp = cellHP(x, y, t);
   if (t >= ORE_LO && t <= ORE_HI) amount *= oreDmgMul();
   dmg[i] += amount;
   if (dmg[i] >= hp) {
     tier[i] = 0; dmg[i] = 0; poison.delete(i);
     payout(x, y, t);
-    if (t === T_MONO) {
-      const m = MONOS[monoId[i] - 1];
-      if (m) { m.left--; S.monoLeft[m.id] = m.left; if (m.left <= 0) crackMonolith(m); }
-    }
     spawnSpark(x, y, TIERS[t].col, t >= 4 ? 6 : 2);
     stampLight(x, y, true);
     growBounds(x, y);
@@ -962,8 +1029,6 @@ function cellColor(i, t) {
   const hp = cellHP(i%GRID, (i/GRID)|0, t);
   let f = dmg[i] > 0 ? Math.max(.28, 1 - dmg[i]/hp*.72) : 1;
   f *= LITMUL[lit[i]];
-  if (t === T_MONO) f = Math.max(f, .82);            // landmarks glow through the dark
-  if (t === T_BED)  f = Math.max(f, .30);
   const p = poison.has(i) ? 1 : 0;
   const r = c[0]*f*(1-p*.55), g = c[1]*f + p*90, b = c[2]*f*(1-p*.55);
   return "rgb("+(r|0)+","+(g|0)+","+(b|0)+")";
@@ -973,7 +1038,7 @@ function paintAll() {
   for (let i=0;i<GRID*GRID;i++) {
     const t = tier[i];
     if (!t) continue;
-    if (!lit[i] && t !== T_MONO && t !== T_BED) continue;
+    if (!lit[i]) continue;
     octx.fillStyle = cellColor(i,t); octx.fillRect(i%GRID,(i/GRID)|0,1,1);
   }
 }
@@ -982,7 +1047,7 @@ function flushDirty() {
     const x=dirty[k], y=dirty[k+1];
     if (x<0||y<0||x>=GRID||y>=GRID) continue;
     const i = y*GRID+x, t = tier[i];
-    const show = t && (lit[i] || t===T_MONO || t===T_BED);
+    const show = t && lit[i];
     octx.fillStyle = show ? cellColor(i,t) : "#050b09";
     octx.fillRect(x,y,1,1);
   }
@@ -1044,21 +1109,6 @@ function draw(dt) {
     ctx.fillStyle = KINDCOL[selKind]; ctx.fillRect(X-2,Y-2,4,4);
   }
 
-  // uncracked monoliths get an off-screen marker so you know where to dig
-  for (const m of MONOS) {
-    if (m.left <= 0) continue;
-    let [X,Y] = toS(m.x, m.y);
-    const inside = X>10 && Y>10 && X<W-10 && Y<H-10;
-    if (!inside) {
-      const ang = Math.atan2(Y-H/2, X-W/2);
-      X = W/2 + Math.cos(ang)*Math.min(W,H)*.44;
-      Y = H/2 + Math.sin(ang)*Math.min(W,H)*.44;
-    }
-    ctx.globalAlpha = inside ? .55 : .32;
-    ctx.strokeStyle = "#a0fff2"; ctx.lineWidth = 1.5;
-    ctx.strokeRect(X-5, Y-5, 10, 10);
-    ctx.globalAlpha = 1;
-  }
 
   const g = ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.12, W/2,H/2,Math.max(W,H)*.72);
   g.addColorStop(0,"rgba(4,8,6,0)"); g.addColorStop(.6,"rgba(4,8,6,.12)"); g.addColorStop(1,"rgba(4,8,6,.62)");
@@ -1108,7 +1158,9 @@ function frame(now) {
   const k = Math.min(1, dt*(cam.manual ? 9 : .9));
   cam.x += (cam.tx-cam.x)*k; cam.y += (cam.ty-cam.y)*k; cam.z += (cam.tz-cam.z)*k;
 
-  draw(dt); updateHUD();
+  if (CH.on || CH.done) { chamberStep(dt); drawChamber(dt); refreshChamber(); }
+  else draw(dt);
+  updateHUD();
   requestAnimationFrame(frame);
 }
 
@@ -1131,7 +1183,8 @@ function updateHUD() {
   $("rate").textContent = fmt(S.rate)+"/s";
   $("ballct").textContent = flying().length+" / "+balls.length;
   $("depth").textContent = Math.round(S.maxDepth);
-  $("monoct").textContent = S.monoCracked+"/"+MONO_COUNT;
+  $("monoct").textContent = S.lodeIndex+"/"+MONO_COUNT
+    + (S.attempts ? "   ▸ " + S.attempts : "");
   $("prompt").classList.toggle("on", S.minedCount < 30 && !!idleOf(selKind));
   drawDock();
   if (++hudAcc % 20 === 0) {
@@ -1307,24 +1360,25 @@ function refreshCodex() {
     ores += '<div class="cxrow'+(S.oreLife[t]?"":" dim")+'"><span style="color:rgb('+TIERS[t].col+')">'
           + TIERS[t].name+'</span><b>'+(S.oreLife[t] ? fmt(S.oreLife[t]) : "—")+'</b></div>';
   let mono = "";
-  for (const m of MONOS) {
-    const p = POWERS[m.id-1], done = m.left <= 0;
-    mono += '<div class="cxrow'+(done?"":" dim")+'"><span>'+(done ? p.name : "Monolith "+m.id)
-          + '</span><b>'+(done ? "✦" : (m.total ? Math.round((1-m.left/m.total)*100)+"%" : "0%"))+'</b></div>';
+  for (let i = 0; i < MONO_COUNT; i++) {
+    const p = POWERS[i], done = i < S.lodeIndex, cur = i === S.lodeIndex;
+    const pct = cur ? Math.round(S.lodeDmg / lodeHP(i) * 100) : 0;
+    mono += '<div class="cxrow'+(done?"":" dim")+'"><span>'+(done||cur ? p.name : "Lodestone "+(i+1))
+          + '</span><b>'+(done ? "✦" : cur ? pct+"%" : "—")+'</b></div>';
   }
   const recs = [
     ["Board cleared", (S.minedCount/total*100).toFixed(3)+"%"],
     ["Blocks mined", fmt(S.minedCount)],
     ["Deepest reach", Math.round(S.maxDepth)],
     ["Best rate", fmt(S.bestRate)+"/s"],
-    ["Monoliths", S.monoCracked+" / "+MONO_COUNT],
+    ["Lodestones", S.lodeIndex+" / "+MONO_COUNT],
+    ["Attempts banked", S.attempts],
     ["Cores found", fmt(S.cores)],
     ["Playtime", Math.floor(S.playtime/3600)+"h "+Math.floor(S.playtime%3600/60)+"m"],
     ["Stratum", S.stratum],
     ["Residue", "◇ "+fmt(S.residue)],
     ["Total playtime", Math.floor((S.totalPlaytime+S.playtime)/3600)+"h "
        +Math.floor(((S.totalPlaytime+S.playtime)%3600)/60)+"m"],
-    ["Bedrock", hasPower("solvent") ? "breakable" : "sealed"],
   ].map(([a,b]) => '<div class="cxrow"><span>'+a+'</span><b>'+b+'</b></div>').join("");
   $("codexgrid").innerHTML =
       '<div class="cxbox"><h4>ORE DISCOVERED</h4>'+ores+'</div>'
@@ -1410,6 +1464,8 @@ for (const b of document.querySelectorAll("#mobibar button")) {
     const a = b.dataset.a;
     if (a === "menu") { paused ? closeMenu() : openMenu(); }
     else if (a === "recall") { if (!paused) parkAll(); }
+    else if (a === "lode") { if (!lodeStart()) toast(S.lodeIndex >= MONO_COUNT
+        ? "ALL LODESTONES SHATTERED" : "NO ATTEMPTS BANKED — DESCEND TO EARN ONE"); }
     else openPanel(a);
   };
 }
@@ -1429,6 +1485,8 @@ addEventListener("keydown", e => {
   if (k === "c") openPanel("forge");
   if (k === "k") openPanel("codex");
   if (k === "d") openPanel("descent");
+  if (k === "l") { if (!lodeStart()) toast(S.lodeIndex >= MONO_COUNT
+      ? "ALL LODESTONES SHATTERED" : "NO ATTEMPTS BANKED — DESCEND TO EARN ONE"); }
   if (k === "f") { cam.manual = false; toast("CAMERA REFIT"); }
   if (k === " ") { e.preventDefault(); parkAll(); }
   if (k === "r") openMenu();
@@ -1444,7 +1502,7 @@ function erodeFrontier(n) {
   const y0 = Math.max(1,bb.y0-2), y1 = Math.min(GRID-2,bb.y1+2);
   for (let y=y0;y<=y1;y++) for (let x=x0;x<=x1;x++) {
     const i = y*GRID+x;
-    if (!tier[i] || seen[i] || tier[i]===T_BED) continue;
+    if (!tier[i] || seen[i]) continue;
     if (!tier[i-1]||!tier[i+1]||!tier[i-GRID]||!tier[i+GRID]) { seen[i]=1; front.push(i); }
   }
   let done = 0;
@@ -1452,13 +1510,12 @@ function erodeFrontier(n) {
     const p = (Math.random()*front.length)|0, i = front[p];
     front[p] = front[front.length-1]; front.pop();
     const t = tier[i];
-    if (!t || t === T_BED) continue;
-    if (t === T_MONO) continue;                      // monoliths must be earned live
+    if (!t) continue;
     const x = i%GRID, y = (i/GRID)|0;
     tier[i] = 0; dmg[i] = 0;
     payout(x,y,t); growBounds(x,y); done++;
     for (const j of [i-1,i+1,i-GRID,i+GRID])
-      if (j>=0 && j<tier.length && tier[j] && !seen[j] && tier[j]!==T_BED) { seen[j]=1; front.push(j); }
+      if (j>=0 && j<tier.length && tier[j] && !seen[j]) { seen[j]=1; front.push(j); }
   }
   return done;
 }
@@ -1508,7 +1565,8 @@ function save() {
       v:4, dia:S.dia, cores:S.cores, rate:S.rate, lv:S.lv, mods:S.mods, powers:S.powers,
       stratum:S.stratum, residue:S.residue, meta:S.meta, strata:S.strata, tpt:S.totalPlaytime,
       ore:S.ore, oreLife:S.oreLife, mc:S.minedCount, md:S.maxDepth,
-      br:S.bestRate, pt:S.playtime, mono:S.monoLeft, mcr:S.monoCracked,
+      br:S.bestRate, pt:S.playtime,
+      attempts:S.attempts, lodeIndex:S.lodeIndex, lodeDmg:S.lodeDmg,
       t:Date.now(), mined:rle(mined), dm
     }));
   } catch (err) { console.warn("save failed", err); }
@@ -1537,11 +1595,11 @@ function load() {
     const d = JSON.parse(raw);
     S.dia = d.dia||0; S.cores = d.cores||0; S.rate = d.rate||0;
     S.minedCount = d.mc||0; S.maxDepth = d.md||0; S.bestRate = d.br||0; S.playtime = d.pt||0;
-    S.monoCracked = d.mcr||0;
+    S.attempts = d.attempts||0; S.lodeIndex = d.lodeIndex||0; S.lodeDmg = d.lodeDmg||0;
     S.stratum = d.stratum||1; S.residue = d.residue||0;
     S.meta = d.meta||{}; S.strata = d.strata||[]; S.totalPlaytime = d.tpt||0;
     Object.assign(S.lv, d.lv||{}); Object.assign(S.mods, d.mods||{});
-    S.powers = d.powers||{}; S.monoLeft = d.mono||{};
+    S.powers = d.powers||{};
     if (d.ore) S.ore = d.ore;
     if (d.oreLife) S.oreLife = d.oreLife;
     let i = 0, cur = 0;
@@ -1551,15 +1609,6 @@ function load() {
       i += run; cur ^= 1;
     }
     for (let k=0;k<(d.dm||[]).length;k+=2) dmg[d.dm[k]] = d.dm[k+1];
-    for (const m of MONOS) {
-      let n = 0;
-      for (let oy=-m.rad;oy<=m.rad;oy++) for (let ox=-m.rad;ox<=m.rad;ox++) {
-        const x = m.x+ox, y = m.y+oy;
-        if (x<0||y<0||x>=GRID||y>=GRID) continue;
-        if (tier[y*GRID+x] === T_MONO && monoId[y*GRID+x] === m.id) n++;
-      }
-      m.left = n; S.monoLeft[m.id] = n;
-    }
   } catch (err) { console.warn("load failed", err); }
 }
 
@@ -1582,12 +1631,11 @@ function applyHeadStart() {
 // Wipes the run but keeps everything that makes a descent worthwhile.
 function newStratum() {
   S.dia = 0; S.cores = 0; S.minedCount = 0; S.maxDepth = 0; S.rate = 0;
-  S.bestRate = 0; S.playtime = 0; S.monoCracked = 0; S.monoLeft = {};
+  S.bestRate = 0; S.playtime = 0;
   S.lv = {};   UPG.forEach(u => S.lv[u.id] = 0);
   S.mods = {}; MODS.forEach(m => S.mods[m.id] = 0);
   S.ore = new Array(12).fill(0);
   S.oreLife = new Array(12).fill(0);
-  rebuildMonos();
   generate();
   poison.clear(); sparks.length = 0; dirty.length = 0;
   balls = []; selKind = 0; dockSig = "";
@@ -1606,9 +1654,10 @@ function descend() {
   if (gain <= 0) return 0;
   S.strata.push({ n:S.stratum, mined:S.minedCount,
     pct:+(S.minedCount/(GRID*GRID)*100).toFixed(2), depth:Math.round(S.maxDepth),
-    monos:S.monoCracked, secs:Math.round(S.playtime), res:gain });
+    secs:Math.round(S.playtime), res:gain });
   if (S.strata.length > 80) S.strata.shift();
   S.residue += gain;
+  S.attempts += 1;                               // banked, spend it whenever
   S.totalPlaytime += S.playtime;
   S.stratum++;
   try { newStratum(); }
@@ -1651,6 +1700,7 @@ function refreshDescent() {
       + (S.minedCount/(GRID*GRID)*100).toFixed(2)+'%</b></div>'
     + '<div class="drow"><span>Residue on descent</span><b style="color:#d9bcff">◇ '
       + fmt(gain)+'</b></div>'
+    + '<div class="drow"><span>Lodestone attempts</span><b>'+S.attempts+' → '+(S.attempts+1)+'</b></div>'
     + (need > 0 ? '<div class="dnote">Reach depth r'+DESCEND_MIN_DEPTH+' before you can descend.</div>'
                 : '<div class="dnote">Descending rebuilds the arena and resets this run’s '
                   + 'upgrades, ore and Forge. Residue, the tree below, and every Monolith power '
@@ -1672,6 +1722,92 @@ function refreshDescent() {
   }
 }
 
+//======================================================= chamber presentation
+const cc = document.getElementById("cc"), ccx = cc.getContext("2d");
+const CHCOL = ["#ffffff", "#ff5555", "#5ad8ff", "#5cf06a"];
+const CHNAME = ["Basic", "Smash", "Drill", "Poison"];
+
+function refreshChamber() {
+  const i = lodeCur(), p = POWERS[i], hp = lodeHP(i);
+  const pct = Math.min(100, (S.lodeDmg + (CH.on ? CH.dealt : 0)) / hp * 100);
+  $("chhead").innerHTML =
+      "LODESTONE " + (i+1) + " / " + MONO_COUNT + "  —  <b>" + p.name + "</b>"
+    + "<br><i>" + p.desc + "</i>"
+    + "<br>" + fmt(S.lodeDmg + (CH.on ? CH.dealt : 0)) + " / " + fmt(hp)
+    + "   ·   balls <b>" + (chBalls() - CH.fired) + "</b>"
+    + "   ·   <b>" + Math.max(0, CH.t).toFixed(1) + "s</b>"
+    + '<div id="chbar"><div style="width:' + pct + '%"></div></div>';
+  $("chfoot").textContent = CH.done ? CH.msg
+    : (CH.fired < chBalls() ? "Click to fire. Balls keep bouncing until the timer runs out."
+                            : "All balls away — ride it out.");
+  $("chexit").textContent = CH.done ? "CONTINUE" : "LEAVE CHAMBER";
+}
+
+function drawChamber(dt) {
+  const W = cc.width, H = cc.height, S2 = W/2;
+  const px = v => S2 + v*S2*0.96;
+  ccx.fillStyle = "#050a12"; ccx.fillRect(0,0,W,H);
+  // the lodestone
+  const R = 0.30*S2*0.96, hp = lodeHP(lodeCur());
+  const frac = Math.min(1, (S.lodeDmg + CH.dealt)/hp);
+  ccx.save(); ccx.translate(S2,S2);
+  for (let r=0;r<12;r++) {
+    const a = r/12*6.283 + frac*0.6;
+    ccx.strokeStyle = "rgba(120,190,230,"+(0.10+frac*0.25)+")"; ccx.lineWidth = 1;
+    ccx.beginPath(); ccx.moveTo(Math.cos(a)*R*0.35, Math.sin(a)*R*0.35);
+    ccx.lineTo(Math.cos(a)*R, Math.sin(a)*R); ccx.stroke();
+  }
+  ccx.beginPath(); ccx.arc(0,0,R,0,6.283);
+  ccx.fillStyle = "rgba(30,70,100,.85)"; ccx.fill();
+  ccx.strokeStyle = "#9ef"; ccx.lineWidth = 2; ccx.shadowColor="#9ef"; ccx.shadowBlur=18;
+  ccx.stroke(); ccx.shadowBlur=0;
+  ccx.beginPath(); ccx.arc(0,0,R*(1-frac*0.55),0,6.283);
+  ccx.fillStyle = "rgba(150,230,255,"+(0.10+frac*0.5)+")"; ccx.fill();
+  ccx.restore();
+  // sparks
+  ccx.globalCompositeOperation = "lighter";
+  for (let i=chSparks.length-1;i>=0;i--) {
+    const p = chSparks[i]; p.t += dt;
+    if (p.t > p.life) { chSparks.splice(i,1); continue; }
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    ccx.globalAlpha = 1 - p.t/p.life; ccx.fillStyle = CHCOL[p.kind]||"#fff";
+    ccx.fillRect(px(p.x)-1.5, px(p.y)-1.5, 3, 3);
+  }
+  ccx.globalAlpha = 1;
+  for (const b of CH.balls) {
+    ccx.strokeStyle = CHCOL[b.kind]; ccx.lineWidth = 2; ccx.globalAlpha = .45;
+    ccx.beginPath();
+    for (let k=0;k<b.trail.length;k+=2)
+      k===0 ? ccx.moveTo(px(b.trail[k]),px(b.trail[k+1])) : ccx.lineTo(px(b.trail[k]),px(b.trail[k+1]));
+    ccx.stroke(); ccx.globalAlpha = 1;
+    ccx.fillStyle = CHCOL[b.kind]; ccx.shadowColor = CHCOL[b.kind]; ccx.shadowBlur = 12;
+    ccx.fillRect(px(b.x)-3, px(b.y)-3, 6, 6); ccx.shadowBlur = 0;
+  }
+  ccx.globalCompositeOperation = "source-over";
+  // aim guide
+  if (CH.on && !CH.done && CH.fired < chBalls()) {
+    ccx.strokeStyle = CHCOL[CH.fired % chKinds()]; ccx.globalAlpha = .6;
+    ccx.setLineDash([5,7]); ccx.beginPath();
+    ccx.moveTo(px(0), px(0.62));
+    ccx.lineTo(px(0)+Math.cos(CH.aim)*180, px(0.62)+Math.sin(CH.aim)*180);
+    ccx.stroke(); ccx.setLineDash([]); ccx.globalAlpha = 1;
+    ccx.fillStyle = "#fff"; ccx.fillRect(px(0)-3, px(0.62)-3, 6, 6);
+  }
+}
+
+cc.addEventListener("pointermove", e => {
+  const r = cc.getBoundingClientRect();
+  const x = (e.clientX-r.left)/r.width*2-1, y = (e.clientY-r.top)/r.height*2-1;
+  CH.aim = Math.atan2(y/0.96-0.62, x/0.96);
+});
+cc.addEventListener("pointerdown", e => {
+  if (!CH.on || CH.done) return;
+  const r = cc.getBoundingClientRect();
+  const x = (e.clientX-r.left)/r.width*2-1, y = (e.clientY-r.top)/r.height*2-1;
+  lodeFire(Math.atan2(y/0.96-0.62, x/0.96));
+});
+$("chexit").onclick = () => { if (CH.on && !CH.done) lodeEnd(); else lodeExit(); };
+
 //================================================================ start menu
 // Wipes every scrap of progression AND rebuilds the arena from scratch, in memory,
 // with no reload — so there is no unload event that could resurrect the old save.
@@ -1680,15 +1816,15 @@ function resetGame() {
   try { localStorage.removeItem(SAVEKEY); for (const k of OLDKEYS) localStorage.removeItem(k); } catch {}
 
   S.dia = 0; S.cores = 0; S.minedCount = 0; S.maxDepth = 0; S.rate = 0;
-  S.bestRate = 0; S.playtime = 0; S.monoCracked = 0;
+  S.bestRate = 0; S.playtime = 0;
+  S.attempts = 0; S.lodeIndex = 0; S.lodeDmg = 0;
   S.lv = {};   UPG.forEach(u => S.lv[u.id] = 0);
   S.mods = {}; MODS.forEach(m => S.mods[m.id] = 0);
-  S.powers = {}; S.monoLeft = {};
+  S.powers = {};
   S.ore = new Array(12).fill(0);
   S.oreLife = new Array(12).fill(0);
   S.stratum = 1; S.residue = 0; S.meta = {}; S.strata = []; S.totalPlaytime = 0;
 
-  rebuildMonos();
   generate();                                  // fresh arena, monoliths restocked
   poison.clear(); sparks.length = 0; dirty.length = 0;
   balls = []; selKind = 0; dockSig = "";
@@ -1721,7 +1857,7 @@ function openMenu() {
     ? '<div class="r"><span>Board cleared</span><b>'+(S.minedCount/(GRID*GRID)*100).toFixed(3)+'%</b></div>'
       + '<div class="r"><span>Blocks mined</span><b>'+fmt(S.minedCount)+'</b></div>'
       + '<div class="r"><span>Diamonds</span><b>◆ '+fmt(S.dia)+'</b></div>'
-      + '<div class="r"><span>Monoliths</span><b>'+S.monoCracked+' / '+MONO_COUNT+'</b></div>'
+      + '<div class="r"><span>Lodestones</span><b>'+S.lodeIndex+' / '+MONO_COUNT+'</b></div>'
       + '<div class="r"><span>Playtime</span><b>'+Math.floor(S.playtime/3600)+'h '
         + Math.floor(S.playtime%3600/60)+'m</b></div>'
     : '<div class="none">NO SAVED RUN</div>';
@@ -1769,7 +1905,6 @@ $("mnew").onclick = () => {
     S.meta    = d.meta    || {};
   } catch {}
 })();
-rebuildMonos();
 generate();
 const away = savedAway();
 load();
