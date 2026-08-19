@@ -223,20 +223,20 @@
   <div>rate <b id="rate">0/s</b></div>
   <div>balls <b id="ballct">0</b></div>
   <div>depth <b id="depth">0</b></div>
-  <div>lodestones <b id="monoct">0/16</b></div>
+  <div>monoliths <b id="monoct">0/16</b></div>
 </div>
 
 <div class="hud" id="prompt">CLICK TO AIM &amp; LAUNCH</div>
 <div id="dock"></div>
 <div class="hud" id="toast"></div>
-<div class="hud" id="hint">[1-4] ball · [click] fire · [drag] pan · [wheel] zoom · [F] refit · [U] upgrades · [C] forge · [K] codex · [L] lodestone · [space] recall · [Esc] menu</div>
+<div class="hud" id="hint">[1-4] ball · [click] fire · [drag] pan · [wheel] zoom · [F] refit · [U] upgrades · [C] forge · [K] codex · [M] monolith · [space] recall · [Esc] menu</div>
 
 <div id="mobibar">
   <button data-a="tree">UPGRADES</button>
   <button data-a="forge">FORGE</button>
   <button data-a="codex">CODEX</button>
   <button data-a="descent">DESCEND</button>
-  <button data-a="lode">LODESTONE</button>
+  <button data-a="mono">MONOLITH</button>
   <button data-a="recall">RECALL</button>
   <button data-a="menu">MENU</button>
 </div>
@@ -499,11 +499,11 @@ const UPG = [
   { id:"oreyld",br:"purple", name:"Ore Haul",   max:16, cost:l=>700*Math.pow(1.85,l),ore:og(200,1.76,1),
     desc:"Raw ore recovered per block, for the branches and the Forge.", fmt:l=>"x"+(1+l*0.35).toFixed(2) },
 
-  { id:"autofire",br:"auto", name:"Auto-Launcher",max:1, cost:()=>1200,
-    desc:"Parked balls fire themselves. Also enables offline mining." },
-  { id:"autorate",br:"auto", name:"Launch Rate", max:16, cost:l=>500*Math.pow(1.75,l), req:"autofire",
-    desc:"Delay between automatic launches.", fmt:l=>(3.2*Math.pow(.86,l)).toFixed(2)+"s" },
-  { id:"offline", br:"auto", name:"Night Shift", max:10, cost:l=>3000*Math.pow(1.95,l), req:"autofire",
+  { id:"autofire",br:"auto", name:"Idle Core",    max:1,  cost:()=>1200,
+    desc:"Keeps mining while the game is closed, tabbed away, or your phone is asleep." },
+  { id:"autorate",br:"auto", name:"Deploy Rate", max:16, cost:l=>140*Math.pow(1.7,l),
+    desc:"How quickly parked balls launch themselves.", fmt:l=>(3.2*Math.pow(.86,l)).toFixed(2)+"s" },
+  { id:"offline", br:"auto", name:"Night Shift", max:10, cost:l=>1800*Math.pow(1.9,l), req:"autofire",
     desc:"Share of your mining rate that keeps running while away.", fmt:l=>(40+l*5)+"%" },
 
   { id:"overch", br:"prime", name:"Overcharge",  max:14, cur:"core", cost:l=>Math.ceil(2*Math.pow(1.42,l)),
@@ -556,11 +556,11 @@ const META = [
   { id:"reservoir",name:"Velocity",      max:16, cost:l=>Math.ceil(28*Math.pow(1.52,l)),
     desc:"Permanent ball speed multiplier, every stratum.", fmt:l=>"x"+Math.pow(1.14,l).toFixed(2) },
   { id:"chtime",  name:"Chamber Time",  max:12, cost:l=>Math.ceil(26*Math.pow(1.5,l)),
-    desc:"Seconds per Lodestone attempt.", fmt:l=>(18+l*6)+"s" },
+    desc:"Seconds per Monolith attempt.", fmt:l=>(18+l*6)+"s" },
   { id:"chvolley",name:"Volley",        max:12, cost:l=>Math.ceil(30*Math.pow(1.55,l)),
-    desc:"Balls you may fire in a Lodestone attempt.", fmt:l=>(3+l) },
+    desc:"Balls you may fire in a Monolith attempt.", fmt:l=>(3+l) },
   { id:"chforce", name:"Chamber Force", max:20, cost:l=>Math.ceil(22*Math.pow(1.48,l)),
-    desc:"Damage each strike on a Lodestone deals.", fmt:l=>fmt(20*Math.pow(1.32,l)) },
+    desc:"Damage each strike on a Monolith deals.", fmt:l=>fmt(20*Math.pow(1.32,l)) },
   { id:"chtypes", name:"Munitions",     max:3,  cost:l=>Math.ceil(140*Math.pow(2.2,l)),
     desc:"Unlocks Smash, Drill then Poison balls in the chamber. Smash hits hardest.",
     fmt:l=>["Basic","+Smash","+Drill","+Poison"][l] },
@@ -569,22 +569,22 @@ const META = [
 ];
 const METABY = {}; META.forEach(m => METABY[m.id] = m);
 
-//========================================================= lodestone chamber
+//========================================================== monolith chamber
 // Descending banks an attempt. You spend attempts whenever you like, so a fast
 // stratum never forces a mini-game on you and idle play is never blocked.
-const LODE_BASE_HP = 900, LODE_GROWTH = 1.55;
-const lodeHP  = i => Math.round(LODE_BASE_HP * Math.pow(LODE_GROWTH, i));
-const lodeCur = () => Math.min(S.lodeIndex, MONO_COUNT - 1);
+const MONO_BASE_HP = 300, MONO_GROWTH = 1.5;
+const monoHP  = i => Math.round(MONO_BASE_HP * Math.pow(MONO_GROWTH, i));
+const monoCur = () => Math.min(S.monoIndex, MONO_COUNT - 1);
 const chTime  = () => 18 + MT("chtime") * 6;
 const chBalls = () => 3 + MT("chvolley");
-const chDmg   = () => 20 * Math.pow(1.32, MT("chforce")) * (1 + S.lodeIndex * 0.15);
+const chDmg   = () => 20 * Math.pow(1.32, MT("chforce")) * (1 + S.monoIndex * 0.15);
 const chKinds = () => 1 + MT("chtypes");            // basic, smash, drill, poison
 const attemptGain = () => 1 + (hasPower("anchor") ? 0 : 0);
 
 const CH = { on:false, t:0, balls:[], fired:0, dealt:0, aim:0, done:false, msg:"" };
 
-function lodeStart() {
-  if (S.attempts <= 0 || S.lodeIndex >= MONO_COUNT) return false;
+function monoStart() {
+  if (S.attempts <= 0 || S.monoIndex >= MONO_COUNT) return false;
   S.attempts--;
   CH.on = true; CH.t = chTime(); CH.balls = []; CH.fired = 0;
   CH.dealt = 0; CH.done = false; CH.msg = "";
@@ -592,7 +592,7 @@ function lodeStart() {
   $("chamber").classList.add("on");
   return true;
 }
-function lodeFire(ang) {
+function monoFire(ang) {
   if (!CH.on || CH.fired >= chBalls() || CH.t <= 0) return;
   const kind = CH.fired % chKinds();
   const sp = 210 + MT("chforce") * 8;
@@ -600,31 +600,31 @@ function lodeFire(ang) {
                   kind, trail:[] });
   CH.fired++;
 }
-function lodeEnd() {
+function monoEnd() {
   CH.on = false;
-  S.lodeDmg += CH.dealt;
-  const hp = lodeHP(lodeCur());
-  if (S.lodeDmg >= hp) {
-    const p = POWERS[lodeCur()];
+  S.monoDmg += CH.dealt;
+  const hp = monoHP(monoCur());
+  if (S.monoDmg >= hp) {
+    const p = POWERS[monoCur()];
     S.powers[p.k] = 1;
-    S.lodeIndex++; S.lodeDmg = 0;
+    S.monoIndex++; S.monoDmg = 0;
     syncRoster();
-    CH.msg = "LODESTONE SHATTERED\n" + p.name + " \u2014 " + p.desc;
+    CH.msg = "MONOLITH SHATTERED\n" + p.name + " \u2014 " + p.desc;
   } else {
-    CH.msg = "DEALT " + fmt(CH.dealt) + "  \u2014  " + fmt(hp - S.lodeDmg) + " REMAINING";
+    CH.msg = "DEALT " + fmt(CH.dealt) + "  \u2014  " + fmt(hp - S.monoDmg) + " REMAINING";
   }
   CH.done = true;
   save();
   refreshChamber();
 }
-function lodeExit() {
+function monoExit() {
   CH.on = false; CH.done = false;
   $("chamber").classList.remove("on");
   paused = false;
   refreshChamber();
 }
 
-// simple square arena in normalised -1..1 space, lodestone at the centre
+// simple square arena in normalised -1..1 space, monolith at the centre
 function chamberStep(dt) {
   if (!CH.on || CH.done) return;
   CH.t -= dt;
@@ -634,7 +634,7 @@ function chamberStep(dt) {
     if (b.x < -1) { b.x = -1; b.vx = -b.vx; } if (b.x > 1) { b.x = 1; b.vx = -b.vx; }
     if (b.y < -1) { b.y = -1; b.vy = -b.vy; } if (b.y > 1) { b.y = 1; b.vy = -b.vy; }
     const d = Math.hypot(b.x, b.y), R = 0.30;
-    if (d < R) {                                    // struck the lodestone
+    if (d < R) {                                    // struck the monolith
       const nx = b.x/d, ny = b.y/d;
       const p = b.vx*nx + b.vy*ny;
       b.vx -= 2*p*nx; b.vy -= 2*p*ny;
@@ -644,7 +644,7 @@ function chamberStep(dt) {
       chSpark(b.x, b.y, b.kind);
     }
   }
-  if (CH.t <= 0) lodeEnd();
+  if (CH.t <= 0) monoEnd();
 }
 const chSparks = [];
 function chSpark(x, y, kind) {
@@ -671,8 +671,8 @@ const S = {
   oreLife:[0,0,0,0,0,0,0,0,0,0,0,0],    // lifetime mined, for the codex
   minedCount:0, maxDepth:0, rate:0,
   bestRate:0, playtime:0,
-  // --- Lodestone Chamber ---
-  attempts:0, lodeIndex:0, lodeDmg:0,
+  // --- Monolith Chamber ---
+  attempts:0, monoIndex:0, monoDmg:0,
   // --- persists across descents ---
   stratum:1, residue:0, meta:{}, strata:[], totalPlaytime:0,
 };
@@ -1130,8 +1130,7 @@ let autoT = 0, autoCycle = 0;
 // Auto-launches always pick a random heading. Steering them at the richest rock
 // made the cavern erode into an unnaturally even disc.
 const bestAngle = () => Math.random() * Math.PI * 2;
-function tickAuto(dt) {
-  if (!L("autofire")) return;
+function tickAuto(dt) {                          // always on: parked balls deploy themselves
   autoT += dt;
   if (autoT < autoInt()) return;
   autoT = 0;
@@ -1184,7 +1183,7 @@ function updateHUD() {
   $("rate").textContent = fmt(S.rate)+"/s";
   $("ballct").textContent = flying().length+" / "+balls.length;
   $("depth").textContent = Math.round(S.maxDepth);
-  $("monoct").textContent = S.lodeIndex+"/"+MONO_COUNT
+  $("monoct").textContent = S.monoIndex+"/"+MONO_COUNT
     + (S.attempts ? "   ▸ " + S.attempts : "");
   $("prompt").classList.toggle("on", S.minedCount < 30 && !!idleOf(selKind));
   drawDock();
@@ -1362,9 +1361,9 @@ function refreshCodex() {
           + TIERS[t].name+'</span><b>'+(S.oreLife[t] ? fmt(S.oreLife[t]) : "—")+'</b></div>';
   let mono = "";
   for (let i = 0; i < MONO_COUNT; i++) {
-    const p = POWERS[i], done = i < S.lodeIndex, cur = i === S.lodeIndex;
-    const pct = cur ? Math.round(S.lodeDmg / lodeHP(i) * 100) : 0;
-    mono += '<div class="cxrow'+(done?"":" dim")+'"><span>'+(done||cur ? p.name : "Lodestone "+(i+1))
+    const p = POWERS[i], done = i < S.monoIndex, cur = i === S.monoIndex;
+    const pct = cur ? Math.round(S.monoDmg / monoHP(i) * 100) : 0;
+    mono += '<div class="cxrow'+(done?"":" dim")+'"><span>'+(done||cur ? p.name : "Monolith "+(i+1))
           + '</span><b>'+(done ? "✦" : cur ? pct+"%" : "—")+'</b></div>';
   }
   const recs = [
@@ -1372,7 +1371,7 @@ function refreshCodex() {
     ["Blocks mined", fmt(S.minedCount)],
     ["Deepest reach", Math.round(S.maxDepth)],
     ["Best rate", fmt(S.bestRate)+"/s"],
-    ["Lodestones", S.lodeIndex+" / "+MONO_COUNT],
+    ["Monoliths", S.monoIndex+" / "+MONO_COUNT],
     ["Attempts banked", S.attempts],
     ["Cores found", fmt(S.cores)],
     ["Playtime", Math.floor(S.playtime/3600)+"h "+Math.floor(S.playtime%3600/60)+"m"],
@@ -1465,8 +1464,8 @@ for (const b of document.querySelectorAll("#mobibar button")) {
     const a = b.dataset.a;
     if (a === "menu") { paused ? closeMenu() : openMenu(); }
     else if (a === "recall") { if (!paused) parkAll(); }
-    else if (a === "lode") { if (!lodeStart()) toast(S.lodeIndex >= MONO_COUNT
-        ? "ALL LODESTONES SHATTERED" : "NO ATTEMPTS BANKED — DESCEND TO EARN ONE"); }
+    else if (a === "mono") { if (!monoStart()) toast(S.monoIndex >= MONO_COUNT
+        ? "ALL MONOLITHS SHATTERED" : "NO ATTEMPTS BANKED — DESCEND TO EARN ONE"); }
     else openPanel(a);
   };
 }
@@ -1486,8 +1485,8 @@ addEventListener("keydown", e => {
   if (k === "c") openPanel("forge");
   if (k === "k") openPanel("codex");
   if (k === "d") openPanel("descent");
-  if (k === "l") { if (!lodeStart()) toast(S.lodeIndex >= MONO_COUNT
-      ? "ALL LODESTONES SHATTERED" : "NO ATTEMPTS BANKED — DESCEND TO EARN ONE"); }
+  if (k === "m" || k === "l") { if (!monoStart()) toast(S.monoIndex >= MONO_COUNT
+      ? "ALL MONOLITHS SHATTERED" : "NO ATTEMPTS BANKED — DESCEND TO EARN ONE"); }
   if (k === "f") { cam.manual = false; toast("CAMERA REFIT"); }
   if (k === " ") { e.preventDefault(); parkAll(); }
   if (k === "r") openMenu();
@@ -1542,6 +1541,32 @@ function showWelcome(r) {
   $("welcome").style.display = "flex";
 }
 
+//================================================== background / tabbed away
+// requestAnimationFrame stops in a hidden tab and on a sleeping phone, so the
+// simulation cannot simply keep running. Instead we credit the elapsed wall-clock
+// time through exactly the same path a cold start uses.
+let hiddenAt = 0;
+function creditAway(sec) {
+  if (sec < 15) return null;
+  const r = runOffline(sec);
+  if (r) { relight(); paintAll(); }
+  return r;
+}
+if (typeof document.addEventListener === "function") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { hiddenAt = Date.now(); save(); return; }
+    if (!hiddenAt) return;
+    const away = (Date.now() - hiddenAt) / 1000;
+    hiddenAt = 0;
+    last = performance.now();                  // don't hand the loop a giant dt
+    const r = creditAway(away);
+    if (r) toast("AWAY " + (away < 90 ? Math.round(away) + "s"
+                : Math.floor(away/60) + "m") + " — +" + fmt(r.blocks) + " BLOCKS");
+    else if (away > 60 && !L("autofire"))
+      toast("IDLE CORE NOT UNLOCKED — NOTHING MINED WHILE AWAY");
+  });
+}
+
 //===================================================================== save
 function rle(arr) {
   const out = []; let run = 0, cur = 0;
@@ -1567,7 +1592,7 @@ function save() {
       stratum:S.stratum, residue:S.residue, meta:S.meta, strata:S.strata, tpt:S.totalPlaytime,
       ore:S.ore, oreLife:S.oreLife, mc:S.minedCount, md:S.maxDepth,
       br:S.bestRate, pt:S.playtime,
-      attempts:S.attempts, lodeIndex:S.lodeIndex, lodeDmg:S.lodeDmg,
+      attempts:S.attempts, monoIndex:S.monoIndex, monoDmg:S.monoDmg,
       t:Date.now(), mined:rle(mined), dm
     }));
   } catch (err) { console.warn("save failed", err); }
@@ -1596,7 +1621,7 @@ function load() {
     const d = JSON.parse(raw);
     S.dia = d.dia||0; S.cores = d.cores||0; S.rate = d.rate||0;
     S.minedCount = d.mc||0; S.maxDepth = d.md||0; S.bestRate = d.br||0; S.playtime = d.pt||0;
-    S.attempts = d.attempts||0; S.lodeIndex = d.lodeIndex||0; S.lodeDmg = d.lodeDmg||0;
+    S.attempts = d.attempts||0; S.monoIndex = d.monoIndex||0; S.monoDmg = d.monoDmg||0;
     S.stratum = d.stratum||1; S.residue = d.residue||0;
     S.meta = d.meta||{}; S.strata = d.strata||[]; S.totalPlaytime = d.tpt||0;
     Object.assign(S.lv, d.lv||{}); Object.assign(S.mods, d.mods||{});
@@ -1709,7 +1734,7 @@ function refreshDescent() {
       + (S.minedCount/(GRID*GRID)*100).toFixed(2)+'%</b></div>'
     + '<div class="drow"><span>Residue on descent</span><b style="color:#d9bcff">◇ '
       + fmt(gain)+'</b></div>'
-    + '<div class="drow"><span>Lodestone attempts</span><b>'+S.attempts+' → '+(S.attempts+1)+'</b></div>'
+    + '<div class="drow"><span>Monolith attempts</span><b>'+S.attempts+' → '+(S.attempts+1)+'</b></div>'
     + (need > 0 ? '<div class="dnote">Reach depth r'+DESCEND_MIN_DEPTH+' before you can descend.</div>'
                 : '<div class="dnote">Descending rebuilds the arena and resets this run’s '
                   + 'upgrades, ore and Forge. Residue, the tree below, and every Monolith power '
@@ -1737,12 +1762,12 @@ const CHCOL = ["#ffffff", "#ff5555", "#5ad8ff", "#5cf06a"];
 const CHNAME = ["Basic", "Smash", "Drill", "Poison"];
 
 function refreshChamber() {
-  const i = lodeCur(), p = POWERS[i], hp = lodeHP(i);
-  const pct = Math.min(100, (S.lodeDmg + (CH.on ? CH.dealt : 0)) / hp * 100);
+  const i = monoCur(), p = POWERS[i], hp = monoHP(i);
+  const pct = Math.min(100, (S.monoDmg + (CH.on ? CH.dealt : 0)) / hp * 100);
   $("chhead").innerHTML =
-      "LODESTONE " + (i+1) + " / " + MONO_COUNT + "  —  <b>" + p.name + "</b>"
+      "MONOLITH " + (i+1) + " / " + MONO_COUNT + "  —  <b>" + p.name + "</b>"
     + "<br><i>" + p.desc + "</i>"
-    + "<br>" + fmt(S.lodeDmg + (CH.on ? CH.dealt : 0)) + " / " + fmt(hp)
+    + "<br>" + fmt(S.monoDmg + (CH.on ? CH.dealt : 0)) + " / " + fmt(hp)
     + "   ·   balls <b>" + (chBalls() - CH.fired) + "</b>"
     + "   ·   <b>" + Math.max(0, CH.t).toFixed(1) + "s</b>"
     + '<div id="chbar"><div style="width:' + pct + '%"></div></div>';
@@ -1756,9 +1781,9 @@ function drawChamber(dt) {
   const W = cc.width, H = cc.height, S2 = W/2;
   const px = v => S2 + v*S2*0.96;
   ccx.fillStyle = "#050a12"; ccx.fillRect(0,0,W,H);
-  // the lodestone
-  const R = 0.30*S2*0.96, hp = lodeHP(lodeCur());
-  const frac = Math.min(1, (S.lodeDmg + CH.dealt)/hp);
+  // the monolith
+  const R = 0.30*S2*0.96, hp = monoHP(monoCur());
+  const frac = Math.min(1, (S.monoDmg + CH.dealt)/hp);
   ccx.save(); ccx.translate(S2,S2);
   for (let r=0;r<12;r++) {
     const a = r/12*6.283 + frac*0.6;
@@ -1813,9 +1838,9 @@ cc.addEventListener("pointerdown", e => {
   if (!CH.on || CH.done) return;
   const r = cc.getBoundingClientRect();
   const x = (e.clientX-r.left)/r.width*2-1, y = (e.clientY-r.top)/r.height*2-1;
-  lodeFire(Math.atan2(y/0.96-0.62, x/0.96));
+  monoFire(Math.atan2(y/0.96-0.62, x/0.96));
 });
-$("chexit").onclick = () => { if (CH.on && !CH.done) lodeEnd(); else lodeExit(); };
+$("chexit").onclick = () => { if (CH.on && !CH.done) monoEnd(); else monoExit(); };
 
 //================================================================ start menu
 // Wipes every scrap of progression AND rebuilds the arena from scratch, in memory,
@@ -1826,7 +1851,7 @@ function resetGame() {
 
   S.dia = 0; S.cores = 0; S.minedCount = 0; S.maxDepth = 0; S.rate = 0;
   S.bestRate = 0; S.playtime = 0;
-  S.attempts = 0; S.lodeIndex = 0; S.lodeDmg = 0;
+  S.attempts = 0; S.monoIndex = 0; S.monoDmg = 0;
   S.lv = {};   UPG.forEach(u => S.lv[u.id] = 0);
   S.mods = {}; MODS.forEach(m => S.mods[m.id] = 0);
   S.powers = {};
@@ -1866,7 +1891,7 @@ function openMenu() {
     ? '<div class="r"><span>Board cleared</span><b>'+(S.minedCount/(GRID*GRID)*100).toFixed(3)+'%</b></div>'
       + '<div class="r"><span>Blocks mined</span><b>'+fmt(S.minedCount)+'</b></div>'
       + '<div class="r"><span>Diamonds</span><b>◆ '+fmt(S.dia)+'</b></div>'
-      + '<div class="r"><span>Lodestones</span><b>'+S.lodeIndex+' / '+MONO_COUNT+'</b></div>'
+      + '<div class="r"><span>Monoliths</span><b>'+S.monoIndex+' / '+MONO_COUNT+'</b></div>'
       + '<div class="r"><span>Playtime</span><b>'+Math.floor(S.playtime/3600)+'h '
         + Math.floor(S.playtime%3600/60)+'m</b></div>'
     : '<div class="none">NO SAVED RUN</div>';

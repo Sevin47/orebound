@@ -21,7 +21,7 @@ Open `index.html` in any browser. No build step, no dependencies.
 | `U` | Upgrades |
 | `C` | Forge |
 | `K` | Codex |
-| `L` | Lodestone Chamber |
+| `M` | Monolith Chamber |
 | `Space` | Recall every ball |
 | `D` | Descent and the meta tree |
 | `Esc` / `R` | Start menu (pauses the game) |
@@ -115,7 +115,7 @@ multipliers — head starts compress the slow opening, multipliers only move it:
 | Supply Cache | Arrive holding diamonds and raw ore |
 | Deep Roots | Permanent damage multiplier |
 | Velocity | Permanent ball speed multiplier |
-| Chamber Time / Volley / Force / Munitions | Upgrade the Lodestone Chamber |
+| Chamber Time / Volley / Force / Munitions | Upgrade the Monolith Chamber |
 | Assay | Permanent ore and Core yield multiplier |
 
 Lodestone **powers are kept forever**. Every stratum reseeds its ore, so no two are
@@ -137,16 +137,16 @@ bank the Residue, and go again. Depth reached at the 30-minute mark:
 
 Later strata reach those depths far faster — stratum 6 passes r417 in five minutes.
 
-## The Lodestone Chamber
+## The Monolith Chamber
 
-Lodestones are no longer buried in the arena. Descending banks a **Lodestone
+Monoliths are no longer buried in the arena. Descending banks a **Monolith
 Attempt**, and you spend attempts whenever you like — so a fast stratum never forces
 a mini-game on you, and leaving the game idle never blocks a descent.
 
-Open the chamber with `L`. You get a timer and a volley of balls; click to fire, and
+Open the chamber with `M`. You get a timer and a volley of balls; click to fire, and
 they keep ricocheting off the chamber walls until the clock runs out. Damage banks
-between attempts, so a Lodestone takes several visits to shatter. Break one and it
-grants its permanent power, then the next — tougher — Lodestone unlocks. All 16 in
+between attempts, so a Monolith takes several visits to shatter. Break one and it
+grants its permanent power, then the next — tougher — Monolith unlocks. All 16 in
 sequence.
 
 Residue buys the chamber directly:
@@ -162,13 +162,13 @@ Smash hits hardest, so Munitions changes how you aim rather than just adding num
 
 Bedrock is gone entirely — the outer shell existed to be a final wall, and under the
 current pacing you are never meant to exhaust a stratum. Its reward slot became
-**Anchor Stone** (+40% Residue per descent), so all 16 Lodestones grant something real.
+**Anchor Stone** (+40% Residue per descent), so all 16 Monoliths grant something real.
 
 The arena is now pure rock, edge to edge.
 
 ## Codex
 
-Tracks ore discovered, Lodestone progress, cleared strata and records.
+Tracks ore discovered, Monolith progress, cleared strata and records.
 
 ## Momentum (there is no energy)
 
