@@ -286,8 +286,8 @@ const OLDKEYS = ["pixelbouncer.v3"];           // carry a run across the rename
 // ---- Descent -------------------------------------------------------------
 // Clearing a stratum does not wipe your progress, it moves you down to a new one.
 // Rock gets harder and richer each time; what you carry is Residue and the meta tree.
-const STRAT_HP  = 1.55;                         // block HP multiplier per stratum
-const STRAT_VAL = 1.8;                         // ore value multiplier per stratum
+const STRAT_HP  = 1.75;                         // block HP multiplier per stratum
+const STRAT_VAL = 2.0;                         // ore value multiplier per stratum
 const DESCEND_MIN_DEPTH = 60;                  // a marker you pass, not a map you exhaust
 const stratSeed = n => SEED + n * 7919;
 const stratHP   = () => Math.pow(STRAT_HP,  S.stratum - 1);
@@ -458,8 +458,9 @@ const UPG = [
     desc:"Damage every impact deals.", fmt:l=>fmt(Math.pow(1.34,l)) },
   { id:"speed", br:"core", name:"Speed",       max:18, cost:l=>150*Math.pow(2.05,l),  ore:og(60,1.62,3),
     desc:"Ball travel speed. Vital as the cavern widens.", fmt:l=>"x"+Math.pow(1.26,l).toFixed(2) },
-  { id:"count", br:"core", name:"Extra Ball",  max:20, cost:l=>80*Math.pow(1.95,l), ore:og(120,1.72,2),
-    desc:"One more ball of every unlocked colour.", fmt:l=>"x"+(1+l) },
+  { id:"shock", br:"core", name:"Shockwave",   max:12, cost:l=>150*Math.pow(1.78,l), ore:og(90,1.66,2),
+    desc:"Every impact cracks a small area, not just the block it hit.",
+    fmt:l=>l?("radius "+(0.6+l*0.14).toFixed(2)):"off" },
   { id:"crit",  br:"core", name:"Fracture",    max:12, cost:l=>320*Math.pow(1.9,l),  ore:og(160,1.7,1),
     desc:"Chance an impact deals 9x damage.", fmt:l=>(l*3)+"%" },
 
@@ -510,8 +511,8 @@ const UPG = [
     desc:"Multiplies all impact damage.", fmt:l=>"x"+Math.pow(1.22,l).toFixed(2) },
   { id:"reactor",br:"prime", name:"Kinetic Core", max:12, cur:"core", cost:l=>Math.ceil(3*Math.pow(1.45,l)),
     desc:"Permanent ball speed multiplier.", fmt:l=>"x"+Math.pow(1.18,l).toFixed(2) },
-  { id:"swarm",  br:"prime", name:"Swarm",       max:10, cur:"core", cost:l=>Math.ceil(4*Math.pow(1.5,l)),
-    desc:"Two more balls of every colour per level.", fmt:l=>"+"+(l*2) },
+  { id:"swarm",  br:"prime", name:"Density",     max:12, cur:"core", cost:l=>Math.ceil(4*Math.pow(1.5,l)),
+    desc:"Permanent impact damage multiplier.", fmt:l=>"x"+Math.pow(1.3,l).toFixed(2) },
   { id:"prosp",  br:"prime", name:"Prospector",  max:12, cur:"core", cost:l=>Math.ceil(3*Math.pow(1.45,l)),
     desc:"Raises the chance ore yields a core.", fmt:l=>"+"+(l*45)+"%" },
 ];
@@ -534,6 +535,8 @@ const MODS = [
     desc:"Widens the lit frontier and adds deep yield.", eff:l=>"+"+(l*6)+"% value" },
   { id:"tap",    name:"Void Tap",        max:8,  ores:{9:220, 8:260},
     desc:"Raises core drop chance.", eff:l=>"+"+(l*30)+"%" },
+  { id:"multi",  name:"Multiplicity",   max:8,  ores:{4:90, 5:60},
+    desc:"One more ball of every unlocked colour.", eff:l=>"+"+l },
   { id:"ballast",name:"Kinetic Ballast", max:10, ores:{5:280, 7:200},
     desc:"Balls keep more speed and hit harder after collisions.", eff:l=>"+"+(l*7)+"% dmg" },
 ];
@@ -545,26 +548,26 @@ const MODBY = {}; MODS.forEach(m => MODBY[m.id] = m);
 const META = [
   { id:"legacy",  name:"Legacy",        max:12, cost:l=>Math.ceil(18*Math.pow(1.55,l)),
     desc:"Start each stratum with this many levels of Damage, Speed and Extra Ball.", fmt:l=>l },
-  { id:"fleet",   name:"Fleet Start",   max:10, cost:l=>Math.ceil(30*Math.pow(1.62,l)),
+  { id:"fleet",   name:"Fleet Start",   max:5,  cost:l=>Math.ceil(60*Math.pow(2.1,l)),
     desc:"Extra balls of every unlocked colour, from the moment you arrive.", fmt:l=>"+"+l },
   { id:"ignition",name:"Ignition",      max:1,  cost:()=>120,
     desc:"Arrive with the Auto-Launcher already running." },
   { id:"cache",   name:"Supply Cache",  max:12, cost:l=>Math.ceil(22*Math.pow(1.6,l)),
     desc:"Arrive holding diamonds and raw ore.", fmt:l=>"◆"+fmt(400*Math.pow(2.4,l))+" +ore" },
-  { id:"roots",   name:"Deep Roots",    max:20, cost:l=>Math.ceil(25*Math.pow(1.5,l)),
+  { id:"roots",   name:"Deep Roots",    max:30, cost:l=>Math.ceil(25*Math.pow(1.5,l)),
     desc:"Permanent damage multiplier, every stratum.", fmt:l=>"x"+Math.pow(1.25,l).toFixed(2) },
-  { id:"reservoir",name:"Velocity",      max:16, cost:l=>Math.ceil(28*Math.pow(1.52,l)),
+  { id:"reservoir",name:"Velocity",      max:24, cost:l=>Math.ceil(28*Math.pow(1.52,l)),
     desc:"Permanent ball speed multiplier, every stratum.", fmt:l=>"x"+Math.pow(1.14,l).toFixed(2) },
-  { id:"chtime",  name:"Chamber Time",  max:12, cost:l=>Math.ceil(26*Math.pow(1.5,l)),
+  { id:"chtime",  name:"Chamber Time",  max:8,  cost:l=>Math.ceil(26*Math.pow(1.72,l)),
     desc:"Seconds per Monolith attempt.", fmt:l=>(18+l*6)+"s" },
-  { id:"chvolley",name:"Volley",        max:12, cost:l=>Math.ceil(30*Math.pow(1.55,l)),
+  { id:"chvolley",name:"Volley",        max:8,  cost:l=>Math.ceil(30*Math.pow(1.78,l)),
     desc:"Balls you may fire in a Monolith attempt.", fmt:l=>(3+l) },
-  { id:"chforce", name:"Chamber Force", max:20, cost:l=>Math.ceil(22*Math.pow(1.48,l)),
-    desc:"Damage each strike on a Monolith deals.", fmt:l=>fmt(20*Math.pow(1.32,l)) },
+  { id:"chforce", name:"Chamber Force", max:12, cost:l=>Math.ceil(22*Math.pow(1.75,l)),
+    desc:"Damage each strike on a Monolith deals.", fmt:l=>fmt(20*Math.pow(1.25,l)) },
   { id:"chtypes", name:"Munitions",     max:3,  cost:l=>Math.ceil(140*Math.pow(2.2,l)),
     desc:"Unlocks Smash, Drill then Poison balls in the chamber. Smash hits hardest.",
     fmt:l=>["Basic","+Smash","+Drill","+Poison"][l] },
-  { id:"assay",   name:"Assay",         max:16, cost:l=>Math.ceil(24*Math.pow(1.5,l)),
+  { id:"assay",   name:"Assay",         max:24, cost:l=>Math.ceil(24*Math.pow(1.5,l)),
     desc:"Permanent raw ore and Core yield multiplier.", fmt:l=>"x"+(1+l*0.3).toFixed(2) },
 ];
 const METABY = {}; META.forEach(m => METABY[m.id] = m);
@@ -572,12 +575,15 @@ const METABY = {}; META.forEach(m => METABY[m.id] = m);
 //========================================================== monolith chamber
 // Descending banks an attempt. You spend attempts whenever you like, so a fast
 // stratum never forces a mini-game on you and idle play is never blocked.
-const MONO_BASE_HP = 300, MONO_GROWTH = 1.5;
+const MONO_BASE_HP = 300, MONO_GROWTH = 1.62;
+// A hard ceiling on live balls. Ball count is the worst scaling axis in this game:
+// linear power, superlinear cost. Everything past this converts into per-ball power.
+const MAX_BALLS = 120;
 const monoHP  = i => Math.round(MONO_BASE_HP * Math.pow(MONO_GROWTH, i));
 const monoCur = () => Math.min(S.monoIndex, MONO_COUNT - 1);
 const chTime  = () => 18 + MT("chtime") * 6;
 const chBalls = () => 3 + MT("chvolley");
-const chDmg   = () => 20 * Math.pow(1.32, MT("chforce")) * (1 + S.monoIndex * 0.15);
+const chDmg   = () => 20 * Math.pow(1.25, MT("chforce")) * (1 + S.monoIndex * 0.15);
 const chKinds = () => 1 + MT("chtypes");            // basic, smash, drill, poison
 const attemptGain = () => 1 + (hasPower("anchor") ? 0 : 0);
 
@@ -661,7 +667,7 @@ const MT = id => (S.meta && S.meta[id]) || 0;
 function residueGain() {
   if (S.maxDepth < DESCEND_MIN_DEPTH) return 0;
   const base = Math.pow(S.maxDepth / 25, 1.7) * (hasPower("anchor") ? 1.4 : 1);
-  return Math.floor(base * Math.pow(1.9, S.stratum - 1));
+  return Math.floor(base * Math.pow(1.25, S.stratum - 1));
 }
 
 //================================================================ game state
@@ -688,7 +694,8 @@ const purse= cur => cur === "core" ? S.cores : S.dia;
 
 const baseDmg = () => Math.pow(1.34, L("dmg")) * Math.pow(1.22, L("overch"))
   * (1 + ML("ballast") * .07) * Math.pow(1.25, MT("roots"))
-  * Math.pow(1.18, L("force")) * (1 + ML("coil") * .12);
+  * Math.pow(1.18, L("force")) * (1 + ML("coil") * .12)
+  * Math.pow(1.3, L("swarm"));
 // Speed must scale exponentially: bounce rate falls as 1/cavern-radius, so linear
 // speed gains get swallowed as the cavern widens and the game grinds to a halt.
 const ballSpd = () => 55 * Math.pow(1.26, L("speed")) * (hasPower("veloc") ? 1.6 : 1)
@@ -702,7 +709,8 @@ function momMul(b) {
   const ramp = Math.min(3, (b.stall || 0) / MOM_SPAN) * (hasPower("solar") ? 2 : 1);
   return 1 + lv * 0.35 * Math.min(3, ramp);
 }
-const perType = () => 1 + L("count") + L("swarm") * 2 + (hasPower("swarm2") ? 3 : 0) + MT("fleet");
+const perType = () => 1 + ML("multi") + MT("fleet") + (hasPower("swarm2") ? 3 : 0);
+const kindsOwned = () => [0,1,2,3].filter(k => k===0 || L(KINDUPG[k])).length;
 const critCh  = () => L("crit") * .03;
 const critMul = () => 9 * (1 + ML("lens") * .25);
 const valMul  = () => (1 + L("value") * .20) * (hasPower("greed") ? 2 : 1) * (1 + ML("lantern") * .06);
@@ -726,8 +734,9 @@ const idleOf  = k => balls.find(b => b.state === "idle" && b.kind === k);
 const countOf = (k, st) => balls.reduce((n,b) => n + (b.kind === k && b.state === st ? 1 : 0), 0);
 
 function syncRoster() {
+  const per = Math.max(1, Math.floor(MAX_BALLS / Math.max(1, kindsOwned())));
   for (let k = 0; k < 4; k++) {
-    const want = owned(k);
+    const want = Math.min(owned(k), per);
     let have = balls.reduce((n,b) => n + (b.kind === k && !b.temp ? 1 : 0), 0);
     while (have < want) {
       balls.push({ x:CX+.5, y:CY+.5, vx:0, vy:0, kind:k, trail:[], state:"idle", stall:0, hits:0 });
@@ -772,7 +781,7 @@ function hitCell(x, y, amount) {
   if (dmg[i] >= hp) {
     tier[i] = 0; dmg[i] = 0; poison.delete(i);
     payout(x, y, t);
-    spawnSpark(x, y, TIERS[t].col, t >= 4 ? 6 : 2);
+    spawnSpark(x, y, TIERS[t].col, t >= 4 ? 4 : 1);
     stampLight(x, y, true);
     growBounds(x, y);
   }
@@ -813,6 +822,7 @@ function onImpact(b, hx, hy) {
     hitCell(hx, hy, d);
   }
 
+  if (L("shock")) blast(hx, hy, 0.6 + L("shock") * .14, d * .55);
   if (hasPower("chain")) blast(hx, hy, 2.2, d * .35);
   if (hasPower("deton") && b.hits % 12 === 0) blast(hx, hy, blastRad()*2.2 + 3, d * 1.5);
   if (ML("echo") && Math.random() < ML("echo")*.04) hitCell(hx, hy, d);
@@ -823,7 +833,7 @@ function onImpact(b, hx, hy) {
 }
 
 function spawnShard(b) {
-  if (balls.length > 400) return;
+  if (balls.length >= MAX_BALLS) return;
   const a = Math.random()*6.283, sp = ballSpd();
   balls.push({ x:b.x, y:b.y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, kind:b.kind,
                trail:[], state:"fly", stall:0, hits:0, temp:true, life:6 });
@@ -991,7 +1001,7 @@ function tickPoison(dt) {
 //================================================================= particles
 const sparks = [];
 function spawnSpark(x,y,col,n) {
-  if (sparks.length > 900) return;
+  if (sparks.length > 320) return;
   for (let i=0;i<n;i++) {
     const a = Math.random()*6.283, s = 2+Math.random()*9;
     sparks.push({ x:x+.5, y:y+.5, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:.35+Math.random()*.5, t:0, col });
@@ -1006,6 +1016,15 @@ const cv = document.getElementById("c"), ctx = cv.getContext("2d");
 const off = document.createElement("canvas"); off.width = off.height = GRID;
 const octx = off.getContext("2d", { alpha:false });
 let W=0, H=0, DPR=1;
+
+const GLOW = KINDCOL.map(col => {
+  const g = document.createElement("canvas"); g.width = g.height = 32;
+  const c = g.getContext("2d");
+  const grad = c.createRadialGradient(16,16,0, 16,16,16);
+  grad.addColorStop(0, col); grad.addColorStop(0.35, col+"88"); grad.addColorStop(1, col+"00");
+  c.fillStyle = grad; c.fillRect(0,0,32,32);
+  return g;
+});
 
 const cam = { x:CX, y:CY, z:9, tx:CX, ty:CY, tz:9, manual:false };
 const bb = { x0:CX-8, y0:CY-8, x1:CX+8, y1:CY+8 };
@@ -1083,20 +1102,31 @@ function draw(dt) {
   }
   ctx.globalAlpha = 1;
 
+  // Trails shorten as the swarm grows so total segment count stays bounded.
+  const live = balls.reduce((n,b) => n + (b.state==="fly"?1:0), 0);
+  const tailPts = live > 120 ? 3 : live > 60 ? 5 : live > 25 ? 9 : 13;
+  ctx.globalCompositeOperation = "lighter";
   for (const b of balls) {
     if (b.state !== "fly") continue;
     const col = KINDCOL[b.kind];
-    ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, z*.22);
-    ctx.globalAlpha = b.temp ? .3 : .5; ctx.beginPath();
-    for (let k=0;k<b.trail.length;k+=2) {
-      const [X,Y] = toS(b.trail[k], b.trail[k+1]);
-      k===0 ? ctx.moveTo(X,Y) : ctx.lineTo(X,Y);
+    const seg = Math.min(tailPts, b.trail.length>>1);
+    if (seg > 1) {
+      ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, z*.22);
+      ctx.globalAlpha = b.temp ? .25 : .4; ctx.beginPath();
+      const start = b.trail.length - seg*2;
+      for (let k=start;k<b.trail.length;k+=2) {
+        const [X,Y] = toS(b.trail[k], b.trail[k+1]);
+        k===start ? ctx.moveTo(X,Y) : ctx.lineTo(X,Y);
+      }
+      ctx.stroke();
     }
-    ctx.stroke(); ctx.globalAlpha = 1;
-    const [X,Y] = toS(b.x,b.y), s = Math.max(2, z*.8);
-    ctx.shadowColor = col; ctx.shadowBlur = 14; ctx.fillStyle = col;
-    ctx.fillRect(X-s/2, Y-s/2, s, s); ctx.shadowBlur = 0;
+    const [X,Y] = toS(b.x,b.y), sz = Math.max(2, z*.8), g = Math.max(8, sz*3.2);
+    ctx.globalAlpha = 1;
+    ctx.drawImage(GLOW[b.kind], X-g/2, Y-g/2, g, g);   // cached glow, no shadowBlur
+    ctx.fillStyle = col;
+    ctx.fillRect(X-sz/2, Y-sz/2, sz, sz);
   }
+  ctx.globalCompositeOperation = "source-over";
   ctx.globalCompositeOperation = "source-over";
 
   if (aim !== null && idleOf(selKind)) {
@@ -1652,7 +1682,7 @@ function applyHeadStart() {
   const lg = MT("legacy");
   if (lg) { S.lv.dmg = Math.max(S.lv.dmg||0, lg);
             S.lv.speed = Math.max(S.lv.speed||0, lg);
-            S.lv.count = Math.max(S.lv.count||0, lg); }
+            S.mods.multi = Math.max(S.mods.multi||0, Math.min(lg, METABY ? 8 : 8)); }
   if (MT("ignition")) S.lv.autofire = 1;
   grantCache(0, MT("cache"));
   syncRoster();

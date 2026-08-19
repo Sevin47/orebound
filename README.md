@@ -195,6 +195,38 @@ your opening volley and enabling offline mining.
 
 ## Balance notes
 
+**Ball count is capped.** It is the worst scaling axis in this game — linear power,
+superlinear cost — so the hard ceiling is 120 live balls and the reachable maximum is
+about 68. Extra Ball left the Core branch for the Forge (**Multiplicity**, ore-bought,
+max 8), Fleet Start is capped at 5, and Prime's Swarm became **Density**, a damage
+multiplier. In its place Core gained **Shockwave**: every impact cracks a small area,
+which buys throughput without adding entities.
+
+**The renderer was the real performance problem, not the physics.** At 300 balls the
+physics costs 2.4ms a frame; the killer was a `shadowBlur` glow per ball, which forces
+a blur pass per draw. Glows are now pre-rendered sprites drawn with `drawImage`, trails
+shorten as the swarm grows, and the spark budget is a third of what it was.
+
+**Residue income no longer compounds x1.9 per stratum** (now x1.25). Against meta costs
+growing x1.5 per level, the old rate meant later runs collapsed to four minutes and
+cleared the whole board. Stratum HP rose to x1.75 to match.
+
+Chamber Force was x400 at max against Monoliths growing x1.5; it is now x15 against
+x1.62, so a Monolith takes **3-4 attempts at every stage** rather than dropping to one.
+
+A chained simulation of eight consecutive descents:
+
+| Run | Length | Depth | Board | Balls |
+|---|---|---|---|---|
+| 1 | 30m | r216 | 15% | 10 |
+| 3 | 30m | r377 | 43% | 28 |
+| 5 | 30m | r442 | 59% | 32 |
+| 7 | 30m | r490 | 72% | 40 |
+| 8 | 23m | r450 | 61% | 40 |
+
+Runs hold 20-30 minutes, depth climbs, and a stratum is never trivially exhausted.
+
+
 Block HP scales with distance from the origin, but not as a flat exponential. Depth
 sits inside a power law (`exp(DEPTH_K * d^1.35)`), so the curve *accelerates*: about
 1.6x at r60, 9x at r180, 500x at r400, 17,000x at r560. A flat `pow^d` could not
