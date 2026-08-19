@@ -21,6 +21,7 @@ Open `index.html` in any browser. No build step, no dependencies.
 | `U` | Upgrades |
 | `C` | Forge |
 | `K` | Codex |
+| `S` | Stats |
 | `M` | Monolith Chamber |
 | `Space` | Recall every ball |
 | `D` | Descent and the meta tree |
@@ -33,7 +34,7 @@ Open `index.html` in any browser. No build step, no dependencies.
 | Tap | Fire one ball at that point |
 | Drag | Pan the camera |
 | Pinch | Zoom |
-| Bottom bar | Upgrades, Forge, Codex, Descend, Lodestone, Recall, Menu |
+| Bottom bar | Upgrades, Forge, Codex, Stats, Descend, Monolith, Recall, Menu |
 
 The layout switches to a single-column, touch-sized version below 820px wide, and the
 energy bar moves to full width across the top.
@@ -119,8 +120,7 @@ multipliers — head starts compress the slow opening, multipliers only move it:
 | Assay | Permanent ore and Core yield multiplier |
 
 Lodestone **powers are kept forever**. Every stratum reseeds its ore, so no two are
-the same map. Rock gets harder (x1.55 HP) and richer (x1.8 value) each stratum — gentle
-enough that the meta tree stays ahead, so every run reaches deeper than the last.
+the same map. Rock gets harder (x1.75 HP) and richer (x2.0 value) each stratum, tuned so runs hold 20-30 minutes.
 
 Cleared strata are archived in the Codex — your excavations are finished and filed,
 not deleted.
@@ -166,9 +166,16 @@ current pacing you are never meant to exhaust a stratum. Its reward slot became
 
 The arena is now pure rock, edge to edge.
 
-## Codex
+## Stats and Codex
 
-Tracks ore discovered, Monolith progress, cleared strata and records.
+**Stats** (`S`) shows every derived number with modifiers already folded in — damage per
+impact and averaged with crits, crit chance and multiplier, ball speed and top speed
+under Momentum, blast and shockwave radii, yield multipliers, and a live frame rate
+with frame budget. Frame rate also sits in the corner HUD.
+
+**Codex** (`K`) tracks ore discovered, Monolith progress, cleared strata and records.
+
+Depth is written as **Depth 340**, not `r340`.
 
 ## Momentum (there is no energy)
 
