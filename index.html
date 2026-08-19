@@ -86,6 +86,19 @@
   .mod button:hover:not(:disabled) { background:#6ad2 }
   .mod button:disabled { opacity:.3; cursor:not-allowed }
   .mod.maxed { opacity:.4 }
+  .mod.busy { border-color:#8ef; box-shadow:0 0 14px -4px #8ef }
+  #slotwrap { width:100%; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
+    margin-bottom:6px }
+  .slot-idle, .slot-locked { border:1px dashed #2a4a5c; color:#5a7a8c; font-size:10px;
+    letter-spacing:1px; padding:12px 16px; min-width:190px; text-align:center }
+  .slot-busy { border:1px solid #8ef; background:rgba(0,0,0,.5); padding:9px 12px; min-width:200px }
+  .slot-busy .sname { font-size:11px; color:#9df; letter-spacing:1px }
+  .sbar { height:6px; background:#0a1a22; border:1px solid #2a4a5c; margin:6px 0 4px }
+  .sbar div { height:100%; background:linear-gradient(90deg,#3ad,#9ef) }
+  .slot-busy .stime { font-size:10px; opacity:.6 }
+  .scancel { margin-top:6px; width:100%; background:none; border:1px solid #556;
+    color:#889; font-family:inherit; font-size:9px; letter-spacing:1px; padding:4px; cursor:pointer }
+  .scancel:hover { border-color:#e66; color:#e88 }
 
   #dcard { max-width:440px; margin:0 auto 22px; border:2px solid #c9a6ff;
     background:rgba(0,0,0,.6); padding:16px 18px }
@@ -248,7 +261,7 @@
 <button id="pclose">✕</button>
 
 <div class="panel" id="tree"><div class="ptitle">UPGRADES — [U] TO CLOSE</div><div id="branches"></div></div>
-<div class="panel" id="forge"><div class="ptitle">FORGE — SPEND RAW ORE — [C] TO CLOSE</div><div id="forgegrid"></div></div>
+<div class="panel" id="forge"><div class="ptitle">FORGE — RESEARCH TAKES REAL TIME — [C] TO CLOSE</div><div id="forgegrid"></div></div>
 <div class="panel" id="descent"><div class="ptitle">DESCENT — [D] TO CLOSE</div>
   <div id="dcard"><div id="dhead"></div><button id="dbtn">DESCEND</button></div>
   <div id="metagrid"></div>
@@ -286,8 +299,11 @@
 //===========================================================================
 
 const GRID = 1024, CX = GRID >> 1, CY = GRID >> 1;
-const SEED = 1337, SAVEKEY = "orebound.v1";
-const OLDKEYS = ["pixelbouncer.v3"];           // carry a run across the rename
+const SEED = 1337, SAVEKEY = "orebound.v2";
+// v1 is deliberately NOT migrated: the upgrade economy was restructured (Prime
+// dissolved, Forge became timed research, Cores went permanent) and a silent
+// half-conversion would hide bugs. Old saves are retired with a notice instead.
+const RETIRED = ["orebound.v1", "pixelbouncer.v3"];
 
 // ---- Descent -------------------------------------------------------------
 // Clearing a stratum does not wipe your progress, it moves you down to a new one.
@@ -448,7 +464,6 @@ const BR = {
   green : { col:"#3edc52", name:"POISON",     ore:8 },   // Verdite,  from r370
   purple: { col:"#e040e0", name:"REFINING",   ore:9 },   // Voidgem,  from r470
   auto  : { col:"#7f8cff", name:"AUTOMATION", ore:0 },
-  prime : { col:"#ffffff", name:"PRIME",      ore:0 },
 };
 
 // Ore only starts being demanded a few levels in. Without this the Core branch would
@@ -475,8 +490,6 @@ const UPG = [
     fmt:l=>"up to x"+(1+l*1.05).toFixed(1) },
   { id:"rebound",br:"energy", name:"Rebound",     max:16, cost:l=>90*Math.pow(1.7,l),  ore:og(70,1.6,2),
     desc:"Chance a bounce lands a second free hit.", fmt:l=>(l*4)+"%" },
-  { id:"force",  br:"energy", name:"Impact Force",max:18, cost:l=>70*Math.pow(1.66,l), ore:og(60,1.58,2),
-    desc:"Flat multiplier on all impact damage.", fmt:l=>"x"+Math.pow(1.18,l).toFixed(2) },
 
   { id:"redball",br:"red", name:"Smash Ball",   max:1,  cost:()=>700,                ore:()=>60, ball:true,
     desc:"Detonates the rock around every impact." },
@@ -501,8 +514,6 @@ const UPG = [
 
   { id:"value", br:"purple", name:"Refining",   max:24, cost:l=>200*Math.pow(1.68,l),ore:og(120,1.6,1),
     desc:"Diamonds recovered from all ore.", fmt:l=>"+"+(l*20)+"%" },
-  { id:"deep",  br:"purple", name:"Deep Yield", max:16, cost:l=>900*Math.pow(1.9,l), ore:og(240,1.8,1),
-    desc:"Extra value from ore far from the origin.", fmt:l=>"+"+(l*8)+"%/500" },
   { id:"oreyld",br:"purple", name:"Ore Haul",   max:16, cost:l=>700*Math.pow(1.85,l),ore:og(200,1.76,1),
     desc:"Raw ore recovered per block, for the branches and the Forge.", fmt:l=>"x"+(1+l*0.35).toFixed(2) },
 
@@ -513,40 +524,84 @@ const UPG = [
   { id:"offline", br:"auto", name:"Night Shift", max:10, cost:l=>1800*Math.pow(1.9,l), req:"autofire",
     desc:"Share of your mining rate that keeps running while away.", fmt:l=>(40+l*5)+"%" },
 
-  { id:"overch", br:"prime", name:"Overcharge",  max:14, cur:"core", cost:l=>Math.ceil(2*Math.pow(1.42,l)),
-    desc:"Multiplies all impact damage.", fmt:l=>"x"+Math.pow(1.22,l).toFixed(2) },
-  { id:"reactor",br:"prime", name:"Kinetic Core", max:12, cur:"core", cost:l=>Math.ceil(3*Math.pow(1.45,l)),
-    desc:"Permanent ball speed multiplier.", fmt:l=>"x"+Math.pow(1.18,l).toFixed(2) },
-  { id:"swarm",  br:"prime", name:"Density",     max:12, cur:"core", cost:l=>Math.ceil(4*Math.pow(1.5,l)),
-    desc:"Permanent impact damage multiplier.", fmt:l=>"x"+Math.pow(1.3,l).toFixed(2) },
-  { id:"prosp",  br:"prime", name:"Prospector",  max:12, cur:"core", cost:l=>Math.ceil(3*Math.pow(1.45,l)),
-    desc:"Raises the chance ore yields a core.", fmt:l=>"+"+(l*45)+"%" },
 ];
 const UPGBY = {}; UPG.forEach(u => UPGBY[u.id] = u);
 
 //===================================================================== forge
-// Modules cost mixed raw ore, so every tier stays useful long after its branch is done.
+// The Laboratory. Paid in Cores (which now persist across descents) and, more
+// importantly, in REAL TIME: each research occupies one of a few slots until it
+// finishes, whether or not the game is open. Branch upgrades are flat and reset
+// every stratum; research is multiplicative and permanent. One owner per stat.
 const MODS = [
-  { id:"coil",   name:"Impact Prism",    max:8,  ores:{6:220, 4:160},
-    desc:"Each level adds 12% to all impact damage.", eff:l=>"x"+(1+l*0.12).toFixed(2) },
-  { id:"lens",   name:"Fracture Lens",   max:8,  ores:{3:400, 8:120},
-    desc:"Each level adds 25% to Fracture crit damage.", eff:l=>"x"+(9*(1+l*.25)).toFixed(1) },
-  { id:"vein",   name:"Vein Sense",      max:10, ores:{4:300, 5:220},
-    desc:"Ore blocks take extra damage.", eff:l=>"+"+(l*18)+"%" },
-  { id:"echo",   name:"Echo Chamber",    max:10, ores:{7:260, 6:300},
-    desc:"Chance a bounce fires a second free impact.", eff:l=>(l*4)+"%" },
-  { id:"driver", name:"Mass Driver",     max:8,  ores:{8:240, 7:280},
-    desc:"Ball collisions shatter rock around the impact.", eff:l=>l?("radius "+(1+l*.5).toFixed(1)):"off" },
-  { id:"lantern",name:"Deep Lantern",    max:6,  ores:{9:150, 3:600},
-    desc:"Widens the lit frontier and adds deep yield.", eff:l=>"+"+(l*6)+"% value" },
-  { id:"tap",    name:"Void Tap",        max:8,  ores:{9:220, 8:260},
-    desc:"Raises core drop chance.", eff:l=>"+"+(l*30)+"%" },
-  { id:"multi",  name:"Multiplicity",   max:8,  ores:{4:90, 5:60},
+  { id:"overch", name:"Overcharge",   max:20, cores:l=>Math.ceil(3*Math.pow(1.5,l)),  mins:l=>6*Math.pow(1.25,l),
+    desc:"Multiplies all impact damage. The single home for damage multipliers.",
+    eff:l=>"x"+Math.pow(1.35,l).toFixed(2) },
+  { id:"kinetic",name:"Kinetic Core", max:16, cores:l=>Math.ceil(4*Math.pow(1.5,l)),  mins:l=>8*Math.pow(1.30,l),
+    desc:"Multiplies ball travel speed.", eff:l=>"x"+Math.pow(1.18,l).toFixed(2) },
+  { id:"multi",  name:"Multiplicity", max:8,  cores:l=>Math.ceil(6*Math.pow(1.7,l)),  mins:l=>20*Math.pow(1.53,l),
     desc:"One more ball of every unlocked colour.", eff:l=>"+"+l },
-  { id:"ballast",name:"Kinetic Ballast", max:10, ores:{5:280, 7:200},
-    desc:"Balls keep more speed and hit harder after collisions.", eff:l=>"+"+(l*7)+"% dmg" },
+  { id:"prosp",  name:"Prospector",   max:12, cores:l=>Math.ceil(4*Math.pow(1.55,l)), mins:l=>10*Math.pow(1.40,l),
+    desc:"Multiplies the chance ore yields a Core.", eff:l=>"x"+Math.pow(1.4,l).toFixed(2) },
+  { id:"vein",   name:"Vein Sense",   max:12, cores:l=>Math.ceil(3*Math.pow(1.5,l)),  mins:l=>7*Math.pow(1.44,l),
+    desc:"Ore blocks take extra damage.", eff:l=>"+"+(l*18)+"%" },
+  { id:"echo",   name:"Echo Chamber", max:10, cores:l=>Math.ceil(5*Math.pow(1.6,l)),  mins:l=>12*Math.pow(1.46,l),
+    desc:"Chance a bounce lands a second free impact.", eff:l=>(l*4)+"%" },
+  { id:"driver", name:"Mass Driver",  max:8,  cores:l=>Math.ceil(5*Math.pow(1.62,l)), mins:l=>14*Math.pow(1.60,l),
+    desc:"Ball collisions shatter the rock around them.", eff:l=>l?("radius "+(1+l*.5).toFixed(1)):"off" },
+  { id:"lens",   name:"Fracture Lens",max:10, cores:l=>Math.ceil(4*Math.pow(1.55,l)), mins:l=>9*Math.pow(1.52,l),
+    desc:"Raises Fracture critical damage.", eff:l=>"x"+(9*(1+l*.25)).toFixed(1) },
+  { id:"lantern",name:"Deep Lantern", max:8,  cores:l=>Math.ceil(4*Math.pow(1.58,l)), mins:l=>11*Math.pow(1.65,l),
+    desc:"Widens the lit frontier and raises the value of deep ore.", eff:l=>"+"+(l*8)+"%" },
+  { id:"fspeed", name:"Forge Speed",  max:12, cores:l=>Math.ceil(8*Math.pow(1.7,l)),  mins:l=>25*Math.pow(1.29,l),
+    desc:"Every research finishes faster, including this one.",
+    eff:l=>"-"+Math.round((1-Math.pow(.88,l))*100)+"%" },
 ];
 const MODBY = {}; MODS.forEach(m => MODBY[m.id] = m);
+
+//================================================================== research
+// Slots are the scarce thing, not Cores. Timers run on wall clock so research
+// advances with the game closed, the same basis the offline credit already uses.
+const forgeSlots = () => 1 + MT("slots");
+const RESEARCH_CAP_MIN = 8 * 60;               // no single research may exceed 8h
+const researchMins = (m, lv) =>
+  Math.min(RESEARCH_CAP_MIN, m.mins(lv)) * Math.pow(0.88, ML("fspeed"));
+function researchAt(i) { return (S.research || [])[i] || null; }
+function activeResearch(id) { return (S.research || []).some(r => r && r.id === id); }
+function startResearch(id, slot) {
+  const m = MODBY[id]; if (!m) return false;
+  const lv = ML(id);
+  if (lv >= m.max || activeResearch(id)) return false;
+  if (slot >= forgeSlots() || researchAt(slot)) return false;
+  const cost = m.cores(lv);
+  if (S.cores < cost) { toast("NOT ENOUGH CORES"); return false; }
+  S.cores -= cost;
+  S.research = S.research || [];
+  S.research[slot] = { id, lv, ends: Date.now() + researchMins(m, lv) * 60000 };
+  save(); return true;
+}
+function cancelResearch(slot) {
+  const r = researchAt(slot); if (!r) return;
+  S.cores += Math.floor(MODBY[r.id].cores(r.lv) * 0.5);   // half back, never all
+  S.research[slot] = null; save();
+}
+function collectResearch(quiet) {
+  let done = 0;
+  const rs = S.research || [];
+  for (let i = 0; i < rs.length; i++) {
+    const r = rs[i]; if (!r || Date.now() < r.ends) continue;
+    S.mods[r.id] = (S.mods[r.id] || 0) + 1;
+    rs[i] = null; done++;
+    if (!quiet) toast("RESEARCH COMPLETE — " + MODBY[r.id].name + " Lv " + S.mods[r.id]);
+  }
+  if (done) { syncRoster(); save(); }
+  return done;
+}
+const fmtDur = ms => {
+  const s2 = Math.max(0, Math.ceil(ms/1000));
+  if (s2 < 60) return s2 + "s";
+  if (s2 < 3600) return Math.floor(s2/60) + "m " + (s2%60) + "s";
+  return Math.floor(s2/3600) + "h " + Math.floor((s2%3600)/60) + "m";
+};
 
 //=================================================================== descent
 // Bought with Residue and kept forever. Weighted toward head starts rather than
@@ -560,10 +615,9 @@ const META = [
     desc:"Arrive with the Auto-Launcher already running." },
   { id:"cache",   name:"Supply Cache",  max:12, cost:l=>Math.ceil(22*Math.pow(1.6,l)),
     desc:"Arrive holding diamonds and raw ore.", fmt:l=>"◆"+fmt(400*Math.pow(2.4,l))+" +ore" },
-  { id:"roots",   name:"Deep Roots",    max:30, cost:l=>Math.ceil(25*Math.pow(1.5,l)),
-    desc:"Permanent damage multiplier, every stratum.", fmt:l=>"x"+Math.pow(1.25,l).toFixed(2) },
-  { id:"reservoir",name:"Velocity",      max:24, cost:l=>Math.ceil(28*Math.pow(1.52,l)),
-    desc:"Permanent ball speed multiplier, every stratum.", fmt:l=>"x"+Math.pow(1.14,l).toFixed(2) },
+  { id:"slots",   name:"Forge Slots",   max:3,  cost:l=>Math.ceil(120*Math.pow(3.2,l)),
+    desc:"One more research may run at the same time. Slots, not Cores, are the real limit.",
+    fmt:l=>(1+l)+" slot"+(l?"s":"") },
   { id:"chtime",  name:"Chamber Time",  max:8,  cost:l=>Math.ceil(26*Math.pow(1.72,l)),
     desc:"Seconds per Monolith attempt.", fmt:l=>(18+l*6)+"s" },
   { id:"chvolley",name:"Volley",        max:8,  cost:l=>Math.ceil(30*Math.pow(1.78,l)),
@@ -684,7 +738,7 @@ const S = {
   minedCount:0, maxDepth:0, rate:0,
   bestRate:0, playtime:0,
   // --- Monolith Chamber ---
-  attempts:0, monoIndex:0, monoDmg:0,
+  attempts:0, monoIndex:0, monoDmg:0, research:[],
   // --- persists across descents ---
   stratum:1, residue:0, meta:{}, strata:[], totalPlaytime:0,
 };
@@ -698,14 +752,11 @@ const purse= cur => cur === "core" ? S.cores : S.dia;
 
 
 
-const baseDmg = () => Math.pow(1.34, L("dmg")) * Math.pow(1.22, L("overch"))
-  * (1 + ML("ballast") * .07) * Math.pow(1.25, MT("roots"))
-  * Math.pow(1.18, L("force")) * (1 + ML("coil") * .12)
-  * Math.pow(1.3, L("swarm"));
+const baseDmg = () => Math.pow(1.34, L("dmg")) * Math.pow(1.35, ML("overch"));
 // Speed must scale exponentially: bounce rate falls as 1/cavern-radius, so linear
 // speed gains get swallowed as the cavern widens and the game grinds to a halt.
 const ballSpd = () => 55 * Math.pow(1.26, L("speed")) * (hasPower("veloc") ? 1.6 : 1)
-  * Math.pow(1.18, L("reactor")) * Math.pow(1.14, MT("reservoir"));
+  * Math.pow(1.18, ML("kinetic"));
 // Momentum: a ball accelerates the further it flies without an impact, which is
 // exactly the regime where a widening cavern used to starve throughput.
 const MOM_SPAN = 80;
@@ -719,10 +770,9 @@ const perType = () => 1 + ML("multi") + MT("fleet") + (hasPower("swarm2") ? 3 : 
 const kindsOwned = () => [0,1,2,3].filter(k => k===0 || L(KINDUPG[k])).length;
 const critCh  = () => L("crit") * .03;
 const critMul = () => 9 * (1 + ML("lens") * .25);
-const valMul  = () => (1 + L("value") * .20) * (hasPower("greed") ? 2 : 1) * (1 + ML("lantern") * .06);
+const valMul  = () => (1 + L("value") * .20) * (hasPower("greed") ? 2 : 1) * (1 + ML("lantern") * .08);
 const oreMul  = () => (1 + L("oreyld") * .35) * (1 + MT("assay") * .3);
-const coreMul = () => (1 + L("prosp") * .45) * (1 + ML("tap") * .30)
-  * (hasPower("prosp") ? 2 : 1) * (1 + MT("assay") * .3);
+const coreMul = () => Math.pow(1.4, ML("prosp")) * (hasPower("prosp") ? 2 : 1) * (1 + MT("assay") * .3);
 const autoInt = () => 3.2 * Math.pow(.86, L("autorate"));
 const offFrac = () => L("autofire") ? .40 + L("offline") * .05 : 0;
 const oreDmgMul = () => (1 + ML("vein") * .18) * (hasPower("tough") ? 2 : 1);
@@ -771,7 +821,7 @@ function payout(x, y, t) {
   S.oreLife[t]++;
   if (t >= ORE_LO && t <= ORE_HI) S.ore[t] += oreMul();
   const d = Math.hypot(x-CX, y-CY);
-  S.dia += cellVal(x, y, t) * valMul() * (1 + L("deep") * .08 * (d/500));
+  S.dia += cellVal(x, y, t) * valMul() * (1 + ML("lantern") * .08 * (d/500));
   if (Math.random() < CORECH[t] * coreMul()) S.cores++;
   if (d > S.maxDepth) S.maxDepth = d;
 }
@@ -1190,7 +1240,7 @@ function frame(now) {
       const b = balls[i];
       if (b.temp) { b.life -= dt; if (b.life <= 0) balls.splice(i,1); }
     }
-      tickPoison(dt); tickAuto(dt); tickRate(dt);
+      tickPoison(dt); tickAuto(dt); tickRate(dt); collectResearch();
   }
 
   if (!cam.manual) fitCamera();
@@ -1356,44 +1406,70 @@ function buy(id) {
 //================================================================= forge UI
 function buildForge() {
   const g = $("forgegrid"); g.innerHTML = "";
+  const slots = document.createElement("div");
+  slots.id = "slotwrap"; g.appendChild(slots);
   for (const m of MODS) {
     const d = document.createElement("div");
     d.className = "mod"; d.dataset.id = m.id;
     d.innerHTML = '<h4>'+m.name+'</h4><div class="mlv"></div>'
                 + '<div class="mdesc">'+m.desc+'</div><div class="cost"></div>'
-                + '<button>CRAFT</button>';
-    d.querySelector("button").onclick = () => craft(m.id);
+                + '<button>RESEARCH</button>';
+    d.querySelector("button").onclick = () => {
+      let free = -1;
+      for (let i = 0; i < forgeSlots(); i++) if (!researchAt(i)) { free = i; break; }
+      if (free < 0) { toast("EVERY FORGE SLOT IS BUSY"); return; }
+      if (startResearch(m.id, free)) toast("RESEARCH STARTED — " + m.name);
+      refreshForge();
+    };
     g.appendChild(d);
   }
   refreshForge();
 }
-const modCost = (m, l) => Object.entries(m.ores).map(([t,a]) => [ +t, Math.ceil(a*Math.pow(1.85,l)) ]);
+
 function refreshForge() {
+  // slot strip
+  let sh = "";
+  for (let i = 0; i < forgeSlots(); i++) {
+    const r = researchAt(i);
+    if (!r) sh += '<div class="slot-idle">SLOT '+(i+1)+' &middot; IDLE</div>';
+    else {
+      const m = MODBY[r.id];
+      const total = researchMins(m, r.lv) * 60000;
+      const left = Math.max(0, r.ends - Date.now());
+      const pct = Math.min(100, (1 - left/total) * 100);
+      sh += '<div class="slot-busy" data-slot="'+i+'">'
+          + '<div class="sname">'+m.name+' &rarr; Lv '+(r.lv+1)+'</div>'
+          + '<div class="sbar"><div style="width:'+pct.toFixed(1)+'%"></div></div>'
+          + '<div class="stime">'+(left>0 ? fmtDur(left)+" left" : "collecting…")+'</div>'
+          + '<button class="scancel" data-slot="'+i+'">CANCEL</button></div>';
+    }
+  }
+  const locked = 3 - MT("slots");
+  if (locked > 0) sh += '<div class="slot-locked">'+locked+' more slot'+(locked>1?"s":"")
+                      + ' available in Descent</div>';
+  $("slotwrap").innerHTML = sh;
+  for (const b of document.querySelectorAll(".scancel"))
+    b.onclick = e => { e.stopPropagation(); cancelResearch(+b.dataset.slot); refreshForge(); };
+
   for (const d of document.querySelectorAll("#forgegrid .mod")) {
     const m = MODBY[d.dataset.id];
-    if (!m) continue;                          // never trust a stray card
-    const lv = ML(m.id), maxed = lv >= m.max;
+    if (!m) continue;
+    const lv = ML(m.id), maxed = lv >= m.max, busy = activeResearch(m.id);
+    const cost = m.cores(lv), can = S.cores >= cost;
+    const free = (() => { for (let i=0;i<forgeSlots();i++) if (!researchAt(i)) return true; return false; })();
     d.querySelector(".mlv").textContent = maxed ? "MAX  ("+m.eff(lv)+")"
       : "Lv "+lv+" → "+(lv+1)+"   "+m.eff(lv)+" → "+m.eff(lv+1);
-    let can = true, html = "";
-    if (!maxed) for (const [t,a] of modCost(m,lv)) {
-      const ok = S.ore[t] >= a; can = can && ok; html += oreSpan(t,a,ok);
-    }
-    d.querySelector(".cost").innerHTML = html;
-    d.querySelector("button").disabled = maxed || !can;
+    d.querySelector(".cost").innerHTML = maxed ? ""
+      : '<s style="color:'+(can?"#8ef":"#e66")+'">◈ '+fmt(cost)+'</s>'
+      + '<s style="opacity:.7">⏱ '+fmtDur(researchMins(m,lv)*60000)+'</s>';
+    const btn = d.querySelector("button");
+    btn.disabled = maxed || busy || !can || !free;
+    btn.textContent = maxed ? "MAX" : busy ? "IN PROGRESS" : !free ? "NO FREE SLOT" : "RESEARCH";
     d.classList.toggle("maxed", maxed);
+    d.classList.toggle("busy", busy);
   }
 }
-function craft(id) {
-  const m = MODBY[id], lv = ML(id);
-  if (lv >= m.max) return;
-  const cost = modCost(m, lv);
-  for (const [t,a] of cost) if (S.ore[t] < a) { toast("NEED "+fmt(a)+" "+TIERS[t].name.toUpperCase()); return; }
-  for (const [t,a] of cost) S.ore[t] -= a;
-  S.mods[id] = lv+1;
-  toast("FORGED — "+m.name.toUpperCase()+" Lv "+(lv+1));
-  refreshForge(); save();
-}
+
 
 //================================================================= stats UI
 // Every derived number the game actually uses, with modifiers already folded in,
@@ -1649,6 +1725,7 @@ function showWelcome(r) {
     + '<div class="wrow"><span>Blocks mined</span><b>'+fmt(r.blocks)+'</b></div>'
     + '<div class="wrow"><span>Diamonds</span><b>◆ '+fmt(r.dia)+'</b></div>'
     + (r.cores ? '<div class="wrow"><span>Cores</span><b>◈ '+fmt(r.cores)+'</b></div>' : '')
+    + (doneWhileAway ? '<div class="wrow"><span>Research finished</span><b>'+doneWhileAway+'</b></div>' : '')
     + (r.capped ? '<div class="wnote">Offline yield was capped. Check in more often.</div>' : '');
   $("welcome").style.display = "flex";
 }
@@ -1671,7 +1748,9 @@ if (typeof document.addEventListener === "function") {
     const away = (Date.now() - hiddenAt) / 1000;
     hiddenAt = 0;
     last = performance.now();                  // don't hand the loop a giant dt
+    const finished = collectResearch(true);
     const r = creditAway(away);
+    if (finished) toast(finished + " RESEARCH COMPLETE");
     if (r) toast("AWAY " + (away < 90 ? Math.round(away) + "s"
                 : Math.floor(away/60) + "m") + " — +" + fmt(r.blocks) + " BLOCKS");
     else if (away > 60 && !L("autofire"))
@@ -1704,19 +1783,19 @@ function save() {
       stratum:S.stratum, residue:S.residue, meta:S.meta, strata:S.strata, tpt:S.totalPlaytime,
       ore:S.ore, oreLife:S.oreLife, mc:S.minedCount, md:S.maxDepth,
       br:S.bestRate, pt:S.playtime,
-      attempts:S.attempts, monoIndex:S.monoIndex, monoDmg:S.monoDmg,
+      attempts:S.attempts, monoIndex:S.monoIndex, monoDmg:S.monoDmg, research:S.research,
       t:Date.now(), mined:rle(mined), dm
     }));
   } catch (err) { console.warn("save failed", err); }
 }
 // Read the current key, or adopt a save left behind by an older name.
+let retiredSave = false;
 function readSave() {
   try {
-    let raw = localStorage.getItem(SAVEKEY);
+    const raw = localStorage.getItem(SAVEKEY);
     if (raw) return raw;
-    for (const k of OLDKEYS) {
-      raw = localStorage.getItem(k);
-      if (raw) { localStorage.setItem(SAVEKEY, raw); localStorage.removeItem(k); return raw; }
+    for (const k of RETIRED) {
+      if (localStorage.getItem(k)) { localStorage.removeItem(k); retiredSave = true; }
     }
   } catch {}
   return null;
@@ -1734,6 +1813,7 @@ function load() {
     S.dia = d.dia||0; S.cores = d.cores||0; S.rate = d.rate||0;
     S.minedCount = d.mc||0; S.maxDepth = d.md||0; S.bestRate = d.br||0; S.playtime = d.pt||0;
     S.attempts = d.attempts||0; S.monoIndex = d.monoIndex||0; S.monoDmg = d.monoDmg||0;
+    S.research = d.research||[];
     S.stratum = d.stratum||1; S.residue = d.residue||0;
     S.meta = d.meta||{}; S.strata = d.strata||[]; S.totalPlaytime = d.tpt||0;
     Object.assign(S.lv, d.lv||{}); Object.assign(S.mods, d.mods||{});
@@ -1772,10 +1852,10 @@ function applyHeadStart() {
 
 // Wipes the run but keeps everything that makes a descent worthwhile.
 function newStratum() {
-  S.dia = 0; S.cores = 0; S.minedCount = 0; S.maxDepth = 0; S.rate = 0;
+  // Cores and research persist across a descent now
+  S.dia = 0; S.minedCount = 0; S.maxDepth = 0; S.rate = 0;
   S.bestRate = 0; S.playtime = 0;
   S.lv = {};   UPG.forEach(u => S.lv[u.id] = 0);
-  S.mods = {}; MODS.forEach(m => S.mods[m.id] = 0);
   S.ore = new Array(12).fill(0);
   S.oreLife = new Array(12).fill(0);
   generate();
@@ -1959,11 +2039,11 @@ $("chexit").onclick = () => { if (CH.on && !CH.done) monoEnd(); else monoExit();
 // with no reload — so there is no unload event that could resurrect the old save.
 function resetGame() {
   saveLocked = true;
-  try { localStorage.removeItem(SAVEKEY); for (const k of OLDKEYS) localStorage.removeItem(k); } catch {}
+  try { localStorage.removeItem(SAVEKEY); for (const k of RETIRED) localStorage.removeItem(k); } catch {}
 
   S.dia = 0; S.cores = 0; S.minedCount = 0; S.maxDepth = 0; S.rate = 0;
   S.bestRate = 0; S.playtime = 0;
-  S.attempts = 0; S.monoIndex = 0; S.monoDmg = 0;
+  S.attempts = 0; S.monoIndex = 0; S.monoDmg = 0; S.research = [];
   S.lv = {};   UPG.forEach(u => S.lv[u.id] = 0);
   S.mods = {}; MODS.forEach(m => S.mods[m.id] = 0);
   S.powers = {};
@@ -1999,6 +2079,8 @@ function openMenu() {
   // the menu early would strand you with New Game as the only way out.
   $("mcont").disabled = !(has || sessionStarted);
   $("mcont").textContent = sessionStarted ? "RESUME" : "CONTINUE";
+  if (retiredSave) $("mnote").textContent =
+    "A save from an older version was retired — the upgrade economy was rebuilt.";
   $("msave").innerHTML = has
     ? '<div class="r"><span>Board cleared</span><b>'+(S.minedCount/(GRID*GRID)*100).toFixed(3)+'%</b></div>'
       + '<div class="r"><span>Blocks mined</span><b>'+fmt(S.minedCount)+'</b></div>'
@@ -2055,6 +2137,7 @@ generate();
 const away = savedAway();
 load();
 relight();
+const doneWhileAway = collectResearch(true);
 let pendingOffline = runOffline(away);
 if (pendingOffline) relight();
 paintAll();

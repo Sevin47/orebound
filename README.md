@@ -93,8 +93,36 @@ Ore depth follows the order branches are **needed**, not a palette. Core and Ene
 what you want first — are fed by the shallowest ore; Refining, which you want last,
 by the deepest. Branch colour still matches its ore colour throughout.
 
-The **Forge** (`C`) spends mixed raw ore on eight permanent modules, so every tier
-stays useful long after its branch is finished.
+## The Forge is a laboratory
+
+Research costs Cores **and real time**. Each one occupies a slot until it finishes,
+whether or not the game is open — timers run on wall clock, the same basis as offline
+mining. Early research is 6–25 minutes; the deepest levels are 6–7 hours, hard-capped
+at 8.
+
+**Slots are the scarce resource, not Cores.** You start with one and buy up to four
+with Residue. **Forge Speed** is itself researchable, so the first real decision is
+whether to spend a slot making every later slot faster.
+
+The three economies now differ in *kind*, not just in source:
+
+| Currency | Scope | Cost is | Buys |
+|---|---|---|---|
+| Diamonds + ore | one run | instant | flat, in-run power |
+| Residue | permanent | instant | head starts and slots |
+| **Cores** | **permanent** | **time** | multipliers |
+
+Cores no longer reset on descent, and neither does research.
+
+## One owner per stat
+
+Before this, six separate tracks multiplied damage (Damage, Impact Force, Overcharge,
+Density, Impact Prism, Deep Roots), four multiplied speed, three raised Core drops.
+Nothing felt like it meant anything specific.
+
+The Prime branch dissolved — all four of its nodes were duplicates — and every stat now
+has exactly one home: **branches are flat and reset each stratum, research is
+multiplicative and permanent.**
 
 ## Descent
 
