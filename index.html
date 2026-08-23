@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#040806">
-<meta name="description" content="OREBOUND — bounce, mine, dig deeper. An incremental mining game.">
+<meta name="description" content="OREBOUND — bounce, mine, dig deeper. A small incremental mining game.">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>OREBOUND</title>
@@ -16,111 +16,61 @@
     -webkit-user-select:none; user-select:none; touch-action:none; }
   #c { display:block; position:absolute; inset:0; image-rendering:pixelated;
     cursor:crosshair; touch-action:none; }
-  #cc { display:block; position:static; }
 
   .hud { position:absolute; pointer-events:none; user-select:none; text-shadow:0 0 6px #000; }
 
   #topleft { top:10px; left:12px; font-size:13px; line-height:1.5; }
-  #dia { font-size:20px; color:#fff; letter-spacing:.5px; }
-  #cores { font-size:14px; color:#8ef; text-shadow:0 0 8px #2ee6 }
-  #residue { font-size:13px; color:#d9bcff; text-shadow:0 0 8px #a06ff66 }
-  .ores { margin-top:7px; display:grid; grid-template-columns:auto auto; gap:2px 10px; font-size:11px }
-  .ores span { display:flex; align-items:center; gap:4px; opacity:.9 }
-  .sw { width:8px;height:8px;display:inline-block;box-shadow:0 0 5px currentColor;background:currentColor }
+  #dia { font-size:22px; color:#fff; letter-spacing:.5px; }
+  #rate2 { font-size:12px; opacity:.6; margin-top:2px }
 
   #topright { top:10px; right:12px; text-align:right; font-size:11px; line-height:1.6; opacity:.75 }
   #topright b { color:#8fd; font-weight:normal }
+  #fps.bad { color:#f77 } #fps.ok { color:#8fd }
 
-  #prompt { bottom:112px; left:50%; transform:translateX(-50%); font-size:14px;
+  #prompt { bottom:96px; left:50%; transform:translateX(-50%); font-size:14px;
     letter-spacing:2px; color:#9fe; opacity:0; transition:opacity .3s; text-align:center }
   #prompt.on { opacity:1; animation:pulse 1.6s infinite }
   @keyframes pulse { 0%,100%{opacity:.45} 50%{opacity:1} }
 
   #hint { bottom:12px; left:50%; transform:translateX(-50%); font-size:10.5px; opacity:.35; letter-spacing:1px }
 
-  #dock { position:absolute; bottom:34px; left:50%; transform:translateX(-50%); display:flex; gap:10px; user-select:none }
-  .slot { border:2px solid; background:rgba(0,0,0,.55); padding:6px 12px 7px; cursor:pointer;
-    text-align:center; min-width:86px; opacity:.5; transition:opacity .12s, box-shadow .12s }
-  .slot.sel { opacity:1; box-shadow:0 0 16px -3px currentColor }
-  .slot.ready { opacity:.95 }
-  .slot .kn { font-size:11px; letter-spacing:1px }
-  .slot .kc { font-size:15px; margin-top:2px; color:#fff }
-  .slot .kc i { font-style:normal; opacity:.4; font-size:11px }
-  .slot .kk { font-size:9px; opacity:.45; margin-top:1px }
+  #ready { position:absolute; bottom:40px; left:50%; transform:translateX(-50%);
+    border:2px solid #cfe8dc; background:rgba(0,0,0,.55); padding:6px 18px 7px; text-align:center;
+    opacity:.55; transition:opacity .12s, box-shadow .12s; pointer-events:none }
+  #ready.armed { opacity:1; box-shadow:0 0 16px -3px #cfe8dc }
+  #ready .rn { font-size:10px; letter-spacing:2px; opacity:.7 }
+  #ready .rc { font-size:17px; color:#fff; margin-top:1px }
+  #ready .rc i { font-style:normal; opacity:.4; font-size:12px }
 
   /* ---------- overlay panels ---------- */
-  .panel { position:absolute; inset:0; display:none; background:rgba(4,10,8,.76);
+  .panel { position:absolute; inset:0; display:none; background:rgba(4,10,8,.78);
     backdrop-filter:blur(1.5px); overflow:auto; padding:52px 24px 40px; z-index:40 }
   .panel.on { display:block }
   .ptitle { position:fixed; top:14px; left:50%; transform:translateX(-50%); text-align:center;
     font-size:12px; letter-spacing:3px; opacity:.6; z-index:41 }
 
-  #branches { display:flex; gap:12px; justify-content:center; align-items:flex-start;
-    max-width:1360px; margin:0 auto; flex-wrap:wrap }
-  .branch { width:146px }
-  .btitle { font-size:11px; letter-spacing:1px; text-align:center; margin-bottom:3px }
-  .bcur { font-size:9px; text-align:center; margin-bottom:9px; opacity:.6 }
-  .node { border:2px solid; background:rgba(0,0,0,.6); padding:7px 8px; margin-bottom:8px;
-    cursor:pointer; transition:transform .08s, box-shadow .12s }
+  #nodes { display:flex; gap:14px; justify-content:center; align-items:flex-start;
+    max-width:1180px; margin:0 auto; flex-wrap:wrap }
+  .node { width:210px; border:2px solid #6ad; color:#6ad; background:rgba(0,0,0,.6);
+    padding:12px 13px; cursor:pointer; transition:transform .08s, box-shadow .12s }
   .node:hover { transform:translateY(-2px) }
-  .node .nm { font-size:12px; line-height:1.25 }
-  .node .lv { font-size:10px; opacity:.65; margin-top:3px }
-  .node .cost { margin-top:3px; font-size:10px; color:#fff; display:flex; gap:8px; flex-wrap:wrap }
-  .node .cost s { text-decoration:none; opacity:.85 }
+  .node .nm { font-size:13.5px; letter-spacing:1px }
+  .node .lv { font-size:11px; opacity:.75; margin-top:4px; color:#cfe8dc }
+  .node .desc { font-size:10.5px; opacity:.5; margin-top:6px; line-height:1.4; min-height:42px; color:#cfe8dc }
+  .node .cost { margin-top:7px; font-size:12px; color:#fff }
   .node.max { opacity:.35; cursor:default }
-  .node.locked { opacity:.28; cursor:not-allowed }
   .node.afford { box-shadow:0 0 14px -2px currentColor }
   .node .short { color:#e66 }
-  .node .desc { font-size:10px; opacity:.5; margin-top:4px; line-height:1.3 }
-  .ballnode { border-style:dashed }
 
-  #forgegrid, #codexgrid, #metagrid, #statgrid { display:flex; gap:14px; justify-content:center; flex-wrap:wrap;
-    max-width:1180px; margin:0 auto }
-  .mod { width:250px; border:2px solid #6ad; background:rgba(0,0,0,.6); padding:11px 12px }
-  .mod h4 { font-size:12.5px; font-weight:normal; color:#9df; letter-spacing:1px }
-  .mod .mlv { font-size:10px; opacity:.6; margin:3px 0 5px }
-  .mod .mdesc { font-size:10.5px; opacity:.6; line-height:1.4; margin-bottom:7px }
-  .mod .cost { font-size:10px; display:flex; gap:9px; flex-wrap:wrap; margin-bottom:8px }
-  .mod button { width:100%; background:none; border:1px solid #6ad; color:#9df; padding:6px;
-    font-family:inherit; font-size:10px; letter-spacing:2px; cursor:pointer }
-  .mod button:hover:not(:disabled) { background:#6ad2 }
-  .mod button:disabled { opacity:.3; cursor:not-allowed }
-  .mod.maxed { opacity:.4 }
-  .mod.busy { border-color:#8ef; box-shadow:0 0 14px -4px #8ef }
-  #slotwrap { width:100%; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
-    margin-bottom:6px }
-  .slot-idle, .slot-locked { border:1px dashed #2a4a5c; color:#5a7a8c; font-size:10px;
-    letter-spacing:1px; padding:12px 16px; min-width:190px; text-align:center }
-  .slot-busy { border:1px solid #8ef; background:rgba(0,0,0,.5); padding:9px 12px; min-width:200px }
-  .slot-busy .sname { font-size:11px; color:#9df; letter-spacing:1px }
-  .sbar { height:6px; background:#0a1a22; border:1px solid #2a4a5c; margin:6px 0 4px }
-  .sbar div { height:100%; background:linear-gradient(90deg,#3ad,#9ef) }
-  .slot-busy .stime { font-size:10px; opacity:.6 }
-  .scancel { margin-top:6px; width:100%; background:none; border:1px solid #556;
-    color:#889; font-family:inherit; font-size:9px; letter-spacing:1px; padding:4px; cursor:pointer }
-  .scancel:hover { border-color:#e66; color:#e88 }
-
-  #dcard { max-width:440px; margin:0 auto 22px; border:2px solid #c9a6ff;
-    background:rgba(0,0,0,.6); padding:16px 18px }
-  .drow { display:flex; justify-content:space-between; font-size:12px; padding:4px 0; gap:16px }
-  .drow span { opacity:.55 } .drow b { font-weight:normal; color:#fff }
-  .dnote { font-size:10px; opacity:.5; line-height:1.45; margin-top:9px }
-  #dbtn { width:100%; margin-top:14px; background:none; border:1px solid #c9a6ff; color:#d9bcff;
-    padding:11px; font-family:inherit; font-size:11px; letter-spacing:2px; cursor:pointer }
-  #dbtn:hover:not(:disabled) { background:#c9a6ff22 }
-  #dbtn:disabled { opacity:.3; cursor:not-allowed }
-  #metagrid { display:flex; gap:14px; justify-content:center; flex-wrap:wrap;
-    max-width:1180px; margin:0 auto }
   #statgrid { display:flex; gap:14px; justify-content:center; flex-wrap:wrap;
-    max-width:1180px; margin:0 auto; align-items:flex-start }
-  #fps.bad { color:#f77 } #fps.ok { color:#8fd }
+    max-width:1000px; margin:0 auto; align-items:flex-start }
   .cxbox { width:290px; border:1px solid #2a4a3c; background:rgba(0,0,0,.5); padding:12px 14px }
   .cxbox h4 { font-size:11px; font-weight:normal; letter-spacing:2px; color:#7ec; margin-bottom:9px }
   .cxrow { display:flex; justify-content:space-between; font-size:11px; padding:3px 0; gap:14px }
   .cxrow span { opacity:.55 } .cxrow b { font-weight:normal; color:#fff }
   .cxrow.dim b { opacity:.3 }
 
-  #toast { position:absolute; bottom:96px; left:50%; transform:translateX(-50%);
+  #toast { position:absolute; bottom:84px; left:50%; transform:translateX(-50%);
     font-size:12px; color:#fff; opacity:0; transition:opacity .4s; pointer-events:none;
     letter-spacing:1px; text-shadow:0 0 10px #000; z-index:50; text-align:center }
   #toast.on { opacity:1 }
@@ -139,22 +89,6 @@
 
   #boot { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     background:#040806; z-index:99; font-size:13px; letter-spacing:3px; color:#6d9 }
-
-  #chamber { position:absolute; inset:0; display:none; flex-direction:column;
-    align-items:center; justify-content:center; gap:10px; background:rgba(3,6,10,.97); z-index:70 }
-  #chamber.on { display:flex }
-  #cc { border:2px solid #7ad; box-shadow:0 0 40px -10px #7ad9; background:#050a12;
-    max-width:min(88vw,88vh); max-height:min(88vw,88vh); touch-action:none; cursor:crosshair }
-  #chhead { font-size:12px; letter-spacing:2px; text-align:center; line-height:1.7;
-    max-width:min(88vw,88vh) }
-  #chhead b { color:#9df; font-weight:normal } #chhead i { font-style:normal; opacity:.5 }
-  #chbar { width:622px; max-width:min(88vw,88vh); height:9px; border:1px solid #2a4a5c; background:#08121a; margin-top:5px }
-  #chbar div { height:100%; background:linear-gradient(90deg,#3ad,#9ef); width:0% }
-  #chfoot { font-size:11px; opacity:.75; text-align:center; min-height:34px; line-height:1.6;
-    max-width:min(88vw,88vh); white-space:pre-line }
-  #chexit { background:none; border:1px solid #7ad; color:#9df; padding:9px 26px;
-    font-family:inherit; font-size:11px; letter-spacing:2px; cursor:pointer }
-  #chexit:hover { background:#7ad2 }
 
   #menu { position:absolute; inset:0; display:none; align-items:center; justify-content:center;
     background:rgba(4,8,6,.93); z-index:80 }
@@ -178,8 +112,8 @@
 
   /* ---------- touch controls ---------- */
   #mobibar { position:absolute; bottom:8px; left:0; right:0; display:none;
-    justify-content:center; gap:6px; padding:0 8px; z-index:30; flex-wrap:wrap }
-  #mobibar button { flex:1 1 70px; max-width:110px; background:rgba(0,0,0,.6); border:1px solid #2a5346;
+    justify-content:center; gap:6px; padding:0 8px; z-index:30 }
+  #mobibar button { flex:1 1 70px; max-width:130px; background:rgba(0,0,0,.6); border:1px solid #2a5346;
     color:#8fd; font-family:inherit; font-size:10px; letter-spacing:1px; padding:11px 4px;
     cursor:pointer; border-radius:2px }
   #mobibar button:active { background:#2ed3; color:#fff }
@@ -193,22 +127,12 @@
     #hint { display:none }
     #mobibar { display:flex }
     .panel { backdrop-filter:none; background:rgba(4,10,8,.95); padding:58px 10px 30px }
-
     #topleft { top:calc(8px + env(safe-area-inset-top)); left:8px; font-size:11px }
-    #dia { font-size:16px } #cores { font-size:12px }
-    .ores { font-size:9.5px; gap:1px 8px; margin-top:5px }
+    #dia { font-size:18px }
     #topright { top:calc(8px + env(safe-area-inset-top)); right:8px; font-size:9.5px; line-height:1.5 }
-
-    #dock { bottom:100px; gap:6px; flex-wrap:wrap; justify-content:center; max-width:100%; padding:0 6px }
-    .slot { min-width:0; flex:1 1 68px; max-width:92px; padding:7px 4px 6px }
-    .slot .kn { font-size:10px } .slot .kc { font-size:14px } .slot .kk { display:none }
-    #prompt { bottom:182px; font-size:12px; letter-spacing:1px; padding:0 16px }
-    #toast { bottom:174px; font-size:11px; padding:0 16px }
-
-    #branches { gap:10px } .branch { width:100%; max-width:440px }
-    .node { padding:10px 11px } .node .nm { font-size:13px } .node .desc { font-size:11px }
-    .node .lv, .node .cost { font-size:11px }
-    .mod { width:100%; max-width:440px } .mod button { padding:11px }
+    #ready { bottom:104px } #prompt { bottom:162px; font-size:12px; letter-spacing:1px; padding:0 16px }
+    #toast { bottom:152px; font-size:11px; padding:0 16px }
+    .node { width:100%; max-width:440px }
     .cxbox { width:100%; max-width:440px }
     .mcard { min-width:0; width:calc(100vw - 40px); max-width:380px; padding:26px 22px }
     .mtitle { font-size:19px; letter-spacing:5px }
@@ -216,9 +140,7 @@
     .wcard { min-width:0; width:calc(100vw - 48px); max-width:340px }
   }
   @media (max-width: 820px) and (orientation: landscape) {
-    #topleft, #topright { top:calc(8px + env(safe-area-inset-top)) }
-    #dock { bottom:96px } .slot { padding:5px 4px }
-    #prompt { bottom:120px }
+    #ready { bottom:92px } #prompt { bottom:140px }
   }
 </style>
 </head>
@@ -226,59 +148,38 @@
 <canvas id="c"></canvas>
 
 <div class="hud" id="topleft">
-  <div id="dia">◆ 0</div>
-  <div id="cores">◈ 0</div>
-  <div id="residue">◇ 0</div>
-  <div class="ores" id="ores"></div>
+  <div id="dia">&#9670; 0</div>
+  <div id="rate2">+0 /s</div>
 </div>
 
 <div class="hud" id="topright">
-  <div>fps <b id="fps">–</b></div>
-  <div>stratum <b id="strat">1</b></div>
-  <div>board <b id="pct">0%</b></div>
-  <div>mined <b id="mined">0</b></div>
-  <div>rate <b id="rate">0/s</b></div>
-  <div>balls <b id="ballct">0</b></div>
+  <div>fps <b id="fps">&ndash;</b></div>
   <div>depth <b id="depth">0</b></div>
-  <div>monoliths <b id="monoct">0/16</b></div>
+  <div>mined <b id="mined">0</b></div>
+  <div>blocks <b id="rate">0/s</b></div>
+  <div>balls <b id="ballct">0</b></div>
+  <div>board <b id="pct">0%</b></div>
 </div>
 
 <div class="hud" id="prompt">CLICK TO AIM &amp; LAUNCH</div>
-<div id="dock"></div>
+<div id="ready"><div class="rn">BALLS READY</div><div class="rc">0<i>/1</i></div></div>
 <div class="hud" id="toast"></div>
-<div class="hud" id="hint">[1-4] ball · [click] fire · [drag] pan · [wheel] zoom · [F] refit · [U] upgrades · [C] forge · [K] codex · [S] stats · [M] monolith · [space] recall · [Esc] menu</div>
+<div class="hud" id="hint">[click] fire &middot; [drag] pan &middot; [wheel] zoom &middot; [F] refit &middot; [U] upgrades &middot; [S] stats &middot; [space] recall &middot; [Esc] menu</div>
 
 <div id="mobibar">
-  <button data-a="tree">UPGRADES</button>
-  <button data-a="forge">FORGE</button>
-  <button data-a="codex">CODEX</button>
+  <button data-a="upg">UPGRADES</button>
   <button data-a="stats">STATS</button>
-  <button data-a="descent">DESCEND</button>
-  <button data-a="mono">MONOLITH</button>
   <button data-a="recall">RECALL</button>
   <button data-a="menu">MENU</button>
 </div>
-<button id="pclose">✕</button>
+<button id="pclose">&#10005;</button>
 
-<div class="panel" id="tree"><div class="ptitle">UPGRADES — [U] TO CLOSE</div><div id="branches"></div></div>
-<div class="panel" id="forge"><div class="ptitle">FORGE — RESEARCH TAKES REAL TIME — [C] TO CLOSE</div><div id="forgegrid"></div></div>
-<div class="panel" id="descent"><div class="ptitle">DESCENT — [D] TO CLOSE</div>
-  <div id="dcard"><div id="dhead"></div><button id="dbtn">DESCEND</button></div>
-  <div id="metagrid"></div>
-</div>
-<div class="panel" id="stats"><div class="ptitle">STATS — [S] TO CLOSE</div><div id="statgrid"></div></div>
-<div class="panel" id="codex"><div class="ptitle">CODEX — [K] TO CLOSE</div><div id="codexgrid"></div></div>
-
-<div id="chamber">
-  <div id="chhead"></div>
-  <canvas id="cc" width="620" height="620"></canvas>
-  <div id="chfoot"></div>
-  <button id="chexit">LEAVE CHAMBER</button>
-</div>
+<div class="panel" id="upg"><div class="ptitle">UPGRADES &mdash; [U] TO CLOSE</div><div id="nodes"></div></div>
+<div class="panel" id="stats"><div class="ptitle">STATS &mdash; [S] TO CLOSE</div><div id="statgrid"></div></div>
 
 <div id="menu"><div class="mcard">
   <div class="mtitle">OREBOUND</div>
-  <div class="msub">bounce · mine · dig deeper</div>
+  <div class="msub">bounce &middot; mine &middot; dig deeper</div>
   <div id="msave"></div>
   <button id="mcont">CONTINUE</button>
   <button id="mnew" class="danger">NEW GAME</button>
@@ -290,68 +191,64 @@
   <button id="wok">CONTINUE</button>
 </div></div>
 
-<div id="boot">GENERATING WORLD…</div>
+<div id="boot">GENERATING WORLD&hellip;</div>
 
 <script>
 "use strict";
 //===========================================================================
-// PIXEL BOUNCER
+// OREBOUND — the core loop, and nothing else.
+//
+// Five upgrades, one currency, one kind of ball. Everything that used to sit
+// on top of this (ore colours, Cores, timed research, Residue, strata, the
+// Monolith chamber and its sixteen powers) has been removed. The entire
+// balance of the game is now two constants and five cost curves, all of them
+// in this header block where they can be read at a glance.
 //===========================================================================
 
 const GRID = 1024, CX = GRID >> 1, CY = GRID >> 1;
-const SEED = 1337, SAVEKEY = "orebound.v2";
-// v1 is deliberately NOT migrated: the upgrade economy was restructured (Prime
-// dissolved, Forge became timed research, Cores went permanent) and a silent
-// half-conversion would hide bugs. Old saves are retired with a notice instead.
-const RETIRED = ["orebound.v1", "pixelbouncer.v3"];
+const SEED = 1337, SAVEKEY = "orebound.basics.v1";
+// Old saves are not migrated: they encode currencies and systems that no longer
+// exist, and a half-conversion would hide bugs rather than fix them.
+const RETIRED = ["orebound.v2", "orebound.v1", "pixelbouncer.v3"];
 
-// ---- Descent -------------------------------------------------------------
-// Clearing a stratum does not wipe your progress, it moves you down to a new one.
-// Rock gets harder and richer each time; what you carry is Residue and the meta tree.
-const STRAT_HP  = 1.75;                         // block HP multiplier per stratum
-const STRAT_VAL = 2.0;                         // ore value multiplier per stratum
-const DESCEND_MIN_DEPTH = 60;                  // a marker you pass, not a map you exhaust
-const stratSeed = n => SEED + n * 7919;
-const stratHP   = () => Math.pow(STRAT_HP,  S.stratum - 1);
-const stratVal  = () => Math.pow(STRAT_VAL, S.stratum - 1);
-const MONO_COUNT   = 16;
-
-// The single most important balance constant. Block HP and ore value both scale by
-// this per cell of depth, so the board curves exponentially the same way the player
-// does. Without it, damage upgrades outrun the board and the game ends in minutes.
-// A flat exponential (pow^d) could not separate the two ends: raising it to slow the
-// late game slowed the opening just as much. Putting the depth inside a power law
-// makes the curve accelerate — nearly flat near the origin, very steep at the rim.
-//   Tuned so a run stalls out around 25-30 min; you descend, you do not exhaust it.
-const DEPTH_K = 0.0040, DEPTH_E = 1.35;
+//--------------------------------------------------------------- the curve
+// THE balance constant. Block HP and block value both derive from depth, so
+// difficulty and income share a single source instead of drifting apart — which
+// is exactly how the old version broke (x127k rock vs x2.1M ore).
+//
+// The exponent is only just above 1, so the curve is close to a straight
+// exponential in depth — gentle over the first twenty cells, then compounding
+// hard. Tuned against a simulated playthrough: x1.9 hardness at depth 20, x42
+// at 100, x3.4k at 200, x360k at 300, x7.2e9 at the rim. An earlier, flatter
+// version (K=.0055, E=1.25) only reached x7 by depth 112, which let damage
+// outrun the board and emptied the entire upgrade tree in six minutes.
+const DEPTH_K = 0.0215, DEPTH_E = 1.12;
 const depthMul = d => Math.exp(DEPTH_K * Math.pow(d, DEPTH_E));
 
+// Value climbs at only VAL_POW of the rate HP does. This is the brake on the
+// whole economy: a deeper block always costs more to break than it pays back,
+// so depth has to be bought with upgrades and can never be earned by waiting.
+const VAL_POW = 0.30;
+
 //--------------------------------------------------------------- tier table
+// Tiers are now visual variety plus an hp/value step. They gate nothing — there
+// is one currency, so there is nothing left to gate.
 const TIERS = [
   null,
   { name:"Dust",     hp:1,    val:1,    col:[ 74, 78, 76] },
   { name:"Stone",    hp:3,    val:4,    col:[138,144,140] },
   { name:"Quartz",   hp:6,    val:13,   col:[232,238,234] },
-  // Ore order follows the order branches are NEEDED, not an arbitrary palette.
-  // Tier index carries hp/value/spawn depth, so shallowest ore feeds Core, then
-  // Energy, then the ball branches in unlock order, then Refining last.
-  { name:"Amber",    hp:16,   val:38,   col:[242,132, 32] },   // -> CORE
-  { name:"Sulfur",   hp:34,   val:95,   col:[220,216, 40] },   // -> ENERGY
-  { name:"Cinnabar", hp:70,   val:230,  col:[228, 40, 40] },   // -> SMASH
-  { name:"Azurite",  hp:150,  val:560,  col:[ 56,178,240] },   // -> DRILL
-  { name:"Verdite",  hp:320,  val:1400, col:[ 62,220, 82] },   // -> POISON
-  { name:"Voidgem",  hp:700,  val:3600, col:[228, 64,228] },   // -> REFINING
-  { name:"Monolith", hp:26000,val:9000, col:[160,255,246] },
-  { name:"Bedrock",  hp:1e9,  val:0,    col:[ 92,104,120] },
+  { name:"Amber",    hp:16,   val:38,   col:[242,132, 32] },
+  { name:"Cinnabar", hp:40,   val:110,  col:[228, 40, 40] },
+  { name:"Azurite",  hp:95,   val:320,  col:[ 56,178,240] },
+  { name:"Verdite",  hp:220,  val:900,  col:[ 62,220, 82] },
+  { name:"Voidgem",  hp:520,  val:2600, col:[228, 64,228] },
 ];
-const ORE_LO = 4, ORE_HI = 9;                 // tiers that count as spendable ore
-const CORECH = [0,0,0,0.00004,0.00012,0.0003,0.0008,0.0022,0.006,0.02,0.5,0];
 
 //--------------------------------------------------------------- world data
 let tier, dmg, lit;              // dmg is Float64: block HP exceeds Uint32 at depth
-const poison = new Map();
-
 const LITMUL = [0.10, 0.34, 0.66, 1.0];
+
 function stampLight(x, y, mark) {
   for (let oy = -4; oy <= 4; oy++) {
     const ny = y + oy; if (ny < 0 || ny >= GRID) continue;
@@ -385,39 +282,10 @@ function vnoise(x, y, s) {
 }
 const fbm = (x, y, s) => vnoise(x, y, s) * .55 + vnoise(x*2.1, y*2.1, s+7) * .3 + vnoise(x*4.3, y*4.3, s+19) * .15;
 
-//--------------------------------------------------------------- monoliths
-// Placed deterministically on a spiral so every seed has landmarks at every depth.
-// Rebuilt whenever the stratum changes, so no two strata share a map. Radius stays
-// inside GRID/2 minus the bedrock shell, or the outermost monoliths land off-board
-// with zero cells and their powers become unobtainable.
-
-
-// Unique permanent powers. These are mechanics, not percentages — that is the point
-// of hunting them down.
-const POWERS = [
-  { k:"split",   name:"Fissure Core",   desc:"Impacts sometimes split off a temporary shard ball." },
-  { k:"chain",   name:"Arc Conductor",  desc:"Every impact arcs extra damage into nearby rock." },
-  { k:"magnet",  name:"Lodestone",      desc:"Balls curve toward unmined ore." },
-  { k:"solar",   name:"Sunwell",        desc:"Balls build Momentum twice as fast." },
-  { k:"pierce",  name:"Phase Edge",     desc:"Balls occasionally pass through a cell instead of bouncing." },
-  { k:"deton",   name:"Detonator",      desc:"Every 12th impact of a ball is a massive blast." },
-  { k:"prosp",   name:"Prospector's Eye",desc:"Core drop chance doubled." },
-  { k:"veloc",   name:"Overdrive",      desc:"All balls travel 60% faster." },
-  { k:"greed",   name:"Midas Vein",     desc:"All ore is worth 2x diamonds." },
-  { k:"tough",   name:"Rock Reader",    desc:"Ore blocks take 2x damage." },
-  { k:"cheap",   name:"Twin Strike",    desc:"Every impact lands a second hit for half damage." },
-  { k:"swarm2",  name:"Hive Sigil",     desc:"+3 balls of every colour." },
-  { k:"poison2", name:"Blight Engine",  desc:"Poison ticks twice as hard and spreads freely." },
-  { k:"blast2",  name:"Shockwave Ring", desc:"Smash blasts are 60% wider." },
-  { k:"drill2",  name:"Boring Head",    desc:"Drill balls pierce 4 extra cells." },
-  { k:"anchor",  name:"Anchor Stone",   desc:"Every descent grants +40% Residue." },
-];
-const hasPower = k => !!S.powers[k];
-
 //--------------------------------------------------------------- generation
 function generate() {
-  tier   = new Uint8Array(GRID * GRID);
-  dmg    = new Float64Array(GRID * GRID);
+  tier = new Uint8Array(GRID * GRID);
+  dmg  = new Float64Array(GRID * GRID);
 
   for (let y = 0; y < GRID; y++) {
     for (let x = 0; x < GRID; x++) {
@@ -426,16 +294,14 @@ function generate() {
       if (d < 7) { tier[i] = 0; continue; }
 
       let t = d < 55 ? 1 : d < 170 ? 2 : 3;
-      const SD = stratSeed(S.stratum);
-      const vein = ((fbm(x/14, y/14, SD) * .76 + fbm(x/3.2, y/3.2, SD+9) * .24) - .5) * 4;
+      const vein = ((fbm(x/14, y/14, SEED) * .76 + fbm(x/3.2, y/3.2, SEED+9) * .24) - .5) * 4;
       if (vein > 0.30 && d > 18) {
-        const q = (fbm(x/31, y/31, SD+55) - .5) * 4;
+        const q = (fbm(x/31, y/31, SEED+55) - .5) * 4;
         t = 4;
         if (d >  80 && q > -0.35) t = 5;
         if (d > 170 && q > -0.05) t = 6;
         if (d > 270 && q >  0.25) t = 7;
         if (d > 370 && q >  0.55) t = 8;
-        if (d > 470 && q >  0.82) t = 9;
       }
       tier[i] = t;
     }
@@ -444,398 +310,120 @@ function generate() {
 
 function cellHP(x, y, t) {
   const d = Math.hypot(x - CX, y - CY);
-  return Math.ceil(TIERS[t].hp * depthMul(d) * stratHP());
+  return Math.ceil(TIERS[t].hp * depthMul(d));
 }
-// Value deliberately climbs far slower than HP. If income tracked HP, deep ore would
-// pay for the entire upgrade tree in a few blocks and the late game would collapse.
 function cellVal(x, y, t) {
   const d = Math.hypot(x - CX, y - CY);
-  return TIERS[t].val * Math.pow(depthMul(d), 0.30) * 0.55 * stratVal();
+  return TIERS[t].val * Math.pow(depthMul(d), VAL_POW) * 0.6;
 }
 
-//=========================================================== upgrade catalog
-// Each branch is paid for in its own colour of ore, plus diamonds. That is what
-// makes exploration directed: you cannot upgrade Smash until you reach red rock.
-const BR = {
-  core  : { col:"#f0862a", name:"CORE",       ore:4 },   // Amber,    from r18
-  energy: { col:"#e8d43a", name:"MOMENTUM",   ore:5 },   // Sulfur,   from r80
-  red   : { col:"#e83c3c", name:"SMASH",      ore:6 },   // Cinnabar, from r170
-  blue  : { col:"#3ac8f0", name:"DRILL",      ore:7 },   // Azurite,  from r270
-  green : { col:"#3edc52", name:"POISON",     ore:8 },   // Verdite,  from r370
-  purple: { col:"#e040e0", name:"REFINING",   ore:9 },   // Voidgem,  from r470
-  auto  : { col:"#7f8cff", name:"AUTOMATION", ore:0 },
-};
-
-// Ore only starts being demanded a few levels in. Without this the Core branch would
-// need Amber (depth 270) before you could buy the damage that gets you to depth 270.
-// Ore costs climb steeply on top of their own growth. Raw ore — not diamonds — is
-// the real gate, and the shallow-ore branches buy out far too quickly without this.
-const ORE_STEEP = 1.10;
-const og = (base, growth, from) => l =>
-  l < from ? 0 : base * Math.pow(growth, l - from) * Math.pow(ORE_STEEP, l);
-
+//=================================================================== upgrades
+// Five, all bought with diamonds, all visible at once on a single screen.
+//
+// The rule that keeps this balanced — and that the old version broke in five
+// places at once — is ONE OWNER PER STAT. Damage is multiplied by Impact and by
+// nothing else. Income is multiplied by Refining and by nothing else. There is
+// no second system quietly stacking another exponential on top of either.
+//
+// Effect growth is deliberately slower than cost growth on every line (1.30 vs
+// 1.70, 1.18 vs 1.75, 1.25 vs 1.65), so each level buys strictly less per
+// diamond than the last. Progress comes from the board paying more as you get
+// deeper, never from an upgrade outrunning its own price.
+//
+// Impact and Refining are UNCAPPED. That is deliberate and it is the other half
+// of the balance: income is exponential, so any finite tree gets emptied and the
+// game ends. A tree with no last level means diamonds always have somewhere to
+// go, and the depth curve above is what decides how fast they get there.
+const AUTO_BASE = 4.5;
+const NOCAP = 1e9;
 const UPG = [
-  { id:"dmg",   br:"core", name:"Damage",      max:34, cost:l=>16*Math.pow(1.72,l),  ore:og(40,1.5,4),
-    desc:"Damage every impact deals.", fmt:l=>fmt(Math.pow(1.34,l)) },
-  { id:"speed", br:"core", name:"Speed",       max:18, cost:l=>150*Math.pow(2.05,l),  ore:og(60,1.62,3),
-    desc:"Ball travel speed. Vital as the cavern widens.", fmt:l=>"x"+Math.pow(1.26,l).toFixed(2) },
-  { id:"shock", br:"core", name:"Shockwave",   max:12, cost:l=>150*Math.pow(1.78,l), ore:og(90,1.66,2),
-    desc:"Every impact cracks a small area, not just the block it hit.",
-    fmt:l=>l?("radius "+(0.6+l*0.14).toFixed(2)):"off" },
-  { id:"crit",  br:"core", name:"Fracture",    max:12, cost:l=>320*Math.pow(1.9,l),  ore:og(160,1.7,1),
-    desc:"Chance an impact deals 9x damage.", fmt:l=>(l*3)+"%" },
+  { id:"dmg",   name:"Impact",      max:NOCAP, cost:l => 20 * Math.pow(1.70, l),
+    desc:"Damage every bounce deals to rock. No last level — the rock gets harder faster than this gets stronger.",
+    fmt:l => "x" + fmt(Math.pow(1.30, l)) },
 
-  { id:"momentum",br:"energy", name:"Momentum",   max:20, cost:l=>40*Math.pow(1.62,l), ore:og(40,1.55,3),
-    desc:"Balls build speed the further they fly without hitting anything. Worth most in a wide cavern.",
-    fmt:l=>"up to x"+(1+l*1.05).toFixed(1) },
-  { id:"rebound",br:"energy", name:"Rebound",     max:16, cost:l=>90*Math.pow(1.7,l),  ore:og(70,1.6,2),
-    desc:"Chance a bounce lands a second free hit.", fmt:l=>(l*4)+"%" },
+  // Speed stops mattering once a ball bounces on every substep, which is why it
+  // is the one combat stat with a ceiling. In a wide cavern it is still the
+  // difference between six bounces a second and one.
+  { id:"speed", name:"Velocity",    max:25, cost:l => 60 * Math.pow(1.75, l),
+    desc:"How fast balls travel. Bounce rate falls as the cavern widens, so this is never optional.",
+    fmt:l => Math.round(55 * Math.pow(1.18, l)) + " cells/s" },
 
-  { id:"redball",br:"red", name:"Smash Ball",   max:1,  cost:()=>700,                ore:()=>60, ball:true,
-    desc:"Detonates the rock around every impact." },
-  { id:"redrad", br:"red", name:"Blast Radius", max:12, cost:l=>420*Math.pow(1.95,l),ore:og(150,1.8,1), req:"redball",
-    desc:"Size of the smash crater.", fmt:l=>(1.4+l*0.22).toFixed(1) },
-  { id:"redpow", br:"red", name:"Blast Force",  max:14, cost:l=>380*Math.pow(1.8,l), ore:og(130,1.7,1), req:"redball",
-    desc:"Damage dealt across the crater.", fmt:l=>"+"+(l*35)+"%" },
+  // Capped for frame budget, not for balance: past this the swarm costs more to
+  // draw than it earns. Everything beyond it has to be bought as Impact.
+  { id:"balls", name:"Swarm",       max:24, cost:l => 200 * Math.pow(2.10, l),
+    desc:"One more ball in the cavern. Linear power, steep price — that is the trade.",
+    fmt:l => (1 + l) + " ball" + (l ? "s" : "") },
 
-  { id:"blueball",br:"blue", name:"Drill Ball",  max:1, cost:()=>1100,               ore:()=>80, ball:true,
-    desc:"Travels on straight axes, drifting sideways so it carves wide tunnels." },
-  { id:"bluepow", br:"blue", name:"Drill Power", max:14, cost:l=>440*Math.pow(1.82,l),ore:og(150,1.72,1), req:"blueball",
-    desc:"Bonus damage on every drill hit.", fmt:l=>"+"+(l*6) },
-  { id:"bluepier",br:"blue", name:"Penetration", max:12, cost:l=>700*Math.pow(1.95,l),ore:og(240,1.85,1), req:"blueball",
-    desc:"Cells punched through behind the impact.", fmt:l=>l },
+  { id:"value", name:"Refining",    max:NOCAP, cost:l => 90 * Math.pow(1.65, l),
+    desc:"Diamonds recovered from every block you break. Also uncapped.",
+    fmt:l => "x" + fmt(Math.pow(1.25, l)) },
 
-  { id:"greenball",br:"green", name:"Poison Ball",max:1, cost:()=>1800,              ore:()=>120, ball:true,
-    desc:"Infects rock. Poison erodes and spreads on its own." },
-  { id:"greenpot", br:"green", name:"Potency",   max:16, cost:l=>520*Math.pow(1.8,l),ore:og(170,1.7,1), req:"greenball",
-    desc:"Damage each poison tick deals.", fmt:l=>(1+l*2.4).toFixed(1) },
-  { id:"greenspr", br:"green", name:"Virulence", max:12, cost:l=>780*Math.pow(1.92,l),ore:og(260,1.82,1), req:"greenball",
-    desc:"How eagerly poison spreads to neighbours.", fmt:l=>(8+l*6)+"%" },
-
-  { id:"value", br:"purple", name:"Refining",   max:24, cost:l=>200*Math.pow(1.68,l),ore:og(120,1.6,1),
-    desc:"Diamonds recovered from all ore.", fmt:l=>"+"+(l*20)+"%" },
-  { id:"oreyld",br:"purple", name:"Ore Haul",   max:16, cost:l=>700*Math.pow(1.85,l),ore:og(200,1.76,1),
-    desc:"Raw ore recovered per block, for the branches and the Forge.", fmt:l=>"x"+(1+l*0.35).toFixed(2) },
-
-  { id:"autofire",br:"auto", name:"Idle Core",    max:1,  cost:()=>1200,
-    desc:"Keeps mining while the game is closed, tabbed away, or your phone is asleep." },
-  { id:"autorate",br:"auto", name:"Deploy Rate", max:16, cost:l=>140*Math.pow(1.7,l),
-    desc:"How quickly parked balls launch themselves.", fmt:l=>(3.2*Math.pow(.86,l)).toFixed(2)+"s" },
-  { id:"offline", br:"auto", name:"Night Shift", max:10, cost:l=>1800*Math.pow(1.9,l), req:"autofire",
-    desc:"Share of your mining rate that keeps running while away.", fmt:l=>(40+l*5)+"%" },
-
+  { id:"auto",  name:"Auto-Launch", max:12, cost:l => l ? 260 * Math.pow(1.72, l) : 500,
+    desc:"Parked balls deploy themselves, in the tab or out of it. Also earns while the game is closed.",
+    fmt:l => l ? (AUTO_BASE * Math.pow(0.87, l - 1)).toFixed(2) + "s" : "off" },
 ];
 const UPGBY = {}; UPG.forEach(u => UPGBY[u.id] = u);
 
-//===================================================================== forge
-// The Laboratory. Paid in Cores (which now persist across descents) and, more
-// importantly, in REAL TIME: each research occupies one of a few slots until it
-// finishes, whether or not the game is open. Branch upgrades are flat and reset
-// every stratum; research is multiplicative and permanent. One owner per stat.
-const MODS = [
-  { id:"overch", name:"Overcharge",   max:20, cores:l=>Math.ceil(3*Math.pow(1.5,l)),  mins:l=>6*Math.pow(1.25,l),
-    desc:"Multiplies all impact damage. The single home for damage multipliers.",
-    eff:l=>"x"+Math.pow(1.35,l).toFixed(2) },
-  { id:"kinetic",name:"Kinetic Core", max:16, cores:l=>Math.ceil(4*Math.pow(1.5,l)),  mins:l=>8*Math.pow(1.30,l),
-    desc:"Multiplies ball travel speed.", eff:l=>"x"+Math.pow(1.18,l).toFixed(2) },
-  { id:"multi",  name:"Multiplicity", max:8,  cores:l=>Math.ceil(6*Math.pow(1.7,l)),  mins:l=>20*Math.pow(1.53,l),
-    desc:"One more ball of every unlocked colour.", eff:l=>"+"+l },
-  { id:"prosp",  name:"Prospector",   max:12, cores:l=>Math.ceil(4*Math.pow(1.55,l)), mins:l=>10*Math.pow(1.40,l),
-    desc:"Multiplies the chance ore yields a Core.", eff:l=>"x"+Math.pow(1.4,l).toFixed(2) },
-  { id:"vein",   name:"Vein Sense",   max:12, cores:l=>Math.ceil(3*Math.pow(1.5,l)),  mins:l=>7*Math.pow(1.44,l),
-    desc:"Ore blocks take extra damage.", eff:l=>"+"+(l*18)+"%" },
-  { id:"echo",   name:"Echo Chamber", max:10, cores:l=>Math.ceil(5*Math.pow(1.6,l)),  mins:l=>12*Math.pow(1.46,l),
-    desc:"Chance a bounce lands a second free impact.", eff:l=>(l*4)+"%" },
-  { id:"driver", name:"Mass Driver",  max:8,  cores:l=>Math.ceil(5*Math.pow(1.62,l)), mins:l=>14*Math.pow(1.60,l),
-    desc:"Ball collisions shatter the rock around them.", eff:l=>l?("radius "+(1+l*.5).toFixed(1)):"off" },
-  { id:"lens",   name:"Fracture Lens",max:10, cores:l=>Math.ceil(4*Math.pow(1.55,l)), mins:l=>9*Math.pow(1.52,l),
-    desc:"Raises Fracture critical damage.", eff:l=>"x"+(9*(1+l*.25)).toFixed(1) },
-  { id:"lantern",name:"Deep Lantern", max:8,  cores:l=>Math.ceil(4*Math.pow(1.58,l)), mins:l=>11*Math.pow(1.65,l),
-    desc:"Widens the lit frontier and raises the value of deep ore.", eff:l=>"+"+(l*8)+"%" },
-  { id:"fspeed", name:"Forge Speed",  max:12, cores:l=>Math.ceil(8*Math.pow(1.7,l)),  mins:l=>25*Math.pow(1.29,l),
-    desc:"Every research finishes faster, including this one.",
-    eff:l=>"-"+Math.round((1-Math.pow(.88,l))*100)+"%" },
-];
-const MODBY = {}; MODS.forEach(m => MODBY[m.id] = m);
-
-//================================================================== research
-// Slots are the scarce thing, not Cores. Timers run on wall clock so research
-// advances with the game closed, the same basis the offline credit already uses.
-const forgeSlots = () => 1 + MT("slots");
-const RESEARCH_CAP_MIN = 8 * 60;               // no single research may exceed 8h
-const researchMins = (m, lv) =>
-  Math.min(RESEARCH_CAP_MIN, m.mins(lv)) * Math.pow(0.88, ML("fspeed"));
-function researchAt(i) { return (S.research || [])[i] || null; }
-function activeResearch(id) { return (S.research || []).some(r => r && r.id === id); }
-function startResearch(id, slot) {
-  const m = MODBY[id]; if (!m) return false;
-  const lv = ML(id);
-  if (lv >= m.max || activeResearch(id)) return false;
-  if (slot >= forgeSlots() || researchAt(slot)) return false;
-  const cost = m.cores(lv);
-  if (S.cores < cost) { toast("NOT ENOUGH CORES"); return false; }
-  S.cores -= cost;
-  S.research = S.research || [];
-  S.research[slot] = { id, lv, ends: Date.now() + researchMins(m, lv) * 60000 };
-  save(); return true;
-}
-function cancelResearch(slot) {
-  const r = researchAt(slot); if (!r) return;
-  S.cores += Math.floor(MODBY[r.id].cores(r.lv) * 0.5);   // half back, never all
-  S.research[slot] = null; save();
-}
-function collectResearch(quiet) {
-  let done = 0;
-  const rs = S.research || [];
-  for (let i = 0; i < rs.length; i++) {
-    const r = rs[i]; if (!r || Date.now() < r.ends) continue;
-    S.mods[r.id] = (S.mods[r.id] || 0) + 1;
-    rs[i] = null; done++;
-    if (!quiet) toast("RESEARCH COMPLETE — " + MODBY[r.id].name + " Lv " + S.mods[r.id]);
-  }
-  if (done) { syncRoster(); save(); }
-  return done;
-}
-const fmtDur = ms => {
-  const s2 = Math.max(0, Math.ceil(ms/1000));
-  if (s2 < 60) return s2 + "s";
-  if (s2 < 3600) return Math.floor(s2/60) + "m " + (s2%60) + "s";
-  return Math.floor(s2/3600) + "h " + Math.floor((s2%3600)/60) + "m";
-};
-
-//=================================================================== descent
-// Bought with Residue and kept forever. Weighted toward head starts rather than
-// flat multipliers: head starts compress the slow opening, multipliers only move it.
-const META = [
-  { id:"legacy",  name:"Legacy",        max:12, cost:l=>Math.ceil(18*Math.pow(1.55,l)),
-    desc:"Start each stratum with this many levels of Damage, Speed and Extra Ball.", fmt:l=>l },
-  { id:"fleet",   name:"Fleet Start",   max:5,  cost:l=>Math.ceil(60*Math.pow(2.1,l)),
-    desc:"Extra balls of every unlocked colour, from the moment you arrive.", fmt:l=>"+"+l },
-  { id:"ignition",name:"Ignition",      max:1,  cost:()=>120,
-    desc:"Arrive with the Auto-Launcher already running." },
-  { id:"cache",   name:"Supply Cache",  max:12, cost:l=>Math.ceil(22*Math.pow(1.6,l)),
-    desc:"Arrive holding diamonds and raw ore.", fmt:l=>"◆"+fmt(400*Math.pow(2.4,l))+" +ore" },
-  { id:"slots",   name:"Forge Slots",   max:3,  cost:l=>Math.ceil(120*Math.pow(3.2,l)),
-    desc:"One more research may run at the same time. Slots, not Cores, are the real limit.",
-    fmt:l=>(1+l)+" slot"+(l?"s":"") },
-  { id:"chtime",  name:"Chamber Time",  max:8,  cost:l=>Math.ceil(26*Math.pow(1.72,l)),
-    desc:"Seconds per Monolith attempt.", fmt:l=>(18+l*6)+"s" },
-  { id:"chvolley",name:"Volley",        max:8,  cost:l=>Math.ceil(30*Math.pow(1.78,l)),
-    desc:"Balls you may fire in a Monolith attempt.", fmt:l=>(3+l) },
-  { id:"chforce", name:"Chamber Force", max:12, cost:l=>Math.ceil(22*Math.pow(1.75,l)),
-    desc:"Damage each strike on a Monolith deals.", fmt:l=>fmt(20*Math.pow(1.25,l)) },
-  { id:"chtypes", name:"Munitions",     max:3,  cost:l=>Math.ceil(140*Math.pow(2.2,l)),
-    desc:"Unlocks Smash, Drill then Poison balls in the chamber. Smash hits hardest.",
-    fmt:l=>["Basic","+Smash","+Drill","+Poison"][l] },
-  { id:"assay",   name:"Assay",         max:24, cost:l=>Math.ceil(24*Math.pow(1.5,l)),
-    desc:"Permanent raw ore and Core yield multiplier.", fmt:l=>"x"+(1+l*0.3).toFixed(2) },
-];
-const METABY = {}; META.forEach(m => METABY[m.id] = m);
-
-//========================================================== monolith chamber
-// Descending banks an attempt. You spend attempts whenever you like, so a fast
-// stratum never forces a mini-game on you and idle play is never blocked.
-const MONO_BASE_HP = 300, MONO_GROWTH = 1.62;
-// A hard ceiling on live balls. Ball count is the worst scaling axis in this game:
-// linear power, superlinear cost. Everything past this converts into per-ball power.
-const MAX_BALLS = 120;
-const monoHP  = i => Math.round(MONO_BASE_HP * Math.pow(MONO_GROWTH, i));
-const monoCur = () => Math.min(S.monoIndex, MONO_COUNT - 1);
-const chTime  = () => 18 + MT("chtime") * 6;
-const chBalls = () => 3 + MT("chvolley");
-const chDmg   = () => 20 * Math.pow(1.25, MT("chforce")) * (1 + S.monoIndex * 0.15);
-const chKinds = () => 1 + MT("chtypes");            // basic, smash, drill, poison
-const attemptGain = () => 1 + (hasPower("anchor") ? 0 : 0);
-
-const CH = { on:false, t:0, balls:[], fired:0, dealt:0, aim:0, done:false, msg:"" };
-
-function monoStart() {
-  if (S.attempts <= 0 || S.monoIndex >= MONO_COUNT) return false;
-  S.attempts--;
-  CH.on = true; CH.t = chTime(); CH.balls = []; CH.fired = 0;
-  CH.dealt = 0; CH.done = false; CH.msg = "";
-  paused = true;
-  $("chamber").classList.add("on");
-  return true;
-}
-function monoFire(ang) {
-  if (!CH.on || CH.fired >= chBalls() || CH.t <= 0) return;
-  const kind = CH.fired % chKinds();
-  const sp = 210 + MT("chforce") * 8;
-  CH.balls.push({ x:0, y:0.62, vx:Math.cos(ang)*sp/500, vy:Math.sin(ang)*sp/500,
-                  kind, trail:[] });
-  CH.fired++;
-}
-function monoEnd() {
-  CH.on = false;
-  S.monoDmg += CH.dealt;
-  const hp = monoHP(monoCur());
-  if (S.monoDmg >= hp) {
-    const p = POWERS[monoCur()];
-    S.powers[p.k] = 1;
-    S.monoIndex++; S.monoDmg = 0;
-    syncRoster();
-    CH.msg = "MONOLITH SHATTERED\n" + p.name + " \u2014 " + p.desc;
-  } else {
-    CH.msg = "DEALT " + fmt(CH.dealt) + "  \u2014  " + fmt(hp - S.monoDmg) + " REMAINING";
-  }
-  CH.done = true;
-  save();
-  refreshChamber();
-}
-function monoExit() {
-  CH.on = false; CH.done = false;
-  $("chamber").classList.remove("on");
-  paused = false;
-  refreshChamber();
-}
-
-// simple square arena in normalised -1..1 space, monolith at the centre
-function chamberStep(dt) {
-  if (!CH.on || CH.done) return;
-  CH.t -= dt;
-  for (const b of CH.balls) {
-    b.trail.push(b.x, b.y); if (b.trail.length > 24) b.trail.splice(0, 2);
-    b.x += b.vx * dt; b.y += b.vy * dt;
-    if (b.x < -1) { b.x = -1; b.vx = -b.vx; } if (b.x > 1) { b.x = 1; b.vx = -b.vx; }
-    if (b.y < -1) { b.y = -1; b.vy = -b.vy; } if (b.y > 1) { b.y = 1; b.vy = -b.vy; }
-    const d = Math.hypot(b.x, b.y), R = 0.30;
-    if (d < R) {                                    // struck the monolith
-      const nx = b.x/d, ny = b.y/d;
-      const p = b.vx*nx + b.vy*ny;
-      b.vx -= 2*p*nx; b.vy -= 2*p*ny;
-      b.x = nx*R*1.02; b.y = ny*R*1.02;
-      const mult = [1, 2.1, 1.5, 1.2][b.kind] || 1;
-      CH.dealt += chDmg() * mult;
-      chSpark(b.x, b.y, b.kind);
-    }
-  }
-  if (CH.t <= 0) monoEnd();
-}
-const chSparks = [];
-function chSpark(x, y, kind) {
-  if (chSparks.length > 260) return;
-  for (let i = 0; i < 7; i++) {
-    const a = Math.random()*6.283, sp = .15+Math.random()*.5;
-    chSparks.push({ x, y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life:.4, t:0, kind });
-  }
-}
-const MT = id => (S.meta && S.meta[id]) || 0;
-
-// Keyed to one number you can actually see: how deep you got. "I reached r340 last
-// run, this time r410" is a decision you can reason about; a four-term formula is not.
-function residueGain() {
-  if (S.maxDepth < DESCEND_MIN_DEPTH) return 0;
-  const base = Math.pow(S.maxDepth / 25, 1.7) * (hasPower("anchor") ? 1.4 : 1);
-  return Math.floor(base * Math.pow(1.25, S.stratum - 1));
-}
-
 //================================================================ game state
 const S = {
-  dia:0, cores:0, lv:{}, mods:{}, powers:{},
-  ore:[0,0,0,0,0,0,0,0,0,0,0,0],        // spendable stock, by tier
-  oreLife:[0,0,0,0,0,0,0,0,0,0,0,0],    // lifetime mined, for the codex
-  minedCount:0, maxDepth:0, rate:0,
-  bestRate:0, playtime:0,
-  // --- Monolith Chamber ---
-  attempts:0, monoIndex:0, monoDmg:0, research:[],
-  // --- persists across descents ---
-  stratum:1, residue:0, meta:{}, strata:[], totalPlaytime:0,
+  dia:0, lv:{},
+  minedCount:0, maxDepth:0, rate:0, bestRate:0, playtime:0,
 };
 UPG.forEach(u => S.lv[u.id] = 0);
-MODS.forEach(m => S.mods[m.id] = 0);
 
-const L    = id => S.lv[id] || 0;
-const ML   = id => S.mods[id] || 0;
-const purse= cur => cur === "core" ? S.cores : S.dia;
+const L = id => S.lv[id] || 0;
 
-
-
-
-const baseDmg = () => Math.pow(1.34, L("dmg")) * Math.pow(1.35, ML("overch"));
-// Speed must scale exponentially: bounce rate falls as 1/cavern-radius, so linear
-// speed gains get swallowed as the cavern widens and the game grinds to a halt.
-const ballSpd = () => 55 * Math.pow(1.26, L("speed")) * (hasPower("veloc") ? 1.6 : 1)
-  * Math.pow(1.18, ML("kinetic"));
-// Momentum: a ball accelerates the further it flies without an impact, which is
-// exactly the regime where a widening cavern used to starve throughput.
-const MOM_SPAN = 80;
-function momMul(b) {
-  const lv = L("momentum");
-  if (!lv) return 1;
-  const ramp = Math.min(3, (b.stall || 0) / MOM_SPAN) * (hasPower("solar") ? 2 : 1);
-  return 1 + lv * 0.35 * Math.min(3, ramp);
-}
-const perType = () => 1 + ML("multi") + MT("fleet") + (hasPower("swarm2") ? 3 : 0);
-const kindsOwned = () => [0,1,2,3].filter(k => k===0 || L(KINDUPG[k])).length;
-const critCh  = () => L("crit") * .03;
-const critMul = () => 9 * (1 + ML("lens") * .25);
-const valMul  = () => (1 + L("value") * .20) * (hasPower("greed") ? 2 : 1) * (1 + ML("lantern") * .08);
-const oreMul  = () => (1 + L("oreyld") * .35) * (1 + MT("assay") * .3);
-const coreMul = () => Math.pow(1.4, ML("prosp")) * (hasPower("prosp") ? 2 : 1) * (1 + MT("assay") * .3);
-const autoInt = () => 3.2 * Math.pow(.86, L("autorate"));
-const offFrac = () => L("autofire") ? .40 + L("offline") * .05 : 0;
-const oreDmgMul = () => (1 + ML("vein") * .18) * (hasPower("tough") ? 2 : 1);
-const blastRad  = () => (1.4 + L("redrad") * .22) * (hasPower("blast2") ? 1.6 : 1);
+// The five derived numbers. Each one reads exactly one level, and nothing else.
+const baseDmg = () => Math.pow(1.30, L("dmg"));
+// Speed must scale exponentially: bounce rate falls as 1/cavern-radius, so a
+// linear gain gets swallowed as the cavern widens and throughput dies.
+const ballSpd = () => 55 * Math.pow(1.18, L("speed"));
+const ballCap = () => 1 + L("balls");
+const valMul  = () => Math.pow(1.25, L("value"));
+const autoInt = () => AUTO_BASE * Math.pow(0.87, L("auto") - 1);
+const OFFLINE_FRAC = 0.40;                      // flat. No longer an upgrade.
 
 //====================================================================== balls
-const KINDCOL  = ["#ffffff", "#ff4444", "#46d2ff", "#4cf05c"];
-const KINDNAME = ["Basic", "Smash", "Drill", "Poison"];
-const KINDUPG  = [null, "redball", "blueball", "greenball"];
-let balls = [], selKind = 0;
+const BALLCOL = "#ffffff";
+let balls = [];
 
-const owned   = k => (k === 0 || L(KINDUPG[k])) ? perType() : 0;
-const flying  = () => balls.filter(b => b.state === "fly");
-const idleOf  = k => balls.find(b => b.state === "idle" && b.kind === k);
-const countOf = (k, st) => balls.reduce((n,b) => n + (b.kind === k && b.state === st ? 1 : 0), 0);
+const flying    = () => balls.reduce((n,b) => n + (b.state === "fly"  ? 1 : 0), 0);
+const idleCount = () => balls.reduce((n,b) => n + (b.state === "idle" ? 1 : 0), 0);
+const idleOne   = () => balls.find(b => b.state === "idle");
 
 function syncRoster() {
-  const per = Math.max(1, Math.floor(MAX_BALLS / Math.max(1, kindsOwned())));
-  for (let k = 0; k < 4; k++) {
-    const want = Math.min(owned(k), per);
-    let have = balls.reduce((n,b) => n + (b.kind === k && !b.temp ? 1 : 0), 0);
-    while (have < want) {
-      balls.push({ x:CX+.5, y:CY+.5, vx:0, vy:0, kind:k, trail:[], state:"idle", stall:0, hits:0 });
-      have++;
-    }
-  }
+  while (balls.length < ballCap())
+    balls.push({ x:CX+.5, y:CY+.5, vx:0, vy:0, trail:[], state:"idle", stall:0 });
+  if (balls.length > ballCap()) balls.length = ballCap();
 }
-function launchOne(kind, ang) {
-  const b = idleOf(kind);
+function launchOne(ang) {
+  const b = idleOne();
   if (!b) return false;
-  const sp = ballSpd() * (kind === 2 ? 1.15 : 1);
-  let a = ang;
-  if (kind === 2) a = Math.round(ang / (Math.PI/2)) * (Math.PI/2);
-  b.x = CX+.5; b.y = CY+.5; b.vx = Math.cos(a)*sp; b.vy = Math.sin(a)*sp;
-  b.trail.length = 0; b.state = "fly"; b.stall = 0; b.hits = 0;
+  const sp = ballSpd();
+  b.x = CX+.5; b.y = CY+.5; b.vx = Math.cos(ang)*sp; b.vy = Math.sin(ang)*sp;
+  b.trail.length = 0; b.state = "fly"; b.stall = 0;
   return true;
 }
 const parkAll = () => { for (const b of balls) if (b.state === "fly") b.state = "idle"; };
 
-//================================================================== mining
+//==================================================================== mining
 let dirty = [];
 const markDirty = (x,y) => { dirty.push(x,y); };
 
 function payout(x, y, t) {
   S.minedCount++;
-  S.oreLife[t]++;
-  if (t >= ORE_LO && t <= ORE_HI) S.ore[t] += oreMul();
+  S.dia += cellVal(x, y, t) * valMul();
   const d = Math.hypot(x-CX, y-CY);
-  S.dia += cellVal(x, y, t) * valMul() * (1 + ML("lantern") * .08 * (d/500));
-  if (Math.random() < CORECH[t] * coreMul()) S.cores++;
   if (d > S.maxDepth) S.maxDepth = d;
 }
-
 
 function hitCell(x, y, amount) {
   if (x < 0 || y < 0 || x >= GRID || y >= GRID) return;
   const i = y * GRID + x, t = tier[i];
   if (!t) return;
-  const hp = cellHP(x, y, t);
-  if (t >= ORE_LO && t <= ORE_HI) amount *= oreDmgMul();
   dmg[i] += amount;
-  if (dmg[i] >= hp) {
-    tier[i] = 0; dmg[i] = 0; poison.delete(i);
+  if (dmg[i] >= cellHP(x, y, t)) {
+    tier[i] = 0; dmg[i] = 0;
     payout(x, y, t);
     spawnSpark(x, y, TIERS[t].col, t >= 4 ? 4 : 1);
     stampLight(x, y, true);
@@ -844,62 +432,13 @@ function hitCell(x, y, amount) {
   markDirty(x, y);
 }
 
-function blast(cx0, cy0, radius, amount) {
-  const r = Math.ceil(radius);
-  for (let oy = -r; oy <= r; oy++)
-    for (let ox = -r; ox <= r; ox++) {
-      const dd = Math.sqrt(ox*ox + oy*oy);
-      if (dd > radius) continue;
-      hitCell(cx0+ox, cy0+oy, Math.max(1, amount * (1 - dd/(radius+1))));
-    }
-}
-
-//================================================================== physics
+//=================================================================== physics
 const solid = (x,y) => x<0||y<0||x>=GRID||y>=GRID|| tier[y*GRID+x] !== 0;
 
-function onImpact(b, hx, hy) {
-  b.stall = 0; b.hits++;
-  let d = baseDmg();
-  if (Math.random() < critCh()) d *= critMul();
-
-  if (b.kind === 1) {
-    blast(hx, hy, blastRad(), d * (1 + L("redpow")*.35));
-  } else if (b.kind === 2) {
-    d += L("bluepow") * 6;
-    hitCell(hx, hy, d);
-    const sx = Math.sign(b.vx), sy = Math.sign(b.vy);
-    const pen = L("bluepier") + (hasPower("drill2") ? 4 : 0);
-    for (let k = 1; k <= pen; k++) hitCell(hx + sx*k, hy + sy*k, d);
-  } else if (b.kind === 3) {
-    hitCell(hx, hy, d);
-    const i = hy*GRID + hx;
-    if (tier[i]) poison.set(i, (poison.get(i)||0) + 1);
-  } else {
-    hitCell(hx, hy, d);
-  }
-
-  if (L("shock")) blast(hx, hy, 0.6 + L("shock") * .14, d * .55);
-  if (hasPower("chain")) blast(hx, hy, 2.2, d * .35);
-  if (hasPower("deton") && b.hits % 12 === 0) blast(hx, hy, blastRad()*2.2 + 3, d * 1.5);
-  if (ML("echo") && Math.random() < ML("echo")*.04) hitCell(hx, hy, d);
-  if (hasPower("split") && Math.random() < .04) spawnShard(b);
-
-  if (hasPower("cheap")) hitCell(hx, hy, d * .5);          // Twin Strike
-  if (L("rebound") && Math.random() < L("rebound") * .04) hitCell(hx, hy, d);
-}
-
-function spawnShard(b) {
-  if (balls.length >= MAX_BALLS) return;
-  const a = Math.random()*6.283, sp = ballSpd();
-  balls.push({ x:b.x, y:b.y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, kind:b.kind,
-               trail:[], state:"fly", stall:0, hits:0, temp:true, life:6 });
-}
-
-// Any ball that crosses a lot of open ground without hitting anything re-aims at the
-// nearest rock. This is what stops drills (and everything else) idling in a big cavern.
-// A fixed threshold fired during ordinary travel once the cavern grew past it, so
-// balls appeared to steer themselves in mid-air. A normal crossing is up to 2x the
-// cavern radius, so only treat a ball as stuck well beyond that.
+// Any ball crossing a lot of open ground without hitting anything re-aims at the
+// nearest rock. Without this, balls idle forever in a wide cavern. A normal
+// crossing is up to 2x the cavern radius, so only treat a ball as stuck well
+// beyond that, or they appear to steer themselves in mid-air.
 const STALL_MIN = 140;
 function stallLimit() {
   const r = Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0) / 2;
@@ -917,38 +456,17 @@ function reseek(b) {
     }
   }
   if (best === null) return;
-  let a = best;
-  if (b.kind === 2) a = Math.round(a/(Math.PI/2))*(Math.PI/2);
-  const sp = ballSpd() * (b.kind === 2 ? 1.15 : 1);
-  b.vx = Math.cos(a)*sp; b.vy = Math.sin(a)*sp;
+  const sp = ballSpd();
+  b.vx = Math.cos(best)*sp; b.vy = Math.sin(best)*sp;
 }
 
 function stepBall(b, dt) {
   b.trail.push(b.x, b.y);
   if (b.trail.length > 26) b.trail.splice(0,2);
 
-  b.magT = (b.magT || 0) + dt;
-  if (hasPower("magnet") && b.kind !== 2 && b.magT >= 0.5) {
-    b.magT = 0;                                // at most twice a second, not every step
-    const sp = Math.hypot(b.vx, b.vy);
-    let bx = 0, by = 0;
-    for (let r = 0; r < 8; r++) {
-      const a = r*(Math.PI/4), dx = Math.cos(a), dy = Math.sin(a);
-      for (let s = 3; s < 60; s += 3) {
-        const x = (b.x+dx*s)|0, y = (b.y+dy*s)|0;
-        if (x<0||y<0||x>=GRID||y>=GRID) break;
-        const t = tier[y*GRID+x];
-        if (t) { if (t >= ORE_LO) { bx += dx/s; by += dy/s; } break; }
-      }
-    }
-    const m = Math.hypot(bx,by);
-    if (m > 0) { b.vx += bx/m*sp*0.10; b.vy += by/m*sp*0.10;
-      const n = Math.hypot(b.vx,b.vy)||1; b.vx = b.vx/n*sp; b.vy = b.vy/n*sp; }
-  }
-
   const mag = Math.hypot(b.vx, b.vy) || 1;
-  const ux = b.vx/mag, uy = b.vy/mag;          // unit direction, from the raw vector
-  let remain = mag * momMul(b) * dt;           // momentum extends travel, not heading
+  const ux = b.vx/mag, uy = b.vy/mag;
+  let remain = mag * dt;
 
   while (remain > 0 && b.state === "fly") {
     const s = Math.min(0.35, remain);
@@ -956,28 +474,18 @@ function stepBall(b, dt) {
     const nx = b.x + ux*s, ny = b.y + uy*s;
     const cxi = Math.floor(b.x), cyi = Math.floor(b.y);
     const gxi = Math.floor(nx),  gyi = Math.floor(ny);
+    const d = baseDmg();
 
     let bounced = false;
-    if (hasPower("pierce") && (gxi !== cxi || gyi !== cyi) && solid(gxi,gyi) && Math.random() < .06) {
-      onImpact(b, gxi, gyi);                       // phase straight through
-      b.x = nx; b.y = ny; b.stall += s; continue;
-    }
-    if (gxi !== cxi && solid(gxi, cyi)) { onImpact(b, gxi, cyi); b.vx = -b.vx; bounced = true; }
-    if (gyi !== cyi && solid(cxi, gyi)) { onImpact(b, cxi, gyi); b.vy = -b.vy; bounced = true; }
+    if (gxi !== cxi && solid(gxi, cyi)) { hitCell(gxi, cyi, d); b.vx = -b.vx; bounced = true; }
+    if (gyi !== cyi && solid(cxi, gyi)) { hitCell(cxi, gyi, d); b.vy = -b.vy; bounced = true; }
     if (!bounced && (gxi !== cxi || gyi !== cyi) && solid(gxi, gyi)) {
-      onImpact(b, gxi, gyi); b.vx = -b.vx; b.vy = -b.vy; bounced = true;
+      hitCell(gxi, gyi, d); b.vx = -b.vx; b.vy = -b.vy; bounced = true;
     }
 
     if (bounced) {
-      if (b.kind === 2) {
-        if (Math.random() < .5) { const t = b.vx; b.vx = b.vy; b.vy = t; }
-        // lane drift: shuffle sideways so a drill never re-runs a cleared corridor
-        const perp = Math.abs(b.vx) > Math.abs(b.vy) ? [0,1] : [1,0];
-        const off = (Math.random() < .5 ? -1 : 1) * (1 + (Math.random()*3|0));
-        const tx = b.x + perp[0]*off, ty = b.y + perp[1]*off;
-        if (!solid(Math.floor(tx), Math.floor(ty))) { b.x = tx; b.y = ty; }
-      }
-      const sp = ballSpd() * (b.kind === 2 ? 1.15 : 1);
+      b.stall = 0;
+      const sp = ballSpd();
       const m = Math.hypot(b.vx, b.vy) || 1;
       b.vx = b.vx/m*sp; b.vy = b.vy/m*sp;
       return;
@@ -1000,11 +508,11 @@ function collide() {
     a.push(b);
   }
   const R = 1.1, R2 = R*R;
-  const driver = ML("driver");
-  for (const [k, arr] of buckets) {
-    const [bx, by] = k.split(",").map(Number);
+  for (const entry of buckets) {
+    const parts = entry[0].split(","), arr = entry[1];
+    const bx = +parts[0], by = +parts[1];
     for (let ox = 0; ox <= 1; ox++) for (let oy = (ox?-1:0); oy <= 1; oy++) {
-      const other = ox||oy ? buckets.get((bx+ox)+","+(by+oy)) : arr;
+      const other = (ox||oy) ? buckets.get((bx+ox)+","+(by+oy)) : arr;
       if (!other) continue;
       for (const a of arr) for (const b of other) {
         if (a === b) continue;
@@ -1017,41 +525,9 @@ function collide() {
         const sep = (R-d)/2 + .01;
         a.x -= nx*sep; a.y -= ny*sep; b.x += nx*sep; b.y += ny*sep;
         a.stall = b.stall = 0;
-        if (driver) blast((a.x+b.x)/2|0, (a.y+b.y)/2|0, 1+driver*.5, baseDmg()*.6);
       }
     }
   }
-  // drills must stay axis-aligned after being knocked about
-  for (const b of fly) if (b.kind === 2) {
-    const sp = Math.hypot(b.vx,b.vy)||1;
-    if (Math.abs(b.vx) > Math.abs(b.vy)) { b.vx = Math.sign(b.vx)*sp; b.vy = 0; }
-    else { b.vy = Math.sign(b.vy)*sp; b.vx = 0; }
-  }
-}
-
-//================================================================== poison
-let poisonAcc = 0;
-function tickPoison(dt) {
-  if (!L("greenball")) return;
-  poisonAcc += dt;
-  if (poisonAcc < .3) return;
-  poisonAcc = 0;
-  const boost = hasPower("poison2") ? 2 : 1;
-  const pot = (1 + L("greenpot")*2.4) * boost;
-  const spr = (.08 + L("greenspr")*.06) * boost;
-  const adds = [];
-  for (const [i, st] of poison) {
-    const x = i % GRID, y = (i/GRID)|0;
-    if (!tier[i]) { poison.delete(i); continue; }
-    hitCell(x, y, Math.max(1, pot*st));
-    if (!tier[i]) { poison.delete(i); continue; }
-    if (Math.random() < spr) {
-      const n = [[1,0],[-1,0],[0,1],[0,-1]][(Math.random()*4)|0];
-      const nx = x+n[0], ny = y+n[1];
-      if (nx>=0 && ny>=0 && nx<GRID && ny<GRID && tier[ny*GRID+nx]) adds.push(ny*GRID+nx);
-    }
-  }
-  for (const i of adds) if (poison.size < 6000) poison.set(i, poison.get(i)||1);
 }
 
 //================================================================= particles
@@ -1073,14 +549,14 @@ const off = document.createElement("canvas"); off.width = off.height = GRID;
 const octx = off.getContext("2d", { alpha:false });
 let W=0, H=0, DPR=1;
 
-const GLOW = KINDCOL.map(col => {
+const GLOW = (function () {
   const g = document.createElement("canvas"); g.width = g.height = 32;
   const c = g.getContext("2d");
   const grad = c.createRadialGradient(16,16,0, 16,16,16);
-  grad.addColorStop(0, col); grad.addColorStop(0.35, col+"88"); grad.addColorStop(1, col+"00");
+  grad.addColorStop(0, BALLCOL); grad.addColorStop(0.35, BALLCOL+"88"); grad.addColorStop(1, BALLCOL+"00");
   c.fillStyle = grad; c.fillRect(0,0,32,32);
   return g;
-});
+})();
 
 const cam = { x:CX, y:CY, z:9, tx:CX, ty:CY, tz:9, manual:false };
 const bb = { x0:CX-8, y0:CY-8, x1:CX+8, y1:CY+8 };
@@ -1104,16 +580,13 @@ function cellColor(i, t) {
   const hp = cellHP(i%GRID, (i/GRID)|0, t);
   let f = dmg[i] > 0 ? Math.max(.28, 1 - dmg[i]/hp*.72) : 1;
   f *= LITMUL[lit[i]];
-  const p = poison.has(i) ? 1 : 0;
-  const r = c[0]*f*(1-p*.55), g = c[1]*f + p*90, b = c[2]*f*(1-p*.55);
-  return "rgb("+(r|0)+","+(g|0)+","+(b|0)+")";
+  return "rgb("+((c[0]*f)|0)+","+((c[1]*f)|0)+","+((c[2]*f)|0)+")";
 }
 function paintAll() {
   octx.fillStyle = "#050b09"; octx.fillRect(0,0,GRID,GRID);
   for (let i=0;i<GRID*GRID;i++) {
     const t = tier[i];
-    if (!t) continue;
-    if (!lit[i]) continue;
+    if (!t || !lit[i]) continue;
     octx.fillStyle = cellColor(i,t); octx.fillRect(i%GRID,(i/GRID)|0,1,1);
   }
 }
@@ -1122,8 +595,7 @@ function flushDirty() {
     const x=dirty[k], y=dirty[k+1];
     if (x<0||y<0||x>=GRID||y>=GRID) continue;
     const i = y*GRID+x, t = tier[i];
-    const show = t && lit[i];
-    octx.fillStyle = show ? cellColor(i,t) : "#050b09";
+    octx.fillStyle = (t && lit[i]) ? cellColor(i,t) : "#050b09";
     octx.fillRect(x,y,1,1);
   }
   dirty.length = 0;
@@ -1140,10 +612,10 @@ function draw(dt) {
   ctx.globalCompositeOperation = "lighter";
   for (const m of motes) {
     m.p += dt*.6;
-    const [X,Y] = toS(m.x*sw+sx, m.y*sh+sy+Math.sin(m.p)*1.5);
+    const P = toS(m.x*sw+sx, m.y*sh+sy+Math.sin(m.p)*1.5);
     ctx.fillStyle = m.c; ctx.globalAlpha = .07+Math.sin(m.p*1.7)*.05;
     const ms = Math.max(1, Math.min(2.5, z*.3));
-    ctx.fillRect(X,Y,ms,ms);
+    ctx.fillRect(P[0],P[1],ms,ms);
   }
   ctx.globalAlpha = 1;
 
@@ -1151,59 +623,55 @@ function draw(dt) {
     const p = sparks[i]; p.t += dt;
     if (p.t > p.life) { sparks.splice(i,1); continue; }
     p.x += p.vx*dt; p.y += p.vy*dt; p.vx *= .93; p.vy *= .93;
-    const [X,Y] = toS(p.x,p.y);
+    const P = toS(p.x,p.y);
     ctx.globalAlpha = 1-p.t/p.life;
     ctx.fillStyle = "rgb("+p.col[0]+","+p.col[1]+","+p.col[2]+")";
-    const s = Math.max(1, z*.5); ctx.fillRect(X-s/2,Y-s/2,s,s);
+    const s = Math.max(1, z*.5); ctx.fillRect(P[0]-s/2,P[1]-s/2,s,s);
   }
   ctx.globalAlpha = 1;
 
   // Trails shorten as the swarm grows so total segment count stays bounded.
-  const live = balls.reduce((n,b) => n + (b.state==="fly"?1:0), 0);
-  const tailPts = live > 120 ? 3 : live > 60 ? 5 : live > 25 ? 9 : 13;
-  ctx.globalCompositeOperation = "lighter";
+  const live = flying();
+  const tailPts = live > 18 ? 7 : live > 8 ? 10 : 14;
   for (const b of balls) {
     if (b.state !== "fly") continue;
-    const col = KINDCOL[b.kind];
     const seg = Math.min(tailPts, b.trail.length>>1);
     if (seg > 1) {
-      ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, z*.22);
-      ctx.globalAlpha = b.temp ? .25 : .4; ctx.beginPath();
+      ctx.strokeStyle = BALLCOL; ctx.lineWidth = Math.max(1, z*.22);
+      ctx.globalAlpha = .4; ctx.beginPath();
       const start = b.trail.length - seg*2;
       for (let k=start;k<b.trail.length;k+=2) {
-        const [X,Y] = toS(b.trail[k], b.trail[k+1]);
-        k===start ? ctx.moveTo(X,Y) : ctx.lineTo(X,Y);
+        const P = toS(b.trail[k], b.trail[k+1]);
+        k===start ? ctx.moveTo(P[0],P[1]) : ctx.lineTo(P[0],P[1]);
       }
       ctx.stroke();
     }
-    const [X,Y] = toS(b.x,b.y), sz = Math.max(2, z*.8), g = Math.max(8, sz*3.2);
+    const P = toS(b.x,b.y), sz = Math.max(2, z*.8), g = Math.max(8, sz*3.2);
     ctx.globalAlpha = 1;
-    ctx.drawImage(GLOW[b.kind], X-g/2, Y-g/2, g, g);   // cached glow, no shadowBlur
-    ctx.fillStyle = col;
-    ctx.fillRect(X-sz/2, Y-sz/2, sz, sz);
+    ctx.drawImage(GLOW, P[0]-g/2, P[1]-g/2, g, g);   // cached glow, no shadowBlur
+    ctx.fillStyle = BALLCOL;
+    ctx.fillRect(P[0]-sz/2, P[1]-sz/2, sz, sz);
   }
   ctx.globalCompositeOperation = "source-over";
-  ctx.globalCompositeOperation = "source-over";
 
-  if (aim !== null && idleOf(selKind)) {
-    const [X,Y] = toS(CX+.5, CY+.5);
-    ctx.strokeStyle = KINDCOL[selKind]; ctx.globalAlpha = .8;
+  if (aim !== null && idleOne()) {
+    const P = toS(CX+.5, CY+.5);
+    ctx.strokeStyle = BALLCOL; ctx.globalAlpha = .8;
     ctx.setLineDash([4,6]); ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(X,Y);
-    ctx.lineTo(X+Math.cos(aim)*220, Y+Math.sin(aim)*220);
+    ctx.beginPath(); ctx.moveTo(P[0],P[1]);
+    ctx.lineTo(P[0]+Math.cos(aim)*220, P[1]+Math.sin(aim)*220);
     ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
-    ctx.fillStyle = KINDCOL[selKind]; ctx.fillRect(X-2,Y-2,4,4);
+    ctx.fillStyle = BALLCOL; ctx.fillRect(P[0]-2,P[1]-2,4,4);
   }
 
-
-  const g = ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.12, W/2,H/2,Math.max(W,H)*.72);
-  g.addColorStop(0,"rgba(4,8,6,0)"); g.addColorStop(.6,"rgba(4,8,6,.12)"); g.addColorStop(1,"rgba(4,8,6,.62)");
-  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  const g2 = ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.12, W/2,H/2,Math.max(W,H)*.72);
+  g2.addColorStop(0,"rgba(4,8,6,0)"); g2.addColorStop(.6,"rgba(4,8,6,.12)"); g2.addColorStop(1,"rgba(4,8,6,.62)");
+  ctx.fillStyle = g2; ctx.fillRect(0,0,W,H);
 }
 
-//===================================================================== loop
+//====================================================================== loop
 let last = performance.now(), aim = null;
-let rateT = 0, rateMark = 0;
+let rateT = 0, rateMark = 0, diaMark = 0, diaRate = 0;
 let fps = 0, fpsAcc = 0, fpsFrames = 0;
 function tickRate(dt) {
   rateT += dt; S.playtime += dt;
@@ -1211,374 +679,170 @@ function tickRate(dt) {
   const obs = (S.minedCount - rateMark)/rateT;
   S.rate = S.rate ? S.rate*.75 + obs*.25 : obs;
   if (S.rate > S.bestRate) S.bestRate = S.rate;
-  rateMark = S.minedCount; rateT = 0;
+  const dobs = (S.dia - diaMark)/rateT;
+  diaRate = diaRate ? diaRate*.75 + dobs*.25 : dobs;
+  rateMark = S.minedCount; diaMark = S.dia; rateT = 0;
 }
-let autoT = 0, autoCycle = 0;
+let autoT = 0;
 // Auto-launches always pick a random heading. Steering them at the richest rock
 // made the cavern erode into an unnaturally even disc.
-const bestAngle = () => Math.random() * Math.PI * 2;
-function tickAuto(dt) {                          // always on: parked balls deploy themselves
+function tickAuto(dt) {
+  if (!L("auto")) return;
   autoT += dt;
   if (autoT < autoInt()) return;
   autoT = 0;
-  for (let k=0;k<4;k++) {
-    const kk = (autoCycle+k)%4;
-    if (owned(kk) && idleOf(kk)) { launchOne(kk, bestAngle()); autoCycle = (kk+1)%4; return; }
-  }
+  if (idleOne()) launchOne(Math.random() * Math.PI * 2);
 }
 
 function frame(now) {
   const real = Math.min((now-last)/1000, .05); last = now;
   fpsAcc += real; fpsFrames++;
   if (fpsAcc >= 0.5) { fps = fpsFrames/fpsAcc; fpsAcc = 0; fpsFrames = 0; }
-  const dt = paused ? 0 : real;                // arena freezes; the chamber must not
+  const dt = paused ? 0 : real;
   if (!paused) {
     const sub = 3;
     for (let s=0;s<sub;s++) for (const b of balls) if (b.state==="fly") stepBall(b, dt/sub);
     collide();
-    for (let i=balls.length-1;i>=0;i--) {
-      const b = balls[i];
-      if (b.temp) { b.life -= dt; if (b.life <= 0) balls.splice(i,1); }
-    }
-      tickPoison(dt); tickAuto(dt); tickRate(dt); collectResearch();
+    tickAuto(dt); tickRate(dt);
   }
 
   if (!cam.manual) fitCamera();
   const k = Math.min(1, dt*(cam.manual ? 9 : .9));
   cam.x += (cam.tx-cam.x)*k; cam.y += (cam.ty-cam.y)*k; cam.z += (cam.tz-cam.z)*k;
 
-  if (CH.on || CH.done) { chamberStep(real); drawChamber(real); refreshChamber(); }
-  else draw(dt);
+  draw(dt);
   updateHUD();
   requestAnimationFrame(frame);
 }
 
-//====================================================================== HUD
+//======================================================================= HUD
 const $ = id => document.getElementById(id);
 function fmt(n) {
+  if (!isFinite(n)) return "∞";
   if (n < 1000) return n < 10 ? (Math.round(n*10)/10+"") : Math.round(n)+"";
-  const u = ["k","M","B","T","Qa","Qi","Sx"];
+  const u = ["k","M","B","T","Qa","Qi","Sx","Sp","Oc"];
   let i=-1; while (n >= 1000 && i < u.length-1) { n/=1000; i++; }
   return n.toFixed(n<10?2:n<100?1:0)+u[i];
 }
-let hudAcc = 0;
+let hudAcc = 0, readySig = "";
 function updateHUD() {
-  $("dia").textContent = "◆ "+fmt(S.dia);
-  $("cores").textContent = "◈ "+fmt(S.cores);
-  $("residue").textContent = "◇ "+fmt(S.residue);
-  $("strat").textContent = S.stratum;
+  $("dia").innerHTML = "&#9670; "+fmt(S.dia);
+  $("rate2").textContent = "+"+fmt(diaRate)+" /s";
   if (fps) { $("fps").textContent = fps.toFixed(0);
              $("fps").className = fps < 30 ? "bad" : "ok"; }
   $("pct").textContent = (S.minedCount/(GRID*GRID)*100).toFixed(3)+"%";
   $("mined").textContent = fmt(S.minedCount);
   $("rate").textContent = fmt(S.rate)+"/s";
-  $("ballct").textContent = flying().length+" / "+balls.length;
+  $("ballct").textContent = flying()+" / "+balls.length;
   $("depth").textContent = Math.round(S.maxDepth);
-  $("monoct").textContent = S.monoIndex+"/"+MONO_COUNT
-    + (S.attempts ? "   ▸ " + S.attempts : "");
-  $("prompt").classList.toggle("on", S.minedCount < 30 && !!idleOf(selKind));
-  drawDock();
+  $("prompt").classList.toggle("on", S.minedCount < 30 && !!idleOne());
+
+  const ic = idleCount(), sig = ic+"/"+balls.length;
+  if (sig !== readySig) {
+    readySig = sig;
+    $("ready").innerHTML = '<div class="rn">BALLS READY</div><div class="rc">'
+      + ic + '<i>/' + balls.length + '</i></div>';
+    $("ready").classList.toggle("armed", ic > 0);
+  }
   if (++hudAcc % 20 === 0) {
-    let h = "";
-    for (let t=ORE_LO;t<=ORE_HI;t++) if (S.oreLife[t])
-      h += '<span style="color:rgb('+TIERS[t].col+')"><i class="sw"></i>'+fmt(S.ore[t])+'</span>';
-    $("ores").innerHTML = h;
-    if (panelOpen === "tree") refreshTree();
-    if (panelOpen === "forge") refreshForge();
-    if (panelOpen === "codex") refreshCodex();
-    if (panelOpen === "descent") refreshDescent();
+    if (panelOpen === "upg")   refreshUpg();
     if (panelOpen === "stats") refreshStats();
   }
 }
-let dockSig = "";
-function drawDock() {
-  const sig = [0,1,2,3].map(k => owned(k)+":"+countOf(k,"idle")).join("|")+"|"+selKind;
-  if (sig === dockSig) return;
-  dockSig = sig;
-  let h = "";
-  for (let k=0;k<4;k++) {
-    if (!owned(k)) continue;
-    h += '<div class="slot'+(k===selKind?" sel":"")+(countOf(k,"idle")?" ready":"")
-      + '" style="color:'+KINDCOL[k]+';border-color:'+KINDCOL[k]+'" data-k="'+k+'">'
-      + '<div class="kn">'+KINDNAME[k]+'</div><div class="kc">'+countOf(k,"idle")
-      + '<i>/'+owned(k)+'</i></div><div class="kk">['+(k+1)+']</div></div>';
-  }
-  const d = $("dock"); d.innerHTML = h;
-  for (const el of d.children) el.onclick = () => { selKind = +el.dataset.k; dockSig=""; drawDock(); };
-}
 let toastT = 0;
 function toast(msg) {
-  $("toast").innerHTML = msg.replace(/\n/g, "<br><span style='opacity:.6;font-size:11px'>") + "</span>";
+  $("toast").textContent = msg;
   $("toast").classList.add("on");
   clearTimeout(toastT);
-  toastT = setTimeout(() => $("toast").classList.remove("on"), 3200);
+  toastT = setTimeout(() => $("toast").classList.remove("on"), 3000);
 }
 
-//================================================================ tree UI
+//==================================================================== panels
 let panelOpen = null;
 function openPanel(name) {
   panelOpen = panelOpen === name ? null : name;
-  for (const p of ["tree","forge","codex","descent","stats"]) $(p).classList.toggle("on", panelOpen === p);
+  for (const p of ["upg","stats"]) $(p).classList.toggle("on", panelOpen === p);
   $("pclose").classList.toggle("on", !!panelOpen);
-  if (panelOpen === "tree") refreshTree();
-  if (panelOpen === "forge") refreshForge();
-  if (panelOpen === "codex") refreshCodex();
-  if (panelOpen === "descent") refreshDescent();
+  if (panelOpen === "upg")   refreshUpg();
   if (panelOpen === "stats") refreshStats();
 }
-const oreSpan = (t, amt, enough) =>
-  '<s style="color:rgb('+TIERS[t].col+')" class="'+(enough?"":"short")+'">●'+fmt(amt)+'</s>';
 
-function buildTree() {
-  const wrap = $("branches"); wrap.innerHTML = "";
-  for (const key in BR) {
-    const col = document.createElement("div"); col.className = "branch";
-    const t = document.createElement("div"); t.className = "btitle";
-    t.textContent = BR[key].name; t.style.color = BR[key].col;
-    const c = document.createElement("div"); c.className = "bcur";
-    c.textContent = BR[key].ore ? "paid in "+TIERS[BR[key].ore].name : (key==="prime" ? "paid in cores ◈" : "paid in diamonds ◆");
-    c.style.color = BR[key].ore ? "rgb("+TIERS[BR[key].ore].col+")" : BR[key].col;
-    col.appendChild(t); col.appendChild(c);
-    for (const u of UPG.filter(u => u.br === key)) {
-      const n = document.createElement("div");
-      n.className = "node"+(u.ball?" ballnode":"");
-      n.style.color = BR[key].col; n.style.borderColor = BR[key].col;
-      n.dataset.id = u.id;
-      n.innerHTML = '<div class="nm"></div><div class="desc">'+u.desc+'</div>'
-                  + '<div class="lv"></div><div class="cost"></div>';
-      n.onclick = () => buy(u.id);
-      col.appendChild(n);
-    }
-    wrap.appendChild(col);
+function buildUpg() {
+  const wrap = $("nodes"); wrap.innerHTML = "";
+  for (const u of UPG) {
+    const n = document.createElement("div");
+    n.className = "node"; n.dataset.id = u.id;
+    n.innerHTML = '<div class="nm">'+u.name+'</div><div class="lv"></div>'
+                + '<div class="desc">'+u.desc+'</div><div class="cost"></div>';
+    n.onclick = () => buy(u.id);
+    wrap.appendChild(n);
   }
-  refreshTree();
+  refreshUpg();
 }
-function refreshTree() {
-  for (const n of document.querySelectorAll("#branches .node")) {
-    const u = UPGBY[n.dataset.id], lv = L(u.id);
-    const maxed = lv >= u.max, locked = u.req && !L(u.req);
-    n.querySelector(".lv").textContent = maxed ? "MAX"
-      : u.ball ? (lv ? "OWNED" : "LOCKED")
-      : (u.fmt ? u.fmt(lv)+" → "+u.fmt(lv+1) : "Lv "+lv+" → "+(lv+1));
-    let costHTML = "", can = true;
+function refreshUpg() {
+  for (const n of document.querySelectorAll("#nodes .node")) {
+    const u = UPGBY[n.dataset.id], lv = L(u.id), maxed = lv >= u.max;
+    n.querySelector(".lv").textContent = maxed
+      ? "MAX — " + u.fmt(lv)
+      : "Lv " + lv + "   ·   " + u.fmt(lv) + " → " + u.fmt(lv+1);
+    let can = false, html = "";
     if (!maxed) {
-      if (u.cur === "core") {
-        const c = u.cost(lv); can = S.cores >= c;
-        costHTML = '<s class="'+(can?"":"short")+'">◈'+fmt(c)+'</s>';
-      } else {
-        const c = Math.ceil(u.cost(lv)); const okd = S.dia >= c;
-        costHTML = '<s class="'+(okd?"":"short")+'">◆'+fmt(c)+'</s>';
-        can = okd;
-        const oreT = BR[u.br].ore;
-        if (oreT && u.ore) {
-          const oc = Math.ceil(u.ore(lv)), oko = S.ore[oreT] >= oc;
-          costHTML += oreSpan(oreT, oc, oko); can = can && oko;
-        }
-      }
+      const c = Math.ceil(u.cost(lv));
+      can = S.dia >= c;
+      html = '<span class="'+(can?"":"short")+'">◆'+fmt(c)+'</span>';
     }
-    n.querySelector(".cost").innerHTML = costHTML;
+    n.querySelector(".cost").innerHTML = html;
     n.classList.toggle("max", maxed);
-    n.classList.toggle("locked", !!locked && !maxed);
-    n.classList.toggle("afford", !maxed && !locked && can);
+    n.classList.toggle("afford", can);
   }
 }
 function buy(id) {
   const u = UPGBY[id], lv = L(id);
   if (lv >= u.max) return;
-  if (u.req && !L(u.req)) { toast("REQUIRES "+UPGBY[u.req].name.toUpperCase()); return; }
-  if (u.cur === "core") {
-    const c = u.cost(lv);
-    if (S.cores < c) { toast("NOT ENOUGH CORES"); return; }
-    S.cores -= c;
-  } else {
-    const c = Math.ceil(u.cost(lv)), oreT = BR[u.br].ore;
-    const oc = (oreT && u.ore) ? Math.ceil(u.ore(lv)) : 0;
-    if (S.dia < c) { toast("NOT ENOUGH DIAMONDS"); return; }
-    if (oc && S.ore[oreT] < oc) { toast("NEED "+fmt(oc)+" "+TIERS[oreT].name.toUpperCase()); return; }
-    S.dia -= c; if (oc) S.ore[oreT] -= oc;
-  }
-  S.lv[id] = lv+1;
+  const c = Math.ceil(u.cost(lv));
+  if (S.dia < c) { toast("NOT ENOUGH DIAMONDS"); return; }
+  S.dia -= c;
+  S.lv[id] = lv + 1;
   syncRoster();
-  if (u.ball) { selKind = KINDUPG.indexOf(id); dockSig=""; toast("NEW BALL — "+u.name.toUpperCase()); }
-  refreshTree(); drawDock(); save();
+  if (id === "auto" && lv === 0) toast("AUTO-LAUNCH ONLINE");
+  refreshUpg(); save();
 }
 
-//================================================================= forge UI
-function buildForge() {
-  const g = $("forgegrid"); g.innerHTML = "";
-  const slots = document.createElement("div");
-  slots.id = "slotwrap"; g.appendChild(slots);
-  for (const m of MODS) {
-    const d = document.createElement("div");
-    d.className = "mod"; d.dataset.id = m.id;
-    d.innerHTML = '<h4>'+m.name+'</h4><div class="mlv"></div>'
-                + '<div class="mdesc">'+m.desc+'</div><div class="cost"></div>'
-                + '<button>RESEARCH</button>';
-    d.querySelector("button").onclick = () => {
-      let free = -1;
-      for (let i = 0; i < forgeSlots(); i++) if (!researchAt(i)) { free = i; break; }
-      if (free < 0) { toast("EVERY FORGE SLOT IS BUSY"); return; }
-      if (startResearch(m.id, free)) toast("RESEARCH STARTED — " + m.name);
-      refreshForge();
-    };
-    g.appendChild(d);
-  }
-  refreshForge();
+//================================================================== stats UI
+function statBox(title, rows) {
+  let h = '<div class="cxbox"><h4>'+title+'</h4>';
+  for (const r of rows)
+    h += '<div class="cxrow'+(r[2]?" dim":"")+'"><span>'+r[0]+'</span><b>'+r[1]+'</b></div>';
+  return h + '</div>';
 }
-
-function refreshForge() {
-  // slot strip
-  let sh = "";
-  for (let i = 0; i < forgeSlots(); i++) {
-    const r = researchAt(i);
-    if (!r) sh += '<div class="slot-idle">SLOT '+(i+1)+' &middot; IDLE</div>';
-    else {
-      const m = MODBY[r.id];
-      const total = researchMins(m, r.lv) * 60000;
-      const left = Math.max(0, r.ends - Date.now());
-      const pct = Math.min(100, (1 - left/total) * 100);
-      sh += '<div class="slot-busy" data-slot="'+i+'">'
-          + '<div class="sname">'+m.name+' &rarr; Lv '+(r.lv+1)+'</div>'
-          + '<div class="sbar"><div style="width:'+pct.toFixed(1)+'%"></div></div>'
-          + '<div class="stime">'+(left>0 ? fmtDur(left)+" left" : "collecting…")+'</div>'
-          + '<button class="scancel" data-slot="'+i+'">CANCEL</button></div>';
-    }
-  }
-  const locked = 3 - MT("slots");
-  if (locked > 0) sh += '<div class="slot-locked">'+locked+' more slot'+(locked>1?"s":"")
-                      + ' available in Descent</div>';
-  $("slotwrap").innerHTML = sh;
-  for (const b of document.querySelectorAll(".scancel"))
-    b.onclick = e => { e.stopPropagation(); cancelResearch(+b.dataset.slot); refreshForge(); };
-
-  for (const d of document.querySelectorAll("#forgegrid .mod")) {
-    const m = MODBY[d.dataset.id];
-    if (!m) continue;
-    const lv = ML(m.id), maxed = lv >= m.max, busy = activeResearch(m.id);
-    const cost = m.cores(lv), can = S.cores >= cost;
-    const free = (() => { for (let i=0;i<forgeSlots();i++) if (!researchAt(i)) return true; return false; })();
-    d.querySelector(".mlv").textContent = maxed ? "MAX  ("+m.eff(lv)+")"
-      : "Lv "+lv+" → "+(lv+1)+"   "+m.eff(lv)+" → "+m.eff(lv+1);
-    d.querySelector(".cost").innerHTML = maxed ? ""
-      : '<s style="color:'+(can?"#8ef":"#e66")+'">◈ '+fmt(cost)+'</s>'
-      + '<s style="opacity:.7">⏱ '+fmtDur(researchMins(m,lv)*60000)+'</s>';
-    const btn = d.querySelector("button");
-    btn.disabled = maxed || busy || !can || !free;
-    btn.textContent = maxed ? "MAX" : busy ? "IN PROGRESS" : !free ? "NO FREE SLOT" : "RESEARCH";
-    d.classList.toggle("maxed", maxed);
-    d.classList.toggle("busy", busy);
-  }
-}
-
-
-//================================================================= stats UI
-// Every derived number the game actually uses, with modifiers already folded in,
-// so nothing here is a restatement of an upgrade tooltip.
 function refreshStats() {
-  const kinds = kindsOwned();
-  const live  = flying().length;
-  const dmg   = baseDmg();
-  const cc    = critCh(), cm = critMul();
-  const avg   = dmg * (1 + cc * (cm - 1));
-  const oreHit= avg * oreDmgMul();
-  const spd   = ballSpd();
-  const momMax= 1 + L("momentum") * 0.35 * 3 * (hasPower("solar") ? 2 : 1);
-  const rows = (title, list) =>
-    '<div class="cxbox"><h4>'+title+'</h4>'
-    + list.map(([a,b,dim]) => '<div class="cxrow'+(dim?" dim":"")+'"><span>'+a+'</span><b>'+b+'</b></div>').join("")
-    + '</div>';
-
+  const hrs = Math.floor(S.playtime/3600), mins = Math.floor(S.playtime%3600/60);
   $("statgrid").innerHTML =
-    rows("DAMAGE", [
-      ["Per impact", fmt(dmg)],
-      ["Average w/ crits", fmt(avg)],
-      ["Against ore", fmt(oreHit)],
-      ["Critical chance", (cc*100).toFixed(1)+"%"],
-      ["Critical damage", "x"+cm.toFixed(1)],
-      ["Shockwave radius", L("shock") ? (0.6+L("shock")*0.14).toFixed(2) : "—", !L("shock")],
-      ["Smash blast radius", L("redball") ? blastRad().toFixed(2) : "—", !L("redball")],
-      ["Drill pierce", L("blueball") ? (L("bluepier")+(hasPower("drill2")?4:0)) : "—", !L("blueball")],
-      ["Poison per tick", L("greenball") ? fmt((1+L("greenpot")*2.4)*(hasPower("poison2")?2:1)) : "—", !L("greenball")],
-    ])
-  + rows("BALLS", [
-      ["In flight", live+" / "+balls.length],
-      ["Per colour", perType()],
-      ["Colours unlocked", kinds+" / 4"],
-      ["Hard cap", MAX_BALLS],
-      ["Travel speed", fmt(spd)+" cells/s"],
-      ["Momentum, max", "x"+momMax.toFixed(1)],
-      ["Top speed", fmt(spd*momMax)+" cells/s"],
-      ["Rebound chance", L("rebound") ? (L("rebound")*4)+"%" : "—", !L("rebound")],
-    ])
-  + rows("YIELD", [
+    statBox("MINING", [
+      ["Damage per bounce", fmt(baseDmg())],
+      ["Ball speed", Math.round(ballSpd()) + " cells/s"],
+      ["Balls", balls.length],
+      ["In flight", flying()],
+      ["Auto-launch", L("auto") ? "every " + autoInt().toFixed(2) + "s" : "off", !L("auto")],
+    ]) +
+    statBox("YIELD", [
+      ["Refining multiplier", "x" + fmt(valMul())],
       ["Blocks / sec", fmt(S.rate)],
-      ["Best rate", fmt(S.bestRate)+"/s"],
-      ["Diamond multiplier", "x"+valMul().toFixed(2)],
-      ["Ore multiplier", "x"+oreMul().toFixed(2)],
-      ["Core chance multiplier", "x"+coreMul().toFixed(2)],
-      ["Offline share", offFrac() ? Math.round(offFrac()*100)+"%" : "locked", !offFrac()],
-      ["Auto-launch every", autoInt().toFixed(2)+"s"],
-    ])
-  + rows("PROGRESS", [
-      ["Stratum", S.stratum],
-      ["Depth reached", "Depth "+Math.round(S.maxDepth)],
-      ["Board cleared", (S.minedCount/(GRID*GRID)*100).toFixed(3)+"%"],
-      ["Rock hardness", "x"+stratHP().toFixed(2)],
-      ["Ore value", "x"+stratVal().toFixed(2)],
-      ["Residue held", "◇ "+fmt(S.residue)],
-      ["Residue on descent", "◇ "+fmt(residueGain())],
-      ["Monolith attempts", S.attempts],
-      ["Monoliths broken", S.monoIndex+" / "+MONO_COUNT],
-    ])
-  + rows("PERFORMANCE", [
-      ["Frame rate", fps ? fps.toFixed(0)+" fps" : "—"],
-      ["Frame budget", fps ? (1000/fps).toFixed(1)+" ms" : "—"],
-      ["Balls drawn", live],
-      ["Sparks", sparks.length],
-      ["Poisoned cells", poison.size],
+      ["Best rate", fmt(S.bestRate) + "/s"],
+      ["Diamonds / sec", fmt(diaRate)],
+      ["Offline share", L("auto") ? Math.round(OFFLINE_FRAC*100) + "%" : "—", !L("auto")],
+    ]) +
+    statBox("PROGRESS", [
+      ["Depth reached", Math.round(S.maxDepth)],
+      ["Blocks mined", fmt(S.minedCount)],
+      ["Board cleared", (S.minedCount/(GRID*GRID)*100).toFixed(3) + "%"],
+      ["Rock hardness here", "x" + fmt(depthMul(S.maxDepth))],
+      ["Ore value here", "x" + fmt(Math.pow(depthMul(S.maxDepth), VAL_POW))],
+      ["Playtime", hrs + "h " + mins + "m"],
     ]);
 }
 
-//================================================================= codex UI
-function refreshCodex() {
-  const total = GRID*GRID;
-  let ores = "";
-  for (let t=1;t<=9;t++)
-    ores += '<div class="cxrow'+(S.oreLife[t]?"":" dim")+'"><span style="color:rgb('+TIERS[t].col+')">'
-          + TIERS[t].name+'</span><b>'+(S.oreLife[t] ? fmt(S.oreLife[t]) : "—")+'</b></div>';
-  let mono = "";
-  for (let i = 0; i < MONO_COUNT; i++) {
-    const p = POWERS[i], done = i < S.monoIndex, cur = i === S.monoIndex;
-    const pct = cur ? Math.round(S.monoDmg / monoHP(i) * 100) : 0;
-    mono += '<div class="cxrow'+(done?"":" dim")+'"><span>'+(done||cur ? p.name : "Monolith "+(i+1))
-          + '</span><b>'+(done ? "✦" : cur ? pct+"%" : "—")+'</b></div>';
-  }
-  const recs = [
-    ["Board cleared", (S.minedCount/total*100).toFixed(3)+"%"],
-    ["Blocks mined", fmt(S.minedCount)],
-    ["Deepest reach", "Depth "+Math.round(S.maxDepth)],
-    ["Best rate", fmt(S.bestRate)+"/s"],
-    ["Monoliths", S.monoIndex+" / "+MONO_COUNT],
-    ["Attempts banked", S.attempts],
-    ["Cores found", fmt(S.cores)],
-    ["Playtime", Math.floor(S.playtime/3600)+"h "+Math.floor(S.playtime%3600/60)+"m"],
-    ["Stratum", S.stratum],
-    ["Residue", "◇ "+fmt(S.residue)],
-    ["Total playtime", Math.floor((S.totalPlaytime+S.playtime)/3600)+"h "
-       +Math.floor(((S.totalPlaytime+S.playtime)%3600)/60)+"m"],
-  ].map(([a,b]) => '<div class="cxrow"><span>'+a+'</span><b>'+b+'</b></div>').join("");
-  $("codexgrid").innerHTML =
-      '<div class="cxbox"><h4>ORE DISCOVERED</h4>'+ores+'</div>'
-    + '<div class="cxbox"><h4>MONOLITHS</h4>'+mono+'</div>'
-    + '<div class="cxbox"><h4>RECORDS</h4>'+recs+'</div>'
-    + '<div class="cxbox"><h4>STRATA CLEARED</h4>'+(S.strata.length
-        ? S.strata.slice().reverse().map(a =>
-            '<div class="cxrow"><span>Stratum '+a.n+' &middot; '+a.pct+'% &middot; Depth '+a.depth+'</span>'
-            +'<b>◇'+fmt(a.res)+'</b></div>').join("")
-        : '<div class="cxrow dim"><span>none yet</span><b>—</b></div>')+'</div>';
-}
-
-//==================================================================== input
+//===================================================================== input
 function aimAt(e) {
   const sw = W/cam.z, sh = H/cam.z;
   const wx = cam.x-sw/2 + e.clientX/cam.z, wy = cam.y-sh/2 + e.clientY/cam.z;
@@ -1594,14 +858,10 @@ function pinchSpan() {
   const a = [...ptrs.values()];
   return a.length < 2 ? 0 : Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y);
 }
-function fire(e) {
-  if (!idleOf(selKind)) { toast(KINDNAME[selKind].toUpperCase()+" — NONE READY"); return; }
-  launchOne(selKind, aimAt(e));
-}
 
 cv.addEventListener("pointerdown", e => {
   if (paused) return;
-  try { cv.setPointerCapture(e.pointerId); } catch {}
+  try { cv.setPointerCapture(e.pointerId); } catch (err) {}
   ptrs.set(e.pointerId, { x:e.clientX, y:e.clientY, moved:0 });
   if (ptrs.size === 1) { tapOK = true; aim = aimAt(e); }
   else { tapOK = false; pinchLen = pinchSpan(); }
@@ -1627,16 +887,18 @@ cv.addEventListener("pointermove", e => {
   }
 });
 
-function endPointer(e) {
+cv.addEventListener("pointerup", e => {
   const p = ptrs.get(e.pointerId);
   if (!p) return;
   ptrs.delete(e.pointerId);
   if (ptrs.size < 2) pinchLen = 0;
   if (paused) return;
-  if (tapOK && p.moved <= TAP_SLOP && ptrs.size === 0) { aim = aimAt(e); fire(e); }
+  if (tapOK && p.moved <= TAP_SLOP && ptrs.size === 0) {
+    aim = aimAt(e);
+    if (!launchOne(aim)) toast("NO BALLS READY");
+  }
   if (ptrs.size === 0) tapOK = false;
-}
-cv.addEventListener("pointerup", endPointer);
+});
 cv.addEventListener("pointercancel", e => { ptrs.delete(e.pointerId); pinchLen = 0; tapOK = false; });
 
 addEventListener("wheel", e => {
@@ -1651,8 +913,6 @@ for (const b of document.querySelectorAll("#mobibar button")) {
     const a = b.dataset.a;
     if (a === "menu") { paused ? closeMenu() : openMenu(); }
     else if (a === "recall") { if (!paused) parkAll(); }
-    else if (a === "mono") { if (!monoStart()) toast(S.monoIndex >= MONO_COUNT
-        ? "ALL MONOLITHS SHATTERED" : "NO ATTEMPTS BANKED — DESCEND TO EARN ONE"); }
     else openPanel(a);
   };
 }
@@ -1661,27 +921,23 @@ addEventListener("keydown", e => {
   const k = e.key.toLowerCase();
   if (k === "escape") {                        // close a panel first, else toggle the menu
     if (panelOpen) { panelOpen = null; $("pclose").classList.remove("on");
-      for (const p of ["tree","forge","codex","descent","stats"]) $(p).classList.remove("on"); }
+      for (const p of ["upg","stats"]) $(p).classList.remove("on"); }
     else if (paused) { if (!$("mcont").disabled) $("mcont").click(); }
     else openMenu();
     return;
   }
   if (paused) return;                          // menu swallows everything else
-  if (k >= "1" && k <= "4") { const n = +k-1; if (owned(n)) { selKind = n; dockSig=""; drawDock(); } }
-  if (k === "u") openPanel("tree");
-  if (k === "c") openPanel("forge");
-  if (k === "k") openPanel("codex");
+  if (k === "u") openPanel("upg");
   if (k === "s") openPanel("stats");
-  if (k === "d") openPanel("descent");
-  if (k === "m" || k === "l") { if (!monoStart()) toast(S.monoIndex >= MONO_COUNT
-      ? "ALL MONOLITHS SHATTERED" : "NO ATTEMPTS BANKED — DESCEND TO EARN ONE"); }
   if (k === "f") { cam.manual = false; toast("CAMERA REFIT"); }
   if (k === " ") { e.preventDefault(); parkAll(); }
   if (k === "r") openMenu();
 });
 
-//================================================================== offline
+//=================================================================== offline
 const OFFLINE_CAP_S = 12*3600, OFFLINE_MAX_BLOCKS = 250000;
+// Credits away-time by eroding the frontier through the same payout path a live
+// block uses, so offline income can never diverge from online income.
 function erodeFrontier(n) {
   if (n <= 0) return 0;
   const seen = new Uint8Array(GRID*GRID);
@@ -1708,14 +964,13 @@ function erodeFrontier(n) {
   return done;
 }
 function runOffline(awaySec) {
-  const frac = offFrac();
-  if (frac <= 0 || awaySec < 60 || S.rate <= 0) return null;
+  if (!L("auto") || awaySec < 60 || S.rate <= 0) return null;
   const t = Math.min(awaySec, OFFLINE_CAP_S);
-  const want = Math.min(OFFLINE_MAX_BLOCKS, Math.floor(S.rate*frac*t));
+  const want = Math.min(OFFLINE_MAX_BLOCKS, Math.floor(S.rate*OFFLINE_FRAC*t));
   if (want < 1) return null;
-  const d0 = S.dia, c0 = S.cores;
+  const d0 = S.dia;
   const got = erodeFrontier(want);
-  return got ? { blocks:got, dia:S.dia-d0, cores:S.cores-c0, secs:t,
+  return got ? { blocks:got, dia:S.dia-d0, secs:t,
                  capped: got >= OFFLINE_MAX_BLOCKS || awaySec > OFFLINE_CAP_S } : null;
 }
 function showWelcome(r) {
@@ -1724,41 +979,29 @@ function showWelcome(r) {
       '<div class="wrow"><span>Away</span><b>'+(h?h+"h ":"")+m+'m</b></div>'
     + '<div class="wrow"><span>Blocks mined</span><b>'+fmt(r.blocks)+'</b></div>'
     + '<div class="wrow"><span>Diamonds</span><b>◆ '+fmt(r.dia)+'</b></div>'
-    + (r.cores ? '<div class="wrow"><span>Cores</span><b>◈ '+fmt(r.cores)+'</b></div>' : '')
-    + (doneWhileAway ? '<div class="wrow"><span>Research finished</span><b>'+doneWhileAway+'</b></div>' : '')
     + (r.capped ? '<div class="wnote">Offline yield was capped. Check in more often.</div>' : '');
   $("welcome").style.display = "flex";
 }
 
-//================================================== background / tabbed away
+//=================================================== background / tabbed away
 // requestAnimationFrame stops in a hidden tab and on a sleeping phone, so the
 // simulation cannot simply keep running. Instead we credit the elapsed wall-clock
 // time through exactly the same path a cold start uses.
 let hiddenAt = 0;
-function creditAway(sec) {
-  if (sec < 15) return null;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { hiddenAt = Date.now(); save(); return; }
+  const sec = hiddenAt ? (Date.now()-hiddenAt)/1000 : 0;
+  hiddenAt = 0;
+  last = performance.now();                    // never let one giant dt through
+  if (sec < 15) return;
   const r = runOffline(sec);
-  if (r) { relight(); paintAll(); }
-  return r;
-}
-if (typeof document.addEventListener === "function") {
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) { hiddenAt = Date.now(); save(); return; }
-    if (!hiddenAt) return;
-    const away = (Date.now() - hiddenAt) / 1000;
-    hiddenAt = 0;
-    last = performance.now();                  // don't hand the loop a giant dt
-    const finished = collectResearch(true);
-    const r = creditAway(away);
-    if (finished) toast(finished + " RESEARCH COMPLETE");
-    if (r) toast("AWAY " + (away < 90 ? Math.round(away) + "s"
-                : Math.floor(away/60) + "m") + " — +" + fmt(r.blocks) + " BLOCKS");
-    else if (away > 60 && !L("autofire"))
-      toast("IDLE CORE NOT UNLOCKED — NOTHING MINED WHILE AWAY");
-  });
-}
+  if (!r) return;
+  relight(); paintAll();
+  if (!paused) toast("WHILE AWAY — " + fmt(r.blocks) + " BLOCKS, ◆" + fmt(r.dia));
+  save();
+});
 
-//===================================================================== save
+//====================================================================== save
 function rle(arr) {
   const out = []; let run = 0, cur = 0;
   for (let i=0;i<arr.length;i++) {
@@ -1779,47 +1022,37 @@ function save() {
     const dm = [];
     for (let i=0;i<dmg.length;i++) if (dmg[i]) dm.push(i, dmg[i]);
     localStorage.setItem(SAVEKEY, JSON.stringify({
-      v:4, dia:S.dia, cores:S.cores, rate:S.rate, lv:S.lv, mods:S.mods, powers:S.powers,
-      stratum:S.stratum, residue:S.residue, meta:S.meta, strata:S.strata, tpt:S.totalPlaytime,
-      ore:S.ore, oreLife:S.oreLife, mc:S.minedCount, md:S.maxDepth,
-      br:S.bestRate, pt:S.playtime,
-      attempts:S.attempts, monoIndex:S.monoIndex, monoDmg:S.monoDmg, research:S.research,
-      t:Date.now(), mined:rle(mined), dm
+      v:1, dia:S.dia, lv:S.lv, rate:S.rate, br:S.bestRate, pt:S.playtime,
+      mc:S.minedCount, md:S.maxDepth, t:Date.now(), mined:rle(mined), dm
     }));
   } catch (err) { console.warn("save failed", err); }
 }
-// Read the current key, or adopt a save left behind by an older name.
 let retiredSave = false;
 function readSave() {
   try {
     const raw = localStorage.getItem(SAVEKEY);
     if (raw) return raw;
-    for (const k of RETIRED) {
+    for (const k of RETIRED)
       if (localStorage.getItem(k)) { localStorage.removeItem(k); retiredSave = true; }
-    }
-  } catch {}
+  } catch (err) {}
   return null;
 }
-const awaySecs = d => Math.max(0, (Date.now()-(d.t||Date.now()))/1000);
 function savedAway() {
-  try { const r = readSave(); return r ? awaySecs(JSON.parse(r)) : 0; }
-  catch { return 0; }
+  try {
+    const r = readSave();
+    if (!r) return 0;
+    const d = JSON.parse(r);
+    return Math.max(0, (Date.now()-(d.t||Date.now()))/1000);
+  } catch (err) { return 0; }
 }
 function load() {
   const raw = readSave();
   if (!raw) return;
   try {
     const d = JSON.parse(raw);
-    S.dia = d.dia||0; S.cores = d.cores||0; S.rate = d.rate||0;
-    S.minedCount = d.mc||0; S.maxDepth = d.md||0; S.bestRate = d.br||0; S.playtime = d.pt||0;
-    S.attempts = d.attempts||0; S.monoIndex = d.monoIndex||0; S.monoDmg = d.monoDmg||0;
-    S.research = d.research||[];
-    S.stratum = d.stratum||1; S.residue = d.residue||0;
-    S.meta = d.meta||{}; S.strata = d.strata||[]; S.totalPlaytime = d.tpt||0;
-    Object.assign(S.lv, d.lv||{}); Object.assign(S.mods, d.mods||{});
-    S.powers = d.powers||{};
-    if (d.ore) S.ore = d.ore;
-    if (d.oreLife) S.oreLife = d.oreLife;
+    S.dia = d.dia||0; S.rate = d.rate||0; S.bestRate = d.br||0; S.playtime = d.pt||0;
+    S.minedCount = d.mc||0; S.maxDepth = d.md||0;
+    Object.assign(S.lv, d.lv||{});
     let i = 0, cur = 0;
     for (const tok of d.mined.split(".")) {
       const run = parseInt(tok,36);
@@ -1830,242 +1063,27 @@ function load() {
   } catch (err) { console.warn("load failed", err); }
 }
 
-//=================================================================== descend
-const cacheDia = l => l ? 400 * Math.pow(2.4, l-1) : 0;
-const cacheOre = l => l ? 150 * Math.pow(2.2, l-1) : 0;
-
-function grantCache(from, to) {
-  const dia = cacheDia(to) - cacheDia(from);
-  const amt = cacheOre(to) - cacheOre(from);
-  if (dia > 0) S.dia += dia;
-  if (amt > 0) for (let t = ORE_LO; t <= ORE_HI; t++) S.ore[t] += amt / Math.pow(1.9, t - ORE_LO);
-}
-function applyHeadStart() {
-  const lg = MT("legacy");
-  if (lg) { S.lv.dmg = Math.max(S.lv.dmg||0, lg);
-            S.lv.speed = Math.max(S.lv.speed||0, lg);
-            S.mods.multi = Math.max(S.mods.multi||0, Math.min(lg, METABY ? 8 : 8)); }
-  if (MT("ignition")) S.lv.autofire = 1;
-  grantCache(0, MT("cache"));
-  syncRoster();
-}
-
-// Wipes the run but keeps everything that makes a descent worthwhile.
-function newStratum() {
-  // Cores and research persist across a descent now
-  S.dia = 0; S.minedCount = 0; S.maxDepth = 0; S.rate = 0;
-  S.bestRate = 0; S.playtime = 0;
-  S.lv = {};   UPG.forEach(u => S.lv[u.id] = 0);
-  S.ore = new Array(12).fill(0);
-  S.oreLife = new Array(12).fill(0);
-  generate();
-  poison.clear(); sparks.length = 0; dirty.length = 0;
-  balls = []; selKind = 0; dockSig = "";
-  bb.x0 = CX-8; bb.y0 = CY-8; bb.x1 = CX+8; bb.y1 = CY+8;
-  applyHeadStart();
-  relight(); paintAll();
-  syncRoster(); drawDock();
-  cam.manual = false; fitCamera(); cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz;
-  rateT = 0; rateMark = 0; autoT = 0; autoCycle = 0;
-  aim = null; hudAcc = 0;
-  refreshTree(); refreshForge();
-}
-
-function descend() {
-  const gain = residueGain();
-  if (gain <= 0) return 0;
-  S.strata.push({ n:S.stratum, mined:S.minedCount,
-    pct:+(S.minedCount/(GRID*GRID)*100).toFixed(2), depth:Math.round(S.maxDepth),
-    secs:Math.round(S.playtime), res:gain });
-  if (S.strata.length > 80) S.strata.shift();
-  S.residue += gain;
-  S.attempts += 1;                               // banked, spend it whenever
-  S.totalPlaytime += S.playtime;
-  S.stratum++;
-  try { newStratum(); }
-  finally { save(); }
-  return gain;
-}
-
-function buyMeta(id) {
-  const m = METABY[id], lv = MT(id);
-  if (lv >= m.max) return;
-  const c = m.cost(lv);
-  if (S.residue < c) { toast("NOT ENOUGH RESIDUE"); return; }
-  S.residue -= c; S.meta[id] = lv + 1;
-  // take effect on the run you are already in, not the one after next
-  if (id === "cache") grantCache(lv, lv + 1);
-  else applyHeadStart();
-  drawDock();
-  refreshDescent(); refreshTree(); save();
-}
-
-function buildDescent() {
-  const g = $("metagrid"); g.innerHTML = "";
-  for (const m of META) {
-    const d = document.createElement("div");
-    d.className = "mod"; d.dataset.id = m.id;
-    d.style.borderColor = "#c9a6ff";
-    d.innerHTML = '<h4 style="color:#d9bcff">'+m.name+'</h4><div class="mlv"></div>'
-                + '<div class="mdesc">'+m.desc+'</div><div class="cost"></div>'
-                + '<button style="border-color:#c9a6ff;color:#d9bcff">BUY</button>';
-    d.querySelector("button").onclick = () => buyMeta(m.id);
-    g.appendChild(d);
-  }
-  refreshDescent();
-}
-
-function refreshDescent() {
-  const gain = residueGain();
-  const need = Math.max(0, DESCEND_MIN_DEPTH - Math.round(S.maxDepth));
-  $("dhead").innerHTML =
-      '<div class="drow"><span>Stratum</span><b>'+S.stratum+'</b></div>'
-    + '<div class="drow"><span>Residue held</span><b>◇ '+fmt(S.residue)+'</b></div>'
-    + '<div class="drow"><span>Depth reached</span><b>Depth '+Math.round(S.maxDepth)+'</b></div>'
-    + '<div class="drow"><span>This stratum cleared</span><b>'
-      + (S.minedCount/(GRID*GRID)*100).toFixed(2)+'%</b></div>'
-    + '<div class="drow"><span>Residue on descent</span><b style="color:#d9bcff">◇ '
-      + fmt(gain)+'</b></div>'
-    + '<div class="drow"><span>Monolith attempts</span><b>'+S.attempts+' → '+(S.attempts+1)+'</b></div>'
-    + (need > 0 ? '<div class="dnote">Reach Depth '+DESCEND_MIN_DEPTH+' before you can descend.</div>'
-                : '<div class="dnote">Descending rebuilds the arena and resets this run’s '
-                  + 'upgrades, ore and Forge. Residue, the tree below, and every Monolith power '
-                  + 'you have earned are kept.</div>');
-  $("dbtn").disabled = gain <= 0;
-  $("dbtn").textContent = gain > 0 ? ("DESCEND TO STRATUM "+(S.stratum+1)) : "NOT DEEP ENOUGH";
-  for (const d of document.querySelectorAll("#metagrid .mod")) {
-    const m = METABY[d.dataset.id];
-    if (!m) continue;
-    const lv = MT(m.id), maxed = lv >= m.max;
-    d.querySelector(".mlv").textContent = maxed
-      ? "MAX" + (m.fmt ? "  ("+m.fmt(lv)+")" : "")
-      : (m.fmt ? m.fmt(lv)+" → "+m.fmt(lv+1) : "Lv "+lv+" → "+(lv+1));
-    const c = m.cost(lv), can = S.residue >= c;
-    d.querySelector(".cost").innerHTML = maxed ? ""
-      : '<s style="color:'+(can?"#d9bcff":"#e66")+'">◇ '+fmt(c)+'</s>';
-    d.querySelector("button").disabled = maxed || !can;
-    d.classList.toggle("maxed", maxed);
-  }
-}
-
-//======================================================= chamber presentation
-const cc = document.getElementById("cc"), ccx = cc.getContext("2d");
-const CHCOL = ["#ffffff", "#ff5555", "#5ad8ff", "#5cf06a"];
-const CHNAME = ["Basic", "Smash", "Drill", "Poison"];
-
-function refreshChamber() {
-  const i = monoCur(), p = POWERS[i], hp = monoHP(i);
-  const pct = Math.min(100, (S.monoDmg + (CH.on ? CH.dealt : 0)) / hp * 100);
-  $("chhead").innerHTML =
-      "MONOLITH " + (i+1) + " / " + MONO_COUNT + "  —  <b>" + p.name + "</b>"
-    + "<br><i>" + p.desc + "</i>"
-    + "<br>" + fmt(S.monoDmg + (CH.on ? CH.dealt : 0)) + " / " + fmt(hp)
-    + "   ·   balls <b>" + (chBalls() - CH.fired) + "</b>"
-    + "   ·   <b>" + Math.max(0, CH.t).toFixed(1) + "s</b>"
-    + '<div id="chbar"><div style="width:' + pct + '%"></div></div>';
-  $("chfoot").textContent = CH.done ? CH.msg
-    : (CH.fired < chBalls() ? "Click to fire. Balls keep bouncing until the timer runs out."
-                            : "All balls away — ride it out.");
-  $("chexit").textContent = CH.done ? "CONTINUE" : "LEAVE CHAMBER";
-}
-
-function drawChamber(dt) {
-  const W = cc.width, H = cc.height, S2 = W/2;
-  const px = v => S2 + v*S2*0.96;
-  ccx.fillStyle = "#050a12"; ccx.fillRect(0,0,W,H);
-  // the monolith
-  const R = 0.30*S2*0.96, hp = monoHP(monoCur());
-  const frac = Math.min(1, (S.monoDmg + CH.dealt)/hp);
-  ccx.save(); ccx.translate(S2,S2);
-  for (let r=0;r<12;r++) {
-    const a = r/12*6.283 + frac*0.6;
-    ccx.strokeStyle = "rgba(120,190,230,"+(0.10+frac*0.25)+")"; ccx.lineWidth = 1;
-    ccx.beginPath(); ccx.moveTo(Math.cos(a)*R*0.35, Math.sin(a)*R*0.35);
-    ccx.lineTo(Math.cos(a)*R, Math.sin(a)*R); ccx.stroke();
-  }
-  ccx.beginPath(); ccx.arc(0,0,R,0,6.283);
-  ccx.fillStyle = "rgba(30,70,100,.85)"; ccx.fill();
-  ccx.strokeStyle = "#9ef"; ccx.lineWidth = 2; ccx.shadowColor="#9ef"; ccx.shadowBlur=18;
-  ccx.stroke(); ccx.shadowBlur=0;
-  ccx.beginPath(); ccx.arc(0,0,R*(1-frac*0.55),0,6.283);
-  ccx.fillStyle = "rgba(150,230,255,"+(0.10+frac*0.5)+")"; ccx.fill();
-  ccx.restore();
-  // sparks
-  ccx.globalCompositeOperation = "lighter";
-  for (let i=chSparks.length-1;i>=0;i--) {
-    const p = chSparks[i]; p.t += dt;
-    if (p.t > p.life) { chSparks.splice(i,1); continue; }
-    p.x += p.vx*dt; p.y += p.vy*dt;
-    ccx.globalAlpha = 1 - p.t/p.life; ccx.fillStyle = CHCOL[p.kind]||"#fff";
-    ccx.fillRect(px(p.x)-1.5, px(p.y)-1.5, 3, 3);
-  }
-  ccx.globalAlpha = 1;
-  for (const b of CH.balls) {
-    ccx.strokeStyle = CHCOL[b.kind]; ccx.lineWidth = 2; ccx.globalAlpha = .45;
-    ccx.beginPath();
-    for (let k=0;k<b.trail.length;k+=2)
-      k===0 ? ccx.moveTo(px(b.trail[k]),px(b.trail[k+1])) : ccx.lineTo(px(b.trail[k]),px(b.trail[k+1]));
-    ccx.stroke(); ccx.globalAlpha = 1;
-    ccx.fillStyle = CHCOL[b.kind]; ccx.shadowColor = CHCOL[b.kind]; ccx.shadowBlur = 12;
-    ccx.fillRect(px(b.x)-3, px(b.y)-3, 6, 6); ccx.shadowBlur = 0;
-  }
-  ccx.globalCompositeOperation = "source-over";
-  // aim guide
-  if (CH.on && !CH.done && CH.fired < chBalls()) {
-    ccx.strokeStyle = CHCOL[CH.fired % chKinds()]; ccx.globalAlpha = .6;
-    ccx.setLineDash([5,7]); ccx.beginPath();
-    ccx.moveTo(px(0), px(0.62));
-    ccx.lineTo(px(0)+Math.cos(CH.aim)*180, px(0.62)+Math.sin(CH.aim)*180);
-    ccx.stroke(); ccx.setLineDash([]); ccx.globalAlpha = 1;
-    ccx.fillStyle = "#fff"; ccx.fillRect(px(0)-3, px(0.62)-3, 6, 6);
-  }
-}
-
-cc.addEventListener("pointermove", e => {
-  const r = cc.getBoundingClientRect();
-  const x = (e.clientX-r.left)/r.width*2-1, y = (e.clientY-r.top)/r.height*2-1;
-  CH.aim = Math.atan2(y/0.96-0.62, x/0.96);
-});
-cc.addEventListener("pointerdown", e => {
-  if (!CH.on || CH.done) return;
-  const r = cc.getBoundingClientRect();
-  const x = (e.clientX-r.left)/r.width*2-1, y = (e.clientY-r.top)/r.height*2-1;
-  monoFire(Math.atan2(y/0.96-0.62, x/0.96));
-});
-$("chexit").onclick = () => { if (CH.on && !CH.done) monoEnd(); else monoExit(); };
-
-//================================================================ start menu
+//================================================================= start menu
 // Wipes every scrap of progression AND rebuilds the arena from scratch, in memory,
 // with no reload — so there is no unload event that could resurrect the old save.
 function resetGame() {
   saveLocked = true;
-  try { localStorage.removeItem(SAVEKEY); for (const k of RETIRED) localStorage.removeItem(k); } catch {}
+  try { localStorage.removeItem(SAVEKEY); for (const k of RETIRED) localStorage.removeItem(k); } catch (err) {}
 
-  S.dia = 0; S.cores = 0; S.minedCount = 0; S.maxDepth = 0; S.rate = 0;
-  S.bestRate = 0; S.playtime = 0;
-  S.attempts = 0; S.monoIndex = 0; S.monoDmg = 0; S.research = [];
-  S.lv = {};   UPG.forEach(u => S.lv[u.id] = 0);
-  S.mods = {}; MODS.forEach(m => S.mods[m.id] = 0);
-  S.powers = {};
-  S.ore = new Array(12).fill(0);
-  S.oreLife = new Array(12).fill(0);
-  S.stratum = 1; S.residue = 0; S.meta = {}; S.strata = []; S.totalPlaytime = 0;
+  S.dia = 0; S.minedCount = 0; S.maxDepth = 0; S.rate = 0; S.bestRate = 0; S.playtime = 0;
+  S.lv = {}; UPG.forEach(u => S.lv[u.id] = 0);
 
-  generate();                                  // fresh arena, monoliths restocked
-  poison.clear(); sparks.length = 0; dirty.length = 0;
-  balls = []; selKind = 0; dockSig = "";
+  generate();
+  sparks.length = 0; dirty.length = 0;
+  balls = [];
   bb.x0 = CX-8; bb.y0 = CY-8; bb.x1 = CX+8; bb.y1 = CY+8;
   relight(); paintAll();
-  syncRoster(); drawDock();
+  syncRoster();
   cam.manual = false; fitCamera(); cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz;
-  rateT = 0; rateMark = 0; autoT = 0; autoCycle = 0;
-  aim = null; hudAcc = 0;
-  try { refreshTree(); refreshForge(); }
-  catch (err) { console.warn("panel refresh failed", err); }
-  finally {
-    saveLocked = false;
-    save();                                    // persist the clean slate right away
-  }
+  rateT = 0; rateMark = 0; diaMark = 0; diaRate = 0; autoT = 0;
+  aim = null; hudAcc = 0; readySig = "";
+  try { refreshUpg(); } catch (err) { console.warn("panel refresh failed", err); }
+  finally { saveLocked = false; save(); }
 }
 
 let paused = true, armed = 0, sessionStarted = false;
@@ -2080,18 +1098,21 @@ function openMenu() {
   $("mcont").disabled = !(has || sessionStarted);
   $("mcont").textContent = sessionStarted ? "RESUME" : "CONTINUE";
   if (retiredSave) $("mnote").textContent =
-    "A save from an older version was retired — the upgrade economy was rebuilt.";
+    "A save from an older version was retired — the game was stripped back to its core loop.";
   $("msave").innerHTML = has
-    ? '<div class="r"><span>Board cleared</span><b>'+(S.minedCount/(GRID*GRID)*100).toFixed(3)+'%</b></div>'
+    ? '<div class="r"><span>Depth reached</span><b>'+Math.round(S.maxDepth)+'</b></div>'
       + '<div class="r"><span>Blocks mined</span><b>'+fmt(S.minedCount)+'</b></div>'
       + '<div class="r"><span>Diamonds</span><b>◆ '+fmt(S.dia)+'</b></div>'
-      + '<div class="r"><span>Monoliths</span><b>'+S.monoIndex+' / '+MONO_COUNT+'</b></div>'
       + '<div class="r"><span>Playtime</span><b>'+Math.floor(S.playtime/3600)+'h '
         + Math.floor(S.playtime%3600/60)+'m</b></div>'
     : '<div class="none">NO SAVED RUN</div>';
   $("menu").classList.add("on");
 }
-function closeMenu() { $("menu").classList.remove("on"); paused = false; sessionStarted = true; }
+function closeMenu() {
+  $("menu").classList.remove("on");
+  paused = false; sessionStarted = true;
+  last = performance.now();
+}
 
 $("mcont").onclick = () => {
   if ($("mcont").disabled) return;
@@ -2121,36 +1142,18 @@ $("mnew").onclick = () => {
 };
 
 //====================================================================== boot
-// The world depends on which stratum you are on, but load() needs the terrain to
-// exist before it can apply the mined mask -- so read the stratum first.
-(function peekStratum() {
-  try {
-    const raw = readSave();
-    if (!raw) return;
-    const d = JSON.parse(raw);
-    S.stratum = d.stratum || 1;
-    S.powers  = d.powers  || {};
-    S.meta    = d.meta    || {};
-  } catch {}
-})();
 generate();
 const away = savedAway();
 load();
 relight();
-const doneWhileAway = collectResearch(true);
 let pendingOffline = runOffline(away);
 if (pendingOffline) relight();
 paintAll();
 resize();
-buildTree(); buildForge(); buildDescent();
-syncRoster(); drawDock();
+buildUpg();
+syncRoster();
 fitCamera(); cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz;
 $("wok").onclick = () => { $("welcome").style.display = "none"; };
-$("dbtn").onclick = () => {
-  const g = descend();
-  if (g) toast("DESCENT — STRATUM " + S.stratum + " · +◇ " + fmt(g) + " RESIDUE");
-  refreshDescent();
-};
 openMenu();                                    // every session starts at the menu
 setInterval(save, 10000);
 addEventListener("beforeunload", save);

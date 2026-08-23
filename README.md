@@ -2,298 +2,175 @@
 
 **Play it: https://sevin47.github.io/orebound/**
 
-An incremental mining game. You fire pixels into solid rock; they bounce forever,
-chewing a cavern out of a 1024 x 1024 board. Every impact costs energy and yields
-diamonds, raw ore, and occasionally a Core. Sixteen Monoliths are buried at
-increasing depths, each holding a unique permanent power. Break all sixteen and the
-Bedrock shell at the board's edge finally yields.
+An incremental mining game, stripped to its core loop. You fire pixels into solid
+rock; they bounce forever, chewing a cavern out of a 1024 x 1024 board. Every
+block you break pays diamonds. Diamonds buy five upgrades. That is the entire
+game.
+
+Single file, no build step, no dependencies. Open `index.html` in any browser.
 
 ## Play
 
-Open `index.html` in any browser. No build step, no dependencies.
-
 | Input | Action |
 |---|---|
-| Click | Fire **one** ball of the selected type |
-| `1`–`4` / dock | Select ball type |
-| Drag / wheel | Pan / zoom |
+| Click / tap | Aim and launch one ball |
+| Drag | Pan the camera |
+| Wheel / pinch | Zoom |
 | `F` | Return camera to auto-fit |
 | `U` | Upgrades |
-| `C` | Forge |
-| `K` | Codex |
 | `S` | Stats |
-| `M` | Monolith Chamber |
 | `Space` | Recall every ball |
-| `D` | Descent and the meta tree |
 | `Esc` / `R` | Start menu (pauses the game) |
 
-### Touch
-
-| Gesture | Action |
-|---|---|
-| Tap | Fire one ball at that point |
-| Drag | Pan the camera |
-| Pinch | Zoom |
-| Bottom bar | Upgrades, Forge, Codex, Stats, Descend, Monolith, Recall, Menu |
-
-The layout switches to a single-column, touch-sized version below 820px wide, and the
-energy bar moves to full width across the top.
+Below 820px wide the layout switches to a single column with a touch-sized
+bottom bar: Upgrades, Stats, Recall, Menu.
 
 Every session opens on a **start menu**. *Continue* resumes and shows your run's
 stats; *New Game* takes two clicks to confirm, then wipes all progression and
 rebuilds the arena in memory — no reload, so nothing can write the old save back.
 
-Balls fire independently — buy a new one mid-run and send it out immediately while
+Balls fire independently. Buy a new one mid-run and send it out immediately while
 the rest keep bouncing. The camera never follows a ball; it frames the cavern.
 
-## Deploying
+## The five upgrades
 
-`index.html` sits at the repo root and GitHub Pages serves it from `main`. Pushing to
-`main` redeploys; there is no build step.
-
-## Balls
-
-| Ball | Colour | Behaviour |
-|---|---|---|
-| Basic | white | Plain bounce |
-| Smash | red | Detonates a crater at every impact |
-| Drill | blue | Axis-locked, and **drifts sideways each bounce** so it carves a widening swath instead of re-running a cleared corridor |
-| Poison | green | Infects rock; poison erodes and spreads on its own |
-
-Balls **collide with each other**. With the Mass Driver module, collisions shatter
-the rock around them.
-
-A ball only ever changes course from a wall bounce, a collision, or the Lodestone
-Monolith power. There is one safety net — a ball that crosses more than 3x the
-cavern radius without touching anything re-aims at the nearest rock — but a normal
-crossing is about 1.3x the radius, so in ordinary play it never fires.
-
-## Economy
-
-Three currencies, each with its own job.
-
-- **Diamonds ◆** — from every block. The generic gate.
-- **Raw ore ●** — each branch is paid in its own colour, so the tree tells you where
-  to dig. Ore is only demanded from a few levels in, so early progress is never
-  blocked behind rock you cannot yet reach.
-- **Cores ◈** — rare drop, odds climbing steeply with tier. Buys the Prime branch.
-
-| Branch | Paid in | Ore appears past |
-|---|---|---|
-| Core | Amber | r18 |
-| Energy | Sulfur | r80 |
-| Smash | Cinnabar | r170 |
-| Drill | Azurite | r270 |
-| Poison | Verdite | r370 |
-| Refining | Voidgem | r470 |
-| Automation | Diamonds | — |
-| Prime | Cores | — |
-
-Ore depth follows the order branches are **needed**, not a palette. Core and Energy —
-what you want first — are fed by the shallowest ore; Refining, which you want last,
-by the deepest. Branch colour still matches its ore colour throughout.
-
-## The Forge is a laboratory
-
-Research costs Cores **and real time**. Each one occupies a slot until it finishes,
-whether or not the game is open — timers run on wall clock, the same basis as offline
-mining. Early research is 6–25 minutes; the deepest levels are 6–7 hours, hard-capped
-at 8.
-
-**Slots are the scarce resource, not Cores.** You start with one and buy up to four
-with Residue. **Forge Speed** is itself researchable, so the first real decision is
-whether to spend a slot making every later slot faster.
-
-The three economies now differ in *kind*, not just in source:
-
-| Currency | Scope | Cost is | Buys |
+| Upgrade | Effect | Cost | Cap |
 |---|---|---|---|
-| Diamonds + ore | one run | instant | flat, in-run power |
-| Residue | permanent | instant | head starts and slots |
-| **Cores** | **permanent** | **time** | multipliers |
+| **Impact** | x1.30 damage per level | x1.70 per level | none |
+| **Velocity** | x1.18 ball speed | x1.75 | 25 |
+| **Swarm** | +1 ball | x2.10 | 24 |
+| **Refining** | x1.25 diamonds per block | x1.65 | none |
+| **Auto-Launch** | parked balls deploy themselves | x1.72 | 12 |
 
-Cores no longer reset on descent, and neither does research.
+Effect growth is slower than cost growth on every line, so each level buys
+strictly less per diamond than the last. Progress comes from the board paying
+more as you get deeper, never from an upgrade outrunning its own price.
+
+**Impact and Refining are uncapped**, and that is load-bearing. Income in a game
+like this is exponential, so any finite tree gets emptied and the game ends. A
+tree with no last level means diamonds always have somewhere to go.
+
+## The curve
+
+Two constants decide everything, and they live together at the top of the script:
+
+```js
+const DEPTH_K = 0.0215, DEPTH_E = 1.12;
+const depthMul = d => Math.exp(DEPTH_K * Math.pow(d, DEPTH_E));
+const VAL_POW  = 0.30;
+```
+
+Block HP is `tierHP × depthMul(d)`. Block value is `tierVal × depthMul(d)^0.30`.
+Both derive from the same depth term, so difficulty and income can never drift
+apart — and because value climbs at only 30% of the rate hardness does, a deeper
+block always costs more to break than it pays back. Depth has to be bought with
+upgrades; it can never be earned by waiting.
+
+The exponent sits just above 1, so the curve is close to a straight exponential
+in depth: gentle over the first twenty cells, then compounding hard.
+
+| Depth | Hardness |
+|---|---|
+| 20 | x1.9 |
+| 100 | x42 |
+| 200 | x3.4k |
+| 300 | x360k |
+| 500 | x7.2e9 |
 
 ## One owner per stat
 
-Before this, six separate tracks multiplied damage (Damage, Impact Force, Overcharge,
-Density, Impact Prism, Deep Roots), four multiplied speed, three raised Core drops.
-Nothing felt like it meant anything specific.
+Damage is multiplied by Impact and by nothing else. Income is multiplied by
+Refining and by nothing else. No second system stacks another exponential on top
+of either.
 
-The Prime branch dissolved — all four of its nodes were duplicates — and every stat now
-has exactly one home: **branches are flat and reset each stratum, research is
-multiplicative and permanent.**
+This is the rule the previous version broke in five places at once: damage was
+`1.34^dmg × 1.35^overch`, then x9 on crit, then x`lens`, then x`vein` and
+x`tough` against ore — five independent multipliers on one number with no shared
+budget. The result was x127k rock hardness against x2.1M ore value and a game
+that emptied itself in minutes.
 
-## Descent
+## Balance, measured
 
-Clearing a stratum does not end the game and descending does not wipe your work — it
-moves you **down** to a new one. Open the Descent panel with `D`.
+The curve above was not guessed. It was fitted by running the real physics
+headless with a "buy the cheapest affordable upgrade" player and reading the
+depth it reached:
 
-Each descent pays **Residue ◇**, keyed to one number you can actually see: **how deep
-you got**. "I reached r340 last run, this time r410" is a decision you can reason
-about. Descend any time past depth r60.
+| Elapsed | Depth | Blocks/sec | Levels (impact / velocity / swarm / refining / auto) |
+|---|---|---|---|
+| 2 min | 18 | 3 | 3 / 0 / 0 / 0 / 0 |
+| 5 min | 30 | 2 | 4 / 2 / 0 / 2 / 0 |
+| 10 min | 50 | 22 | 9 / 7 / 3 / 6 / 4 |
+| 15 min | 152 | 520 | 27 / 24 / 16 / 26 / 12 |
+| 20 min | 214 | 172 | 36 / 25 / 22 / 35 / 12 |
+| 30 min | 254 | 76 | 40 / 25 / 24 / 40 / 12 |
+| 45 min | 279 | 42 | 43 / 25 / 24 / 42 / 12 |
+| 65 min | 297 | 20 | 44 / 25 / 24 / 44 / 12 |
 
-Residue buys a permanent meta tree, weighted toward **head starts** rather than flat
-multipliers — head starts compress the slow opening, multipliers only move it:
+The jump between minutes 10 and 15 is Swarm, Velocity and Auto-Launch all
+landing at once — the engine igniting. It self-corrects as depth bites. After
+the capped upgrades run out, only Impact and Refining remain, and the game
+settles into roughly one level per ten minutes, indefinitely.
 
-| Node | Effect |
-|---|---|
-| Legacy | Arrive with N levels of Damage, Speed and Extra Ball |
-| Fleet Start | Extra balls of every colour from the moment you arrive |
-| Ignition | Arrive with the Auto-Launcher already running |
-| Supply Cache | Arrive holding diamonds and raw ore |
-| Deep Roots | Permanent damage multiplier |
-| Velocity | Permanent ball speed multiplier |
-| Chamber Time / Volley / Force / Munitions | Upgrade the Monolith Chamber |
-| Assay | Permanent ore and Core yield multiplier |
+The first tuning attempt used `K=.0055, E=1.25`. That only reached x7 hardness by
+depth 112, damage outran the board, and the entire tree bought out in six
+minutes — the same failure as the old build, in a smaller game. The fix was a
+much steeper curve in the 0–250 range, not more systems on top.
 
-Lodestone **powers are kept forever**. Every stratum reseeds its ore, so no two are
-the same map. Rock gets harder (x1.75 HP) and richer (x2.0 value) each stratum, tuned so runs hold 20-30 minutes.
+## Why Velocity is capped and the others are not
 
-Cleared strata are archived in the Codex — your excavations are finished and filed,
-not deleted.
+A ball's step loop discards its remaining travel when it bounces, so a ball can
+land at most one impact per substep — three per frame, about 180 hits a second.
+Past that, speed buys nothing. The cap is where the stat stops working, not a
+balance decision.
 
-A run is not meant to exhaust a stratum — you push until the rock outruns your damage,
-bank the Residue, and go again. Depth reached at the 30-minute mark:
+Swarm is capped for frame budget: past 25 balls the swarm costs more to draw
+than it earns. Everything beyond it has to be bought as Impact.
 
-| | Depth at 30 min |
-|---|---|
-| Stratum 1 (no meta) | r316 |
-| Stratum 2 | r416 |
-| Stratum 4 | r451 |
-| Stratum 6 | r479 |
+## Offline and tabbed away
 
-Later strata reach those depths far faster — stratum 6 passes r417 in five minutes.
+`requestAnimationFrame` stops in a hidden tab and on a sleeping phone, so the
+simulation cannot simply keep running. Elapsed wall-clock time is credited
+instead, by eroding the cavern frontier through the same `payout()` path a live
+block uses — so offline income can never diverge from online income.
 
-## The Monolith Chamber
+Requires Auto-Launch. Pays 40% of your observed block rate, capped at 12 hours
+and 250,000 blocks per return.
 
-Monoliths are no longer buried in the arena. Descending banks a **Monolith
-Attempt**, and you spend attempts whenever you like — so a fast stratum never forces
-a mini-game on you, and leaving the game idle never blocks a descent.
+## What was removed
 
-Open the chamber with `M`. You get a timer and a volley of balls; click to fire, and
-they keep ricocheting off the chamber walls until the clock runs out. Damage banks
-between attempts, so a Monolith takes several visits to shatter. Break one and it
-grants its permanent power, then the next — tougher — Monolith unlocks. All 16 in
-sequence.
+The previous version layered five progression systems onto this loop: an ore
+tree with six colour currencies, a Forge running real-time research on Cores, a
+Residue meta tree, a stratum/descent prestige reset, and a Monolith minigame
+with sixteen unique powers. All of it is gone, along with Smash/Drill/Poison
+balls, crits, shockwaves, poison spread, and the Codex.
 
-Residue buys the chamber directly:
+Old saves (`orebound.v2`, `orebound.v1`, `pixelbouncer.v3`) are **not migrated**
+— they encode currencies that no longer exist, and a half-conversion would hide
+bugs rather than fix them. They are cleared on first load with a notice on the
+start menu.
 
-| Node | Effect |
-|---|---|
-| Chamber Time | Seconds per attempt |
-| Volley | Balls you may fire |
-| Chamber Force | Damage per strike |
-| Munitions | Unlocks Smash, then Drill, then Poison balls in the chamber |
+The file went from 2161 lines to 1151.
 
-Smash hits hardest, so Munitions changes how you aim rather than just adding numbers.
+## Local development
 
-Bedrock is gone entirely — the outer shell existed to be a final wall, and under the
-current pacing you are never meant to exhaust a stratum. Its reward slot became
-**Anchor Stone** (+40% Residue per descent), so all 16 Monoliths grant something real.
+`index.html` sits at the repo root and GitHub Pages serves it from `main`.
+Pushing to `main` redeploys; there is no build step.
 
-The arena is now pure rock, edge to edge.
+To serve it locally:
 
-## Stats and Codex
+```bash
+python -m http.server 8765
+```
 
-**Stats** (`S`) shows every derived number with modifiers already folded in — damage per
-impact and averaged with crits, crit chance and multiplier, ball speed and top speed
-under Momentum, blast and shockwave radii, yield multipliers, and a live frame rate
-with frame budget. Frame rate also sits in the corner HUD.
-
-**Codex** (`K`) tracks ore discovered, Monolith progress, cleared strata and records.
-
-Depth is written as **Depth 340**, not `r340`.
-
-## Momentum (there is no energy)
-
-Energy was removed. It existed to throttle throughput, which fought directly against
-short runs, and prestige made it worse: head starts handed you a swarm while Capacity
-and Regeneration reset every stratum, so each descent parked you more often — by
-stratum 6, every ~7 seconds.
-
-Its branch became **Momentum**, which solves a real problem instead of taxing you:
-
-| Node | Effect |
-|---|---|
-| Momentum | Balls build speed the further they fly without hitting anything |
-| Rebound | Chance a bounce lands a second free hit |
-| Impact Force | Flat multiplier on impact damage |
-
-Momentum is worth nothing in a tight cavern and enormous in a wide one, so it directly
-counters the travel-time bottleneck that a growing cavern creates. Sunwell now doubles
-how fast Momentum builds; Twin Strike (was Flux Regulator) adds a half-damage second
-hit; Kinetic Core and Velocity are permanent speed multipliers.
-
-Balls never park now except on a manual recall, so the Auto-Launcher's job is firing
-your opening volley and enabling offline mining.
-
-## Balance notes
-
-**Ball count is capped.** It is the worst scaling axis in this game — linear power,
-superlinear cost — so the hard ceiling is 120 live balls and the reachable maximum is
-about 68. Extra Ball left the Core branch for the Forge (**Multiplicity**, ore-bought,
-max 8), Fleet Start is capped at 5, and Prime's Swarm became **Density**, a damage
-multiplier. In its place Core gained **Shockwave**: every impact cracks a small area,
-which buys throughput without adding entities.
-
-**The renderer was the real performance problem, not the physics.** At 300 balls the
-physics costs 2.4ms a frame; the killer was a `shadowBlur` glow per ball, which forces
-a blur pass per draw. Glows are now pre-rendered sprites drawn with `drawImage`, trails
-shorten as the swarm grows, and the spark budget is a third of what it was.
-
-**Residue income no longer compounds x1.9 per stratum** (now x1.25). Against meta costs
-growing x1.5 per level, the old rate meant later runs collapsed to four minutes and
-cleared the whole board. Stratum HP rose to x1.75 to match.
-
-Chamber Force was x400 at max against Monoliths growing x1.5; it is now x15 against
-x1.62, so a Monolith takes **3-4 attempts at every stage** rather than dropping to one.
-
-A chained simulation of eight consecutive descents:
-
-| Run | Length | Depth | Board | Balls |
-|---|---|---|---|---|
-| 1 | 30m | r216 | 15% | 10 |
-| 3 | 30m | r377 | 43% | 28 |
-| 5 | 30m | r442 | 59% | 32 |
-| 7 | 30m | r490 | 72% | 40 |
-| 8 | 23m | r450 | 61% | 40 |
-
-Runs hold 20-30 minutes, depth climbs, and a stratum is never trivially exhausted.
-
-
-Block HP scales with distance from the origin, but not as a flat exponential. Depth
-sits inside a power law (`exp(DEPTH_K * d^1.35)`), so the curve *accelerates*: about
-1.6x at r60, 9x at r180, 500x at r400, 17,000x at r560. A flat `pow^d` could not
-separate the two ends — raising it to lengthen the endgame slowed the opening by the
-same factor.
-
-Damage is exponential too (`1.34^level`), for the same reason. When it was linear the
-player fell further behind the HP curve every hour, stalled at damage level 11 of 34,
-and could never catch up even fully maxed.
-
-Ore **value** climbs far slower than HP (`depthMul^0.30`). When income tracked HP,
-deep ore paid for the whole tree in a handful of blocks.
-
-A progression simulator (`sim.js`, in the scratchpad) plays these formulas forward:
-
-| Progress | Time | Limited by |
-|---|---|---|
-| 1% | 19m | energy |
-| 5% | 1h 05 | travel |
-| 10% | 1h 58 | travel |
-| 25% | 2h 08 | energy |
-| 50% | 2h 33 | energy |
-| 75% | 3h 45 | energy |
-| 100% | **5h 48** | energy |
-
-Early play is limited by ball count x speed / cavern radius; from the midgame on it is
-limited by energy throughput. Its ball-travel model and its assumption of perfectly
-efficient buying are both approximations, so real play will differ.
+A `.claude/launch.json` is included so the preview tooling can start that server
+by name. `file://` works too, except that `localStorage` is unavailable, so saves
+silently no-op.
 
 ## Known limitations
 
-- No sound, no touch controls.
-- The first 10% still takes about a third of the total. It is far better than it was
-  (5% now lands at ~1h instead of ~3h) but remains the least even stretch.
-- The save is run-length encoded and stays small early, but grows as the board clears.
+- `paintAll()` walks all 1,048,576 cells. It runs on boot, on reset and after an
+  offline credit — a visible hitch on slow machines, but not in the frame loop.
+- The save embeds a run-length mask of the whole board plus every partially
+  damaged cell. It stays small in practice but grows with a heavily chewed board.
+- Corners of the board sit at depth ~724 and are effectively impenetrable. That
+  is the intended wall; there is no bedrock shell.
