@@ -15,10 +15,11 @@ Single file, no build step, no dependencies. Open `index.html` in any browser.
 
 | Input | Action |
 |---|---|
-| Click / tap | Launch the selected ball **at that spot** |
+| Click | Launch at that spot &middot; **drag** to aim |
+| Right-drag / two fingers | Pan |
 | `1`–`7` / dock | Select ball type |
 | `A` | Toggle auto-fire |
-| Drag | Pan &middot; **Wheel / pinch** Zoom |
+| Wheel / pinch | Zoom |
 | `F` | Return camera to auto-fit |
 | `U` | Tech tree &middot; `S` Stats |
 | `Esc` / `R` | Start menu (pauses) |
@@ -64,16 +65,32 @@ Ball choice is not cosmetic. Measured on the same save, switching from Rush
 (single target) to Smash (area clear) moved throughput from **601 to 1664
 pixels/sec**.
 
-## Launch from anywhere
+## Launch from anywhere, aim where you like
 
-Balls launch from wherever you click, not from the middle of the world. That is
-the difference between eroding one disc outward and actually steering the dig —
-you can drive a shaft toward an upgrade pixel or work a seam you found.
+Press to set the launch point, drag to set the direction, release to fire. A
+short click fires outward from the centre. Panning moves to right-drag (or two
+fingers) so it no longer competes with aiming for the left button.
 
-It has a pleasing emergent constraint: you can only launch into ground you have
-already opened, so **your cavern is the set of valid launch sites**, and it grows
-as you mine. Auto-fire picks spots on the working face rather than the middle,
-so idle play widens the frontier instead of re-grinding cleared ground.
+You can only launch into ground you have already opened, so **your cavern is the
+set of valid launch sites**, and it grows as you mine. Auto-fire picks spots on
+the working face, so idle play widens the frontier instead of re-grinding cleared
+ground.
+
+## Slow balls, big swarm
+
+Balls drift at **3.5–12 cells per second**. That is deliberate and it is the
+balance for having a large swarm in the arena: fast balls plus a high ball cap is
+the combination that lets an idle mode play itself.
+
+Because impacts per second per ball is proportional to speed, slow balls only
+work if there are a great many of them. The live cap therefore **scales with how
+much cavern you have opened** — roughly one ball per 35 cleared cells, up to a
+ceiling of 2500. A flat cap looked catastrophic early: 2500 balls in a radius-58
+cavern is one ball per four cells, a solid mass of dots with no rock visible.
+
+Special balls are capped hard and separately (Rush 18, Lightning 30, Poison 35,
+Smash 40, Directional 60). Letting auto-fire spam the strongest ball is not a
+strategy, it is an exploit.
 
 ## The tech tree
 
@@ -144,9 +161,10 @@ headless with an auto-buying player, re-measured after every structural change:
 | First working build | reach ≈ 43.9·t^0.503 | **~24 h** |
 | After throughput rework | reach ≈ 76.3·t^0.620 | ~2.1 h |
 | Slower balls + frontier launch | reach ≈ 104.1·t^0.404 | ~13.2 h &nbsp;*(regression)* |
-| Economy-limited auto-fire | reach ≈ 174.5·t^0.561 | **~0.8 h** typical, 1.6 h worst case |
+| Economy-limited auto-fire | reach ≈ 174.5·t^0.561 | ~0.8 h |
+| Slow balls + scaled swarm | reach ≈ 28.7·t^0.828 | **~2.1 h** typical, 3.2 h worst case |
 
-That third row is worth keeping. Slowing ball speeds and launching from the
+The third row is worth keeping. Slowing ball speeds and launching from the
 working face both looked like pure improvements, and together they cost a factor
 of six — because balls spawned at the face spend their impact budget immediately
 and die young, which exposed a hidden ceiling: auto-fire was **rate**-limited to

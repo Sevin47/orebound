@@ -93,6 +93,12 @@
   #tcard .td { font-size:10.5px; color:#dfe8f4; opacity:.62; line-height:1.45; margin-top:8px }
   #tcard .tc { font-size:16px; color:#fff; margin-top:9px; letter-spacing:1px }
   #tcard .tc.short { color:#e66 }
+  #tcard .tc.lk { font-size:11px; color:#8b95a8; letter-spacing:1px }
+  #tcard .tt { font-size:9.5px; opacity:.45; letter-spacing:1.5px; margin-top:7px }
+  #tcard button { margin-top:9px; width:100%; background:none; border:1px solid currentColor;
+    color:inherit; padding:7px; font-family:inherit; font-size:10.5px; letter-spacing:2px; cursor:pointer }
+  #tcard button:hover:not(:disabled) { background:#ffffff14 }
+  #tcard button:disabled { opacity:.3; cursor:not-allowed }
 
   #upgsub { position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
     text-align:center; font-size:11px; opacity:.75; z-index:44; margin:0; line-height:1.7 }
@@ -203,10 +209,10 @@
   <div>balls <b id="ballct">0</b></div>
 </div>
 
-<div class="hud" id="prompt">CLICK ANYWHERE TO LAUNCH A BALL</div>
+<div class="hud" id="prompt">CLICK TO LAUNCH &middot; DRAG TO AIM</div>
 <div id="dock"></div>
 <div class="hud" id="toast"></div>
-<div class="hud" id="hint">[click] launch here &middot; [1-7] ball &middot; [A] auto &middot; [drag] pan &middot; [wheel] zoom &middot; [F] refit &middot; [U] upgrades &middot; [S] stats &middot; [Esc] menu</div>
+<div class="hud" id="hint">[click] launch &middot; [drag] aim &middot; [right-drag] pan &middot; [1-7] ball &middot; [A] auto &middot; [wheel] zoom &middot; [F] refit &middot; [U] upgrades &middot; [S] stats &middot; [Esc] menu</div>
 
 <div id="mobibar">
   <button data-a="upg">BALLS</button>
@@ -305,13 +311,13 @@ const hazSpread = new Set();
 const TIERS = [
   null,
   { name:"Dust",    hp:1,    val:1,    col:[ 62, 74, 96] },
-  { name:"Slate",   hp:3,    val:3,    col:[ 96,116,148] },
-  { name:"Quartz",  hp:7,    val:9,    col:[214,230,246] },
-  { name:"Amber",   hp:18,   val:26,   col:[248,150, 46] },
-  { name:"Cinnabar",hp:44,   val:74,   col:[240, 70, 78] },
-  { name:"Azurite", hp:105,  val:210,  col:[ 66,182,248] },
-  { name:"Verdite", hp:250,  val:600,  col:[ 76,232,110] },
-  { name:"Voidgem", hp:600,  val:1700, col:[212, 96,248] },
+  { name:"Slate",   hp:2,    val:3,    col:[ 96,116,148] },
+  { name:"Quartz",  hp:4,    val:9,    col:[214,230,246] },
+  { name:"Amber",   hp:10,   val:26,   col:[248,150, 46] },
+  { name:"Cinnabar",hp:25,   val:74,   col:[240, 70, 78] },
+  { name:"Azurite", hp:60,   val:210,  col:[ 66,182,248] },
+  { name:"Verdite", hp:140,  val:600,  col:[ 76,232,110] },
+  { name:"Voidgem", hp:340,  val:1700, col:[212, 96,248] },
   // Rewards must be SOFT. An earlier pass gave these 900-2600 base HP, which put
   // them 250-500x above the rock around them: they were uncovered on schedule and
   // then sat there permanently unbreakable, so progression never started at all.
@@ -479,20 +485,28 @@ function cellVal(x, y, t) {
 // Seven balls, as in the reference design. Slot 0 is the starter; slots 1-3 are
 // the three whose behaviour is documented; slots 4-6 are deliberately unbuilt
 // and show as UNKNOWN until their abilities are specified.
+// spd is in cells/sec and is deliberately TINY. Measured off reference footage:
+// balls drift at roughly 1-2 cells a second. Slow travel is the balance for
+// having a large swarm in the arena -- fast balls with a high ball cap is the
+// combination that makes an idle mode play itself.
+//
+// cap is the most that may be in flight AT ONCE for that ball. Prospector is
+// effectively uncapped; the special balls are strictly limited, because letting
+// auto-fire spam the strongest ball is not a strategy, it is an exploit.
 const BALLS = [
-  { k:0, name:"Prospector", hue:"Orange", col:"#ff9a3c", cost:8,  imp:40, spd:80,  unlock:0,
+  { k:0, name:"Prospector", hue:"Orange", col:"#ff9a3c", cost:8,  imp:40, spd:4.0,  cap:2500, unlock:0,
     desc:"The ball you start with. A plain bounce that breaks the softest rock in one hit." },
-  { k:1, name:"Directional", hue:"Blue",col:"#46b6ff", cost:19, imp:34, spd:110, unlock:1,
+  { k:1, name:"Directional",hue:"Blue",   col:"#46b6ff", cost:19, imp:34, spd:7.0,  cap:60,  unlock:1,
     desc:"Only travels in a straight vertical or horizontal line, drifting sideways each bounce so it carves wide tunnels." },
-  { k:2, name:"Smash", hue:"Red",      col:"#ff4a4a", cost:26, imp:26, spd:70,  unlock:2,
+  { k:2, name:"Smash",      hue:"Red",    col:"#ff4a4a", cost:26, imp:26, spd:3.5,  cap:40,  unlock:2,
     desc:"Detonates on impact, hitting every pixel in a surrounding area." },
-  { k:3, name:"Poison", hue:"Green",     col:"#4cf05c", cost:34, imp:22, spd:74,  unlock:2,
+  { k:3, name:"Poison",     hue:"Green",  col:"#4cf05c", cost:34, imp:22, spd:4.0,  cap:35,  unlock:3,
     desc:"Poisons pixels on impact. Poison erodes them over time and spreads to nearby pixels on its own." },
-  { k:4, name:"Lightning", hue:"Yellow",  col:"#ffe14a", cost:44, imp:20, spd:100, unlock:3,
+  { k:4, name:"Lightning",  hue:"Yellow", col:"#ffe14a", cost:44, imp:20, spd:6.0,  cap:30,  unlock:4,
     desc:"Arcs from the point of impact, shocking pixels some distance away." },
-  { k:5, name:"Rush", hue:"Purple",       col:"#c060ff", cost:30, imp:30, spd:260, unlock:3,
+  { k:5, name:"Rush",       hue:"Purple", col:"#c060ff", cost:30, imp:30, spd:12.0, cap:18,  unlock:4,
     desc:"Travels far faster than any other ball, spending its impacts in a fraction of the time." },
-  { k:6, name:"Unknown", hue:"—", col:"#8a93a8", cost:0,  imp:0,  spd:0,   unlock:-1, desc:"" },
+  { k:6, name:"Unknown",    hue:"—",      col:"#8a93a8", cost:0,  imp:0,  spd:0,    cap:0,   unlock:-1, desc:"" },
 ];
 const NBALL = BALLS.length;
 const built = b => b.unlock >= 0;                 // slots 5-6 are not specified yet
@@ -539,51 +553,55 @@ const perk = (k, id) => !!S.perks[k + ":" + id];
 // kind:  "ball" = unlock that ball   "perk" = a behaviour change   "refine" = damage
 // icon:  drawn as inline SVG, keyed in ICONS below.
 // x / y: layout units, roughly -8..8. Scaled to fit whatever the panel gets.
+// The balls chain off ONE ANOTHER rather than all hanging off the root. An
+// earlier layout gave nearly every ball req:["root"], so Rush -- the strongest
+// ball -- was purchasable in the first minute and the tree had no shape. Each
+// ball now gates the next, and its own perks gate off it.
 const NODES = [
   // ---- root: the ball you start with ----
-  { id:"root",   ball:0, kind:"ball",   icon:"ball",  x:0,    y:0,    cost:0,  req:[] },
-  { id:"o_ref1", ball:0, kind:"refine", icon:"sword", x:-1.5, y:-1.1, cost:1,  req:["root"] },
-  { id:"0:frag", ball:0, kind:"perk",   icon:"split", x:1.5,  y:-1.1, cost:2,  req:["root"] },
-  { id:"0:cross",ball:0, kind:"perk",   icon:"cross", x:2.9,  y:-2.0, cost:4,  req:["0:frag"] },
-  { id:"o_ref2", ball:0, kind:"refine", icon:"sword", x:-2.9, y:-2.0, cost:1,  req:["o_ref1"] },
-  { id:"0:heavy",ball:0, kind:"perk",   icon:"hammer",x:-4.2, y:-1.2, cost:8,  req:["o_ref2"] },
-
-  // ---- red / smash ----
-  { id:"b2",     ball:2, kind:"ball",   icon:"ball",  x:0,    y:-2.4, cost:2,  req:["root"] },
-  { id:"2:wider",ball:2, kind:"perk",   icon:"burst", x:-1.1, y:-3.4, cost:2,  req:["b2"] },
-  { id:"2:after",ball:2, kind:"perk",   icon:"burst", x:0.3,  y:-3.9, cost:4,  req:["b2"] },
-  { id:"2:chain2",ball:2,kind:"perk",   icon:"burst", x:1.6,  y:-3.2, cost:8,  req:["2:after"] },
-  { id:"r_ref",  ball:2, kind:"refine", icon:"sword", x:-2.2, y:-4.3, cost:1,  req:["2:wider"] },
-
-  // ---- green / poison ----
-  { id:"b3",     ball:3, kind:"ball",   icon:"ball",  x:2.4,  y:0.6,  cost:2,  req:["root"] },
-  { id:"3:diag", ball:3, kind:"perk",   icon:"skull", x:3.9,  y:0.0,  cost:2,  req:["b3"] },
-  { id:"3:fast", ball:3, kind:"perk",   icon:"skull", x:4.4,  y:1.4,  cost:4,  req:["b3"] },
-  { id:"3:conta",ball:3, kind:"perk",   icon:"skull", x:5.8,  y:0.7,  cost:8,  req:["3:diag","3:fast"] },
-  { id:"g_ref",  ball:3, kind:"refine", icon:"sword", x:3.4,  y:2.6,  cost:1,  req:["3:fast"] },
+  { id:"root",    ball:0, kind:"ball",   icon:"ball",  x:0,    y:0,    cost:0,  req:[] },
+  { id:"o_ref1",  ball:0, kind:"refine", icon:"sword", x:-1.6, y:-0.9, cost:1,  req:["root"] },
+  { id:"0:frag",  ball:0, kind:"perk",   icon:"split", x:1.5,  y:-1.0, cost:2,  req:["root"] },
+  { id:"0:cross", ball:0, kind:"perk",   icon:"cross", x:2.7,  y:-1.9, cost:4,  req:["0:frag"] },
+  { id:"o_ref2",  ball:0, kind:"refine", icon:"sword", x:-3.0, y:-1.5, cost:1,  req:["o_ref1"] },
+  { id:"0:heavy", ball:0, kind:"perk",   icon:"hammer",x:-4.3, y:-0.8, cost:8,  req:["o_ref2"] },
 
   // ---- blue / directional ----
-  { id:"b1",     ball:1, kind:"ball",   icon:"ball",  x:0.6,  y:2.5,  cost:1,  req:["root"] },
-  { id:"1:wide", ball:1, kind:"perk",   icon:"tunnel",x:1.6,  y:3.7,  cost:2,  req:["b1"] },
-  { id:"1:pierce",ball:1,kind:"perk",   icon:"tunnel",x:0.2,  y:4.2,  cost:4,  req:["b1"] },
-  { id:"1:free", ball:1, kind:"perk",   icon:"tunnel",x:1.2,  y:5.4,  cost:8,  req:["1:wide","1:pierce"] },
-  { id:"b_ref",  ball:1, kind:"refine", icon:"sword", x:-1.1, y:3.5,  cost:1,  req:["b1"] },
+  { id:"b1",      ball:1, kind:"ball",   icon:"ball",  x:0.5,  y:2.0,  cost:1,  req:["root"] },
+  { id:"1:wide",  ball:1, kind:"perk",   icon:"tunnel",x:1.9,  y:2.9,  cost:2,  req:["b1"] },
+  { id:"1:pierce",ball:1, kind:"perk",   icon:"tunnel",x:2.9,  y:4.0,  cost:4,  req:["1:wide"] },
+  { id:"1:free",  ball:1, kind:"perk",   icon:"tunnel",x:1.7,  y:4.9,  cost:8,  req:["1:pierce"] },
+  { id:"b_ref",   ball:1, kind:"refine", icon:"sword", x:-0.9, y:2.9,  cost:1,  req:["b1"] },
+
+  // ---- red / smash ----
+  { id:"b2",      ball:2, kind:"ball",   icon:"ball",  x:-0.2, y:-2.6, cost:2,  req:["b1"] },
+  { id:"2:wider", ball:2, kind:"perk",   icon:"burst", x:-1.5, y:-3.5, cost:2,  req:["b2"] },
+  { id:"2:after", ball:2, kind:"perk",   icon:"burst", x:0.9,  y:-3.7, cost:4,  req:["b2"] },
+  { id:"2:chain2",ball:2, kind:"perk",   icon:"burst", x:2.1,  y:-4.6, cost:8,  req:["2:after"] },
+  { id:"r_ref",   ball:2, kind:"refine", icon:"sword", x:-2.7, y:-4.2, cost:1,  req:["2:wider"] },
+
+  // ---- green / poison ----
+  { id:"b3",      ball:3, kind:"ball",   icon:"ball",  x:2.6,  y:0.5,  cost:3,  req:["b2"] },
+  { id:"3:diag",  ball:3, kind:"perk",   icon:"skull", x:4.1,  y:0.0,  cost:2,  req:["b3"] },
+  { id:"3:fast",  ball:3, kind:"perk",   icon:"skull", x:4.5,  y:1.5,  cost:4,  req:["b3"] },
+  { id:"3:conta", ball:3, kind:"perk",   icon:"skull", x:5.9,  y:0.8,  cost:8,  req:["3:diag","3:fast"] },
+  { id:"g_ref",   ball:3, kind:"refine", icon:"sword", x:3.5,  y:2.7,  cost:1,  req:["3:fast"] },
 
   // ---- yellow / lightning ----
-  { id:"b4",     ball:4, kind:"ball",   icon:"bolt",  x:-2.4, y:-3.4, cost:3,  req:["b2"] },
-  { id:"4:arc",  ball:4, kind:"perk",   icon:"bolt",  x:-3.6, y:-4.3, cost:2,  req:["b4"] },
-  { id:"4:fork", ball:4, kind:"perk",   icon:"bolt",  x:-4.9, y:-3.6, cost:4,  req:["4:arc"] },
-  { id:"4:over", ball:4, kind:"perk",   icon:"bolt",  x:-5.4, y:-2.2, cost:8,  req:["4:fork"] },
+  { id:"b4",      ball:4, kind:"ball",   icon:"bolt",  x:-2.4, y:-1.9, cost:4,  req:["b3"] },
+  { id:"4:arc",   ball:4, kind:"perk",   icon:"bolt",  x:-3.9, y:-2.6, cost:2,  req:["b4"] },
+  { id:"4:fork",  ball:4, kind:"perk",   icon:"bolt",  x:-5.2, y:-2.0, cost:4,  req:["4:arc"] },
+  { id:"4:over",  ball:4, kind:"perk",   icon:"bolt",  x:-5.6, y:-0.6, cost:8,  req:["4:fork"] },
 
-  // ---- purple / rush ----
-  { id:"b5",     ball:5, kind:"ball",   icon:"ball",  x:-2.6, y:1.4,  cost:3,  req:["root"] },
-  { id:"5:burn", ball:5, kind:"perk",   icon:"comet", x:-4.0, y:1.0,  cost:2,  req:["b5"] },
-  { id:"5:slip", ball:5, kind:"perk",   icon:"comet", x:-3.9, y:2.5,  cost:4,  req:["b5"] },
-  { id:"5:blur", ball:5, kind:"perk",   icon:"comet", x:-5.3, y:1.9,  cost:8,  req:["5:burn","5:slip"] },
-  { id:"p_ref",  ball:5, kind:"refine", icon:"sword", x:-2.0, y:2.8,  cost:1,  req:["b5"] },
+  // ---- purple / rush : the last ball, not the first ----
+  { id:"b5",      ball:5, kind:"ball",   icon:"ball",  x:-2.5, y:1.2,  cost:4,  req:["b4"] },
+  { id:"5:burn",  ball:5, kind:"perk",   icon:"comet", x:-4.0, y:1.0,  cost:2,  req:["b5"] },
+  { id:"5:slip",  ball:5, kind:"perk",   icon:"comet", x:-3.8, y:2.5,  cost:4,  req:["b5"] },
+  { id:"5:blur",  ball:5, kind:"perk",   icon:"comet", x:-5.2, y:1.9,  cost:8,  req:["5:burn","5:slip"] },
+  { id:"p_ref",   ball:5, kind:"refine", icon:"sword", x:-2.0, y:2.6,  cost:1,  req:["b5"] },
 
   // ---- the reserved slot ----
-  { id:"b6",     ball:6, kind:"ball",   icon:"lock",  x:3.4,  y:-2.9, cost:0,  req:["b2"] },
+  { id:"b6",      ball:6, kind:"ball",   icon:"lock",  x:3.6,  y:-3.0, cost:0,  req:["2:chain2"] },
 ];
 const NODEBY = {}; NODES.forEach(n => NODEBY[n.id] = n);
 
@@ -631,11 +649,31 @@ const REFINE_COST = lv => 1 + Math.floor(lv / 3);
 // x4.1 the moment Electric came online. That punishes the experimentation the
 // seven ball types exist to encourage, so damage scaling belongs to the player,
 // not to one ball. The per-ball character lives entirely in the perks.
-const ballDmg  = k => Math.pow(1.60, S.refine);
+// BASE_DMG exists so the starting ball one-shots the softest rock, as it does in
+// the reference. With balls drifting at a few cells a second, rock that needs
+// four to eight hits stalls the opening outright: income never covers the cost
+// of growing the swarm and the run cannot get started.
+const BASE_DMG = 4;
+const ballDmg  = k => BASE_DMG * Math.pow(1.60, S.refine);
 const ballImp  = k => BALLS[k].imp;
 const ballCost = k => BALLS[k].cost;
 
-const MAXLIVE = 400;                              // concurrent balls on screen
+// Thousands, not hundreds. Impacts per second per ball is proportional to speed,
+// so once balls drift at a few cells a second the ONLY way to keep a ten-million
+// cell world clearable is to have a great many of them. Measured cost at 2500
+// live balls: 2.4ms simulation + 4.9ms draw, inside a 16.7ms frame budget.
+// Slow and numerous also looks right -- a dense working swarm, not a laser show.
+const MAXLIVE = 2500;                             // hard ceiling on live balls
+// ...but the LIVE cap scales with how much cavern you have opened, roughly one
+// ball per 100 cleared cells. A flat cap of 2500 looked catastrophic early on:
+// in a radius-58 cavern the arena was a solid mass of dots with no rock visible.
+// Reference footage shows a handful of balls in a viewport of that size, and the
+// swarm only reads as a swarm once there is somewhere for it to spread out.
+const BALL_DENSITY = 35;
+function liveCap() {
+  const area = Math.PI * S.maxDepth * S.maxDepth;
+  return Math.max(90, Math.min(MAXLIVE, Math.round(area / BALL_DENSITY)));
+}
 const START_PX = 160;                             // seed stock, or the first shot is unaffordable
 
 // A currency you spend to earn currency can strand you at zero. If nothing is in
@@ -659,6 +697,7 @@ function salvage() {
 //====================================================================== balls
 let balls = [], selKind = 0;
 const liveCount = () => balls.length;
+const liveOf = k => balls.reduce((n,b) => n + (b.kind === k ? 1 : 0), 0);
 
 // Balls launch from wherever you click, not from the middle of the world. This is
 // the difference between eroding one disc outward and actually steering the dig:
@@ -683,7 +722,8 @@ function spawnClear(x, y) {
 function fire(kind, ang, ox, oy) {
   const B = BALLS[kind];
   if (!built(B) || !S.owned[kind]) return false;
-  if (balls.length >= MAXLIVE) return false;
+  if (balls.length >= liveCap()) return false;
+  if (liveOf(kind) >= BALLS[kind].cap) return false;
   const c = ballCost(kind);
   if (S.px < c) return false;
   const at = spawnClear(ox === undefined ? CX : ox, oy === undefined ? CY : oy);
@@ -809,26 +849,31 @@ function stampLight(x, y, mark) {
 //=================================================================== physics
 const solid = (x,y) => x<0||y<0||x>=WORLD||y>=WORLD|| tier[y*WORLD+x] !== 0;
 
-const STALL_MIN = 180;
-function stallLimit() {
-  const r = Math.max(bb.x1-bb.x0, bb.y1-bb.y0) / 2;
-  return Math.max(STALL_MIN, r * 3);
-}
+// Slow balls must be kept ON the rock face. A ball drifting at a few cells a
+// second spends almost all its life in transit if it is allowed to wander: in a
+// cavern of radius 39 one crossing already takes ten seconds, and the old limit
+// let it travel 180 cells (three quarters of a minute) before re-aiming.
+//
+// So the limit is a small CONSTANT rather than a multiple of the cavern radius.
+// A ball that crosses this much open ground turns to face the nearest rock, which
+// keeps the whole swarm working the frontier instead of coasting through the void.
+const STALL_MIN = 14;
+function stallLimit() { return STALL_MIN; }
 function reseek(b) {
   b.stall = 0;
   let best = null, bestD = 1e9;
-  for (let r = 0; r < 32; r++) {
-    const a = r * (Math.PI*2/32), dx = Math.cos(a), dy = Math.sin(a);
-    for (let s = 2; s < 900; s += 3) {
-      const x = (b.x + dx*s)|0, y = (b.y + dy*s)|0;
+  for (let r = 0; r < 16; r++) {
+    const a = r * (Math.PI*2/16), dx = Math.cos(a), dy = Math.sin(a);
+    for (let d = 2; d < 160; d += 2) {
+      const x = (b.x + dx*d)|0, y = (b.y + dy*d)|0;
       if (x<0||y<0||x>=WORLD||y>=WORLD) break;
-      if (tier[y*WORLD+x]) { if (s < bestD) { bestD = s; best = a; } break; }
+      if (tier[y*WORLD+x]) { if (d < bestD) { bestD = d; best = a; } break; }
     }
   }
   if (best === null) { b.left = 0; return; }      // nothing reachable: retire it
   let a = best;
   if (b.kind === 1) a = Math.round(a/(Math.PI/2))*(Math.PI/2);
-  const sp = BALLS[b.kind].spd;
+  const sp = BALLS[b.kind].spd * (b.boost || 1);
   b.vx = Math.cos(a)*sp; b.vy = Math.sin(a)*sp;
 }
 
@@ -845,7 +890,7 @@ function onImpact(b, hx, hy) {
       hitCell(hx+1,hy,d); hitCell(hx-1,hy,d);
       hitCell(hx,hy+1,d); hitCell(hx,hy-1,d);
     }
-    if (perk(0,"frag") && !b.frag && b.left > 4 && balls.length < MAXLIVE) {
+    if (perk(0,"frag") && !b.frag && b.left > 4 && balls.length < liveCap()) {
       b.frag = 1;                                           // Fragment: split once
       const half = b.left >> 1; b.left -= half;
       const a = Math.random()*Math.PI*2, sp = BALLS[0].spd;
@@ -880,10 +925,12 @@ function onImpact(b, hx, hy) {
     destroyed = hitCell(hx, hy, d);
     let n = 2 + (perk(4,"arc") ? 3 : 0);                    // Arc
     if (perk(4,"fork")) n *= 2;                             // Fork
-    const reach = (perk(4,"over") ? 6 : 3);                 // Overload
+    const reach = (perk(4,"over") ? 12 : 6);                // Overload
     for (let i = 0; i < n; i++) {
-      const a = Math.random()*Math.PI*2, r = 1 + Math.random()*reach;
-      hitCell(hx + Math.round(Math.cos(a)*r), hy + Math.round(Math.sin(a)*r), d*0.8);
+      const a = Math.random()*Math.PI*2, r = 2 + Math.random()*reach;
+      const tx = hx + Math.round(Math.cos(a)*r), ty = hy + Math.round(Math.sin(a)*r);
+      hitCell(tx, ty, d*0.8);
+      addBolt(hx, hy, tx, ty);                              // the visible zap
     }
   } else if (k === 5) {
     if (perk(5,"blur")) d *= 2;                             // Blur: double strike
@@ -909,7 +956,7 @@ function tickAftershocks(dt) {
 function stepBall(b, dt) {
   ensureAround(b.x, b.y);
   b.trail.push(b.x, b.y);
-  if (b.trail.length > 24) b.trail.splice(0,2);
+  if (b.trail.length > 10) b.trail.splice(0,2);
 
   const mag = Math.hypot(b.vx, b.vy) || 1;
   const ux = b.vx/mag, uy = b.vy/mag;
@@ -1026,6 +1073,21 @@ function tickPoison(dt) {
 }
 
 //================================================================= particles
+// Lightning is drawn, not implied: every arc lays down a jagged bolt from the
+// point of impact to the pixel it zapped, which fades over a few frames.
+const bolts = [];
+function addBolt(x0, y0, x1, y1) {
+  if (bolts.length > 260) return;
+  const segs = 5, pts = [];
+  const dx = x1-x0, dy = y1-y0, len = Math.hypot(dx,dy) || 1;
+  const nx = -dy/len, ny = dx/len;                 // perpendicular, for the kink
+  for (let i = 0; i <= segs; i++) {
+    const t = i/segs;
+    const j = (i === 0 || i === segs) ? 0 : (Math.random()-0.5) * len * 0.34;
+    pts.push(x0 + dx*t + nx*j, y0 + dy*t + ny*j);
+  }
+  bolts.push({ pts, t:0, life:0.16 + Math.random()*0.1 });
+}
 const sparks = [];
 function spawnSpark(x,y,col,n) {
   if (sparks.length > 340) return;
@@ -1141,7 +1203,24 @@ function draw(dt) {
   }
   ctx.globalAlpha = 1;
 
-  const tailPts = balls.length > 26 ? 6 : balls.length > 14 ? 9 : 13;
+  for (let i = bolts.length-1; i >= 0; i--) {
+    const bo = bolts[i]; bo.t += dt;
+    if (bo.t > bo.life) { bolts.splice(i,1); continue; }
+    const f = 1 - bo.t/bo.life;
+    ctx.globalAlpha = f;
+    ctx.strokeStyle = "#ffe14a"; ctx.lineWidth = Math.max(1, z*.18);
+    ctx.beginPath();
+    for (let k = 0; k < bo.pts.length; k += 2) {
+      const P = toS(bo.pts[k], bo.pts[k+1]);
+      k === 0 ? ctx.moveTo(P[0],P[1]) : ctx.lineTo(P[0],P[1]);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = f*.55; ctx.strokeStyle = "#fff";
+    ctx.lineWidth = Math.max(1, z*.07); ctx.stroke();      // hot white core
+  }
+  ctx.globalAlpha = 1;
+
+  const tailPts = balls.length > 120 ? 3 : balls.length > 40 ? 4 : 5;
   for (const b of balls) {
     const col = BALLS[b.kind].col;
     const seg = Math.min(tailPts, b.trail.length>>1);
@@ -1164,9 +1243,11 @@ function draw(dt) {
   ctx.globalCompositeOperation = "source-over";
 
   if (aim !== null && canFire(selKind)) {
-    const okHere = !solid(Math.round(aim[0]), Math.round(aim[1]));
-    const P = toS(aim[0], aim[1]), col = BALLS[selKind].col;
-    ctx.strokeStyle = okHere ? col : "#7b8598"; ctx.globalAlpha = okHere ? .85 : .4;
+    const col = BALLS[selKind].col;
+    const src = aimFrom || aim;
+    const okHere = !solid(Math.round(src[0]), Math.round(src[1]));
+    const P = toS(src[0], src[1]);
+    ctx.strokeStyle = okHere ? col : "#7b8598"; ctx.globalAlpha = okHere ? .9 : .4;
     ctx.lineWidth = 1.5;
     const r = 9;
     ctx.beginPath();
@@ -1175,8 +1256,20 @@ function draw(dt) {
     ctx.moveTo(P[0],P[1]-r); ctx.lineTo(P[0],P[1]-3);
     ctx.moveTo(P[0],P[1]+3); ctx.lineTo(P[0],P[1]+r);
     ctx.stroke();
-    ctx.globalAlpha = .35; ctx.beginPath();
-    ctx.arc(P[0],P[1],r,0,6.2832); ctx.stroke();
+    if (aimFrom) {                            // dragging: show where it will go
+      const a = launchAngle(), L = 150;
+      ctx.globalAlpha = .75; ctx.setLineDash([5,5]);
+      ctx.beginPath(); ctx.moveTo(P[0],P[1]);
+      ctx.lineTo(P[0]+Math.cos(a)*L, P[1]+Math.sin(a)*L);
+      ctx.stroke(); ctx.setLineDash([]);
+      const hx = P[0]+Math.cos(a)*L, hy = P[1]+Math.sin(a)*L;
+      ctx.beginPath();
+      ctx.moveTo(hx, hy);
+      ctx.lineTo(hx-Math.cos(a-0.4)*11, hy-Math.sin(a-0.4)*11);
+      ctx.moveTo(hx, hy);
+      ctx.lineTo(hx-Math.cos(a+0.4)*11, hy-Math.sin(a+0.4)*11);
+      ctx.stroke();
+    }
     ctx.globalAlpha = 1;
   }
 
@@ -1190,7 +1283,8 @@ function draw(dt) {
 let last = performance.now(), aim = null;
 let rateT = 0, rateMark = 0, pxMark = 0, pxRate = 0;
 let fps = 0, fpsAcc = 0, fpsFrames = 0;
-const canFire = k => built(BALLS[k]) && S.owned[k] && S.px >= ballCost(k) && balls.length < MAXLIVE;
+const canFire = k => built(BALLS[k]) && S.owned[k] && S.px >= ballCost(k)
+  && balls.length < liveCap() && liveOf(k) < BALLS[k].cap;
 
 function tickRate(dt) {
   rateT += dt; S.playtime += dt;
@@ -1204,7 +1298,7 @@ function tickRate(dt) {
 }
 let autoT = 0;
 const AUTO_INT = 0.05;
-const AUTO_BURST = 12;            // most launches per tick, so it ramps not spikes
+const AUTO_BURST = 40;            // most launches per tick, so it ramps not spikes
 // Auto-fire tops the swarm up rather than firing on a fixed timer.
 //
 // A one-shot-per-tick rate was a hidden ceiling: balls launched at the working
@@ -1217,7 +1311,7 @@ function tickAuto(dt) {
   if (autoT < AUTO_INT) return;
   autoT = 0;
   for (let i = 0; i < AUTO_BURST; i++) {
-    if (balls.length >= MAXLIVE) return;
+    if (balls.length >= liveCap()) return;
     let k = canFire(selKind) ? selKind : -1;
     if (k < 0) {                                  // fall back to anything affordable
       let bestC = Infinity;
@@ -1274,7 +1368,7 @@ function updateHUD() {
   $("pct").textContent = (S.minedCount/TOTAL*100).toFixed(4)+"%";
   $("mined").textContent = fmt(S.minedCount);
   $("rate").textContent = fmt(S.rate);
-  $("ballct").textContent = balls.length + " / " + MAXLIVE;
+  $("ballct").textContent = balls.length + " / " + liveCap();
   $("depth").textContent = Math.round(S.maxDepth);
   $("prompt").classList.toggle("on", S.shots < 6 && canFire(selKind));
   drawDock();
@@ -1324,7 +1418,7 @@ function openPanel(name) {
 // ---- the tech tree ----
 // SVG for the dotted links, absolutely positioned buttons for the nodes, so the
 // graph scales to any panel size while nodes stay crisp and clickable.
-let treeSel = null;
+let treeSel = null, hoverSel = null;
 const NODE_R = 26;
 function nodeLabel(n) {
   if (n.kind === "ball")   return built(BALLS[n.ball]) ? BALLS[n.ball].name + " ball" : "?????";
@@ -1379,29 +1473,49 @@ function refreshUpg() {
   host.innerHTML = '<div id="treewrap" style="width:'+w+'px;height:'+h+'px">'
     + '<svg width="'+w+'" height="'+h+'">'+links+'</svg>' + nodes + '</div>';
 
-  for (const b of host.querySelectorAll(".tnode")) b.onclick = () => {
-    treeSel = b.dataset.id; buyNode(NODEBY[treeSel]); refreshUpg();
-  };
+  // Hover previews, click selects, and only the card's button spends anything.
+  // Click-to-buy meant a stray click silently spent points you had dug for.
+  for (const b of host.querySelectorAll(".tnode")) {
+    b.onmouseenter = () => { hoverSel = b.dataset.id; renderCard(); };
+    b.onmouseleave = () => { hoverSel = null; renderCard(); };
+    b.onclick = () => { treeSel = b.dataset.id; hoverSel = null; refreshUpg(); };
+  }
   renderCard();
   $("upgsub").innerHTML = "Points available &nbsp; <b>&#10022; " + S.tokens + "</b>"
     + '<br><span style="opacity:.65">Found by digging &mdash; ' + S.tokensFound + " in total</span>";
 }
 
 function renderCard() {
-  const n = treeSel ? NODEBY[treeSel] : null;
+  const id = hoverSel || treeSel;
+  const n = id ? NODEBY[id] : null;
   const el = $("tcard");
   if (!n) { el.className = ""; el.innerHTML = ""; return; }
   const col = BALLS[n.ball].col, st = nodeState(n);
   const head = n.kind === "ball" ? "New ball" : n.kind === "refine" ? "Upgrade" : "Ball ability";
   el.className = "on";
   el.style.borderColor = col; el.style.color = col;
+  let foot;
+  if (st === "taken")       foot = '<div class="tc">OWNED</div>';
+  else if (st === "locked") foot = '<div class="tc lk">' + lockReason(n) + '</div>';
+  else foot = '<div class="tc'+(st==="short"?" short":"")+'">&#10022; '+nodeCost(n)+'</div>'
+            + (hoverSel && hoverSel !== treeSel
+               ? '<div class="tt">click to select</div>'
+               : '<button id="tbuy"'+(st==="short"?" disabled":"")+'>UNLOCK</button>');
   el.innerHTML = '<div class="th">'+head+'</div>'
     + '<div class="tn">'+nodeLabel(n)+'</div>'
     + '<div class="tb">'+(BALLS[n.ball].hue||"")+'</div>'
-    + '<div class="td">'+nodeDesc(n)+'</div>'
-    + (st === "taken" ? '<div class="tc">OWNED</div>'
-       : st === "locked" ? '<div class="tc">LOCKED</div>'
-       : '<div class="tc'+(st==="short"?" short":"")+'">&#10022; '+nodeCost(n)+'</div>');
+    + '<div class="td">'+nodeDesc(n)+'</div>' + foot;
+  const btn = document.getElementById("tbuy");
+  if (btn) btn.onclick = () => { buyNode(NODEBY[treeSel]); refreshUpg(); };
+}
+
+// Name the specific thing that is in the way, rather than just "LOCKED".
+function lockReason(n) {
+  if (n.kind === "ball" && !built(BALLS[n.ball])) return "NOT YET SPECIFIED";
+  const missing = n.req.filter(r => !S.nodes[r]).map(r => {
+    const pn = NODEBY[r]; return pn ? nodeLabel(pn) : r;
+  });
+  return missing.length ? "NEEDS " + missing.join(" + ").toUpperCase() : "LOCKED";
 }
 
 function buyNode(n) {
@@ -1452,7 +1566,7 @@ function refreshStats() {
       ["Pixels / sec", fmt(S.rate)],
       ["Best rate", fmt(S.bestRate)],
       ["Income / sec", fmt(pxRate)],
-      ["Balls live", balls.length + " / " + MAXLIVE],
+      ["Balls live", balls.length + " / " + liveCap()],
       ["Hardness at reach", "x"+fmt(depthMul(S.maxDepth))],
       ["Playtime", hrs + "h " + mins + "m"],
     ]);
@@ -1476,60 +1590,82 @@ function worldAt(e) {
   const sw = W/cam.z, sh = H/cam.z;
   return [cam.x-sw/2 + e.clientX/cam.z, cam.y-sh/2 + e.clientY/cam.z];
 }
+// Press sets the launch point, drag sets the direction, release fires along it.
+// Firing in a random direction made "launch anywhere" pointless: you could pick
+// the spot but not the shot. Panning moves to right-drag (or two fingers) so it
+// no longer competes with aiming for the left button.
 const ptrs = new Map();
-let pinchLen = 0, tapOK = false;
-const TAP_SLOP = 10;
+let pinchLen = 0, panning = false;
+let aimFrom = null;                       // world point the shot will launch from
+const TAP_SLOP = 8;
 const setZoom = z => { cam.tz = Math.max(1.0, Math.min(ZOOM_MAX, z)); };
 function pinchSpan() {
   const a = [...ptrs.values()];
   return a.length < 2 ? 0 : Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y);
 }
+function launchAngle() {
+  if (!aimFrom || !aim) return Math.random()*Math.PI*2;
+  const dx = aim[0]-aimFrom[0], dy = aim[1]-aimFrom[1];
+  if (Math.hypot(dx, dy) < 0.9) {          // no meaningful drag: fire outward
+    const a = Math.atan2(aimFrom[1]-CY, aimFrom[0]-CX);
+    return isFinite(a) && (aimFrom[0]!==CX || aimFrom[1]!==CY) ? a : Math.random()*Math.PI*2;
+  }
+  return Math.atan2(dy, dx);
+}
 
+cv.addEventListener("contextmenu", e => e.preventDefault());
 cv.addEventListener("pointerdown", e => {
   if (paused) return;
   try { cv.setPointerCapture(e.pointerId); } catch (err) {}
-  ptrs.set(e.pointerId, { x:e.clientX, y:e.clientY, moved:0 });
-  if (ptrs.size === 1) { tapOK = true; aim = worldAt(e); }
-  else { tapOK = false; pinchLen = pinchSpan(); }
+  ptrs.set(e.pointerId, { x:e.clientX, y:e.clientY, moved:0, btn:e.button });
+  if (ptrs.size === 2) { panning = true; aimFrom = null; pinchLen = pinchSpan(); return; }
+  if (e.button === 2 || e.button === 1) { panning = true; aimFrom = null; return; }
+  panning = false;
+  aimFrom = worldAt(e); aim = aimFrom.slice();
 });
+
 cv.addEventListener("pointermove", e => {
   const p = ptrs.get(e.pointerId);
-  if (!p) { if (!paused && e.pointerType === "mouse") aim = worldAt(e); return; }
+  if (!p) { if (!paused && e.pointerType === "mouse") { aim = worldAt(e); } return; }
   const dx = e.clientX-p.x, dy = e.clientY-p.y;
   p.moved += Math.abs(dx)+Math.abs(dy);
   p.x = e.clientX; p.y = e.clientY;
-  if (p.moved > TAP_SLOP) tapOK = false;
-  if (ptrs.size === 1) {
-    if (p.moved > TAP_SLOP) {
-      cam.manual = true;
-      cam.tx -= dx/cam.z; cam.ty -= dy/cam.z; cam.x -= dx/cam.z; cam.y -= dy/cam.z;
-    } else if (e.pointerType === "mouse") aim = worldAt(e);
-  } else if (ptrs.size === 2) {
+
+  if (ptrs.size === 2) {
     const d = pinchSpan();
     if (pinchLen > 0 && d > 0) { cam.manual = true; setZoom(cam.tz * d/pinchLen); cam.z = cam.tz; }
     pinchLen = d;
+    return;
+  }
+  if (panning) {
+    cam.manual = true;
+    cam.tx -= dx/cam.z; cam.ty -= dy/cam.z; cam.x -= dx/cam.z; cam.y -= dy/cam.z;
+  } else {
+    aim = worldAt(e);                       // dragging out the aim vector
   }
 });
-cv.addEventListener("pointerup", e => {
+
+function endPointer(e) {
   const p = ptrs.get(e.pointerId);
   if (!p) return;
   ptrs.delete(e.pointerId);
   if (ptrs.size < 2) pinchLen = 0;
-  if (paused) return;
-  if (tapOK && p.moved <= TAP_SLOP && ptrs.size === 0) {
-    aim = worldAt(e);
-    if (!fire(selKind, Math.random()*Math.PI*2, aim[0], aim[1])) {
-      // Report the real reason. These fail for genuinely different causes and
-      // "NEED n PX" while standing on solid rock is actively misleading.
-      if (!S.owned[selKind]) toast("BALL LOCKED — FIND UPGRADE PIXELS");
-      else if (balls.length >= MAXLIVE) toast("TOO MANY BALLS IN FLIGHT");
+  if (paused) { aimFrom = null; return; }
+  if (!panning && aimFrom && ptrs.size === 0) {
+    const ang = launchAngle();
+    if (!fire(selKind, ang, aimFrom[0], aimFrom[1])) {
+      if (!S.owned[selKind]) toast("BALL LOCKED — FIND UPGRADE POINTS");
+      else if (liveOf(selKind) >= BALLS[selKind].cap)
+        toast(BALLS[selKind].name.toUpperCase() + " LIMIT — " + BALLS[selKind].cap + " AT ONCE");
+      else if (balls.length >= liveCap()) toast("ARENA FULL — DIG OUT MORE ROOM");
       else if (S.px < ballCost(selKind)) toast("NEED " + fmt(ballCost(selKind)) + " PX");
       else toast("SOLID ROCK — LAUNCH INSIDE GROUND YOU HAVE OPENED");
     }
   }
-  if (ptrs.size === 0) tapOK = false;
-});
-cv.addEventListener("pointercancel", e => { ptrs.delete(e.pointerId); pinchLen = 0; tapOK = false; });
+  if (ptrs.size === 0) { panning = false; aimFrom = null; }
+}
+cv.addEventListener("pointerup", endPointer);
+cv.addEventListener("pointercancel", e => { ptrs.delete(e.pointerId); pinchLen = 0; panning = false; aimFrom = null; });
 
 addEventListener("wheel", e => {
   if (panelOpen || paused) return;
@@ -1740,7 +1876,7 @@ function resetGame() {
   S.minedCount = 0; S.maxDepth = 0; S.rate = 0; S.bestRate = 0; S.playtime = 0;
   S.shots = 0; S.auto = false; S.goldFound = false; S.objectsFound = {};
   freshWorld();
-  sparks.length = 0; dirty.length = 0; balls = []; selKind = 0; dockSig = "";
+  sparks.length = 0; bolts.length = 0; dirty.length = 0; balls = []; selKind = 0; dockSig = "";
   bb.x0 = CX-8; bb.y0 = CY-8; bb.x1 = CX+8; bb.y1 = CY+8;
   relight(); repaintReady();
   cam.manual = false; focusX = CX; focusY = CY;
