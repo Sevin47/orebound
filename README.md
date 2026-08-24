@@ -138,15 +138,23 @@ while the soft rock erodes around them.
 
 ## Architecture
 
-Ten thousand-odd chunks of cells cannot be generated at boot — that is a
-multi-second freeze.
-The world is built one **64×64 chunk** at a time, on demand, as balls approach
-it: 2500 chunks, ~4k cells each. The canvas is a single offscreen texture
-updated per dirty cell, never redrawn wholesale. Collision is bucketed on an
-8-cell grid.
+The world cannot be generated at boot — that is a multi-second freeze. It is
+built one **64×64 chunk** at a time, on demand: 2500 chunks, ~4k cells each. The
+canvas is a single offscreen texture updated per dirty cell, never redrawn
+wholesale. Collision is bucketed on an 8-cell grid.
 
-Measured with 400 balls live: **simulation 0.96 ms/frame, draw 0.8–1.2 ms/frame**
-at every zoom level — comfortably inside a 16.7 ms budget.
+**Ungenerated chunks must read as solid.** An ungenerated cell holds tier 0 —
+the same value a mined-out cell holds — so without an explicit check the whole
+untouched world looks like space you have already cleared. That bug carved a
+perfect square: mining hollowed out the generated-chunk rectangle, found
+"empty" ground beyond it and stopped, leaving balls milling against walls that
+were really just the edge of what happened to be generated. `solid()` now
+generates on demand, which costs one array read (~26 ns/call) and builds each
+chunk once. The offline erosion pass generates as it spreads, for the same
+reason.
+
+Measured with 2500 balls live: **simulation 2.7 ms/frame, draw 4.3 ms/frame** —
+inside a 16.7 ms budget.
 
 Damage is stored sparsely in a `Map` (only cells hit and not destroyed), because
 a `Float64Array` over every cell would be 80 MB on its own.

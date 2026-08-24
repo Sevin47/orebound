@@ -288,7 +288,7 @@ const RETIRED = ["orebound.10m.v0", "orebound.basics.v1", "orebound.v2", "orebou
 // multi-second freeze.
 // The world is generated one 64x64 chunk at a time, on demand, as balls and
 // light approach it. 2500 chunks, ~4k cells each, a fraction of a millisecond.
-const CHUNK = 64, CW = Math.ceil(WORLD / CHUNK);
+const CHUNK = 64, CHUNK_SHIFT = 6, CW = Math.ceil(WORLD / CHUNK);   // CHUNK === 1<<CHUNK_SHIFT
 
 //--------------------------------------------------------------- the curve
 // Hardness and value both derive from one depth term, so difficulty and income
@@ -847,7 +847,21 @@ function stampLight(x, y, mark) {
 }
 
 //=================================================================== physics
-const solid = (x,y) => x<0||y<0||x>=WORLD||y>=WORLD|| tier[y*WORLD+x] !== 0;
+// Out of bounds is solid, and so is anything NOT YET GENERATED -- ungenerated
+// chunks hold tier 0, which is the same value a mined-out cell holds, so without
+// this check the untouched world reads as open space you have already cleared.
+//
+// That is what carved a perfect square: mining hollowed out the generated chunk
+// rectangle, found "empty" space beyond it, and stopped. The walls were the edge
+// of what happened to be generated, not rock. Generating on demand here is the
+// fix, and it is cheap: the ready flag is one array read, and a chunk is only
+// ever built once.
+function solid(x, y) {
+  if (x < 0 || y < 0 || x >= WORLD || y >= WORLD) return true;
+  const cx = x >> CHUNK_SHIFT, cy = y >> CHUNK_SHIFT;
+  if (!chunkReady[cy*CW + cx]) ensureChunk(cx, cy);
+  return tier[y*WORLD + x] !== 0;
+}
 
 // Slow balls must be kept ON the rock face. A ball drifting at a few cells a
 // second spends almost all its life in transit if it is allowed to wander: in a
@@ -1716,6 +1730,10 @@ function erodeFrontier(n) {
   const seen = new Set(), front = [];
   const x0 = Math.max(1,bb.x0-2), x1 = Math.min(WORLD-2,bb.x1+2);
   const y0 = Math.max(1,bb.y0-2), y1 = Math.min(WORLD-2,bb.y1+2);
+  // Generate the whole span first, or the scan below sees ungenerated cells as
+  // already-mined and the offline credit eats a rectangle instead of a cavern.
+  for (let cy = y0 >> CHUNK_SHIFT; cy <= (y1 >> CHUNK_SHIFT); cy++)
+    for (let cx = x0 >> CHUNK_SHIFT; cx <= (x1 >> CHUNK_SHIFT); cx++) ensureChunk(cx, cy);
   for (let y=y0;y<=y1;y++) for (let x=x0;x<=x1;x++) {
     const i = y*WORLD+x;
     if (!tier[i] || seen.has(i)) continue;
@@ -1730,6 +1748,7 @@ function erodeFrontier(n) {
     const x = i%WORLD, y = (i/WORLD)|0;
     tier[i] = 0; dmg.delete(i);
     payout(x,y,t); growBounds(x,y); done++;
+    ensureAround(x, y);                 // so erosion can push into fresh terrain
     for (const j of [i-1,i+1,i-WORLD,i+WORLD])
       if (j>=0 && j<tier.length && tier[j] && !seen.has(j)) { seen.add(j); front.push(j); }
   }
