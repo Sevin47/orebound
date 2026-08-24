@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="theme-color" content="#040806">
-<meta name="description" content="OREBOUND — bounce, mine, dig deeper. A small incremental mining game.">
+<meta name="theme-color" content="#070a12">
+<meta name="description" content="OREBOUND — dig through a vast pixel world to find the one golden pixel.">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>OREBOUND</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  html,body { width:100%; height:100%; overflow:hidden; background:#040806;
-    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; color:#cfe8dc;
+  html,body { width:100%; height:100%; overflow:hidden; background:#070a12;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; color:#dfe8f4;
     overscroll-behavior:none; -webkit-tap-highlight-color:transparent;
     -webkit-user-select:none; user-select:none; touch-action:none; }
   #c { display:block; position:absolute; inset:0; image-rendering:pixelated;
@@ -20,80 +20,119 @@
   .hud { position:absolute; pointer-events:none; user-select:none; text-shadow:0 0 6px #000; }
 
   #topleft { top:10px; left:12px; font-size:13px; line-height:1.5; }
-  #dia { font-size:22px; color:#fff; letter-spacing:.5px; }
+  #px { font-size:23px; color:#fff; letter-spacing:.5px; }
+  #px i { font-style:normal; color:#7ce8ff; font-size:15px }
   #rate2 { font-size:12px; opacity:.6; margin-top:2px }
+  /* the two currencies sit in opposite corners: pixels left, upgrade points right */
+  #tok { font-size:19px; color:#c88bff; text-shadow:0 0 12px #c88bff77; margin-bottom:3px }
+  #tok b { color:#fff; font-weight:normal }
+  #tok.none { opacity:.35; text-shadow:none }
 
   #topright { top:10px; right:12px; text-align:right; font-size:11px; line-height:1.6; opacity:.75 }
-  #topright b { color:#8fd; font-weight:normal }
-  #fps.bad { color:#f77 } #fps.ok { color:#8fd }
+  #topright b { color:#7ce8ff; font-weight:normal }
+  #fps.bad { color:#f77 } #fps.ok { color:#7ce8ff }
 
-  #prompt { bottom:96px; left:50%; transform:translateX(-50%); font-size:14px;
+  #prompt { bottom:104px; left:50%; transform:translateX(-50%); font-size:14px;
     letter-spacing:2px; color:#9fe; opacity:0; transition:opacity .3s; text-align:center }
   #prompt.on { opacity:1; animation:pulse 1.6s infinite }
   @keyframes pulse { 0%,100%{opacity:.45} 50%{opacity:1} }
 
-  #hint { bottom:12px; left:50%; transform:translateX(-50%); font-size:10.5px; opacity:.35; letter-spacing:1px }
+  #hint { bottom:12px; left:50%; transform:translateX(-50%); font-size:10.5px; opacity:.32; letter-spacing:1px }
 
-  #ready { position:absolute; bottom:40px; left:50%; transform:translateX(-50%);
-    border:2px solid #cfe8dc; background:rgba(0,0,0,.55); padding:6px 18px 7px; text-align:center;
-    opacity:.55; transition:opacity .12s, box-shadow .12s; pointer-events:none }
-  #ready.armed { opacity:1; box-shadow:0 0 16px -3px #cfe8dc }
-  #ready .rn { font-size:10px; letter-spacing:2px; opacity:.7 }
-  #ready .rc { font-size:17px; color:#fff; margin-top:1px }
-  #ready .rc i { font-style:normal; opacity:.4; font-size:12px }
+  /* ---------- ball dock ---------- */
+  #dock { position:absolute; bottom:34px; left:50%; transform:translateX(-50%);
+    display:flex; gap:8px; user-select:none; z-index:20 }
+  .slot { border:2px solid; background:rgba(0,0,0,.55); padding:6px 10px 7px; cursor:pointer;
+    text-align:center; min-width:78px; opacity:.42; transition:opacity .12s, box-shadow .12s }
+  .slot.sel { opacity:1; box-shadow:0 0 16px -3px currentColor }
+  .slot.can { opacity:.92 }
+  .slot.locked { opacity:.22; border-style:dashed; cursor:not-allowed }
+  .slot .kn { font-size:10px; letter-spacing:1px }
+  .slot .kc { font-size:14px; margin-top:2px; color:#fff }
+  .slot .kk { font-size:9px; opacity:.45; margin-top:1px }
+
+  #autobtn { position:absolute; bottom:34px; left:calc(50% + 0px); margin-left:8px;
+    transform:translateX(0); display:none }
 
   /* ---------- overlay panels ---------- */
-  .panel { position:absolute; inset:0; display:none; background:rgba(4,10,8,.78);
-    backdrop-filter:blur(1.5px); overflow:auto; padding:52px 24px 40px; z-index:40 }
+  .panel { position:absolute; inset:0; display:none; background:rgba(7,10,18,.82);
+    backdrop-filter:blur(2px); overflow:auto; padding:52px 24px 40px; z-index:40 }
   .panel.on { display:block }
   .ptitle { position:fixed; top:14px; left:50%; transform:translateX(-50%); text-align:center;
     font-size:12px; letter-spacing:3px; opacity:.6; z-index:41 }
+  .psub { text-align:center; font-size:11px; opacity:.5; margin-bottom:18px; line-height:1.6 }
+  .psub b { color:#ffd75e; font-weight:normal }
 
-  #nodes { display:flex; gap:14px; justify-content:center; align-items:flex-start;
-    max-width:1180px; margin:0 auto; flex-wrap:wrap }
-  .node { width:210px; border:2px solid #6ad; color:#6ad; background:rgba(0,0,0,.6);
-    padding:12px 13px; cursor:pointer; transition:transform .08s, box-shadow .12s }
-  .node:hover { transform:translateY(-2px) }
-  .node .nm { font-size:13.5px; letter-spacing:1px }
-  .node .lv { font-size:11px; opacity:.75; margin-top:4px; color:#cfe8dc }
-  .node .desc { font-size:10.5px; opacity:.5; margin-top:6px; line-height:1.4; min-height:42px; color:#cfe8dc }
-  .node .cost { margin-top:7px; font-size:12px; color:#fff }
-  .node.max { opacity:.35; cursor:default }
-  .node.afford { box-shadow:0 0 14px -2px currentColor }
-  .node .short { color:#e66 }
+  /* ---------- tech tree ---------- */
+  #balls { display:flex; justify-content:center; align-items:flex-start;
+    overflow:auto; padding:10px 0 }
+  #treewrap { position:relative; flex:0 0 auto }
+  #treewrap svg { position:absolute; inset:0; overflow:visible }
+  .tnode { position:absolute; background:#080d16; border:2.5px solid currentColor;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    padding:0; transition:transform .1s, box-shadow .12s, opacity .12s }
+  .tnode svg { width:60%; height:60%; display:block }
+  .tnode:hover { transform:scale(1.12) }
+  .tnode.taken  { background:currentColor; opacity:.95 }
+  .tnode.taken svg { color:#080d16 }
+  .tnode.ready  { box-shadow:0 0 16px -2px currentColor; animation:tpulse 1.9s infinite }
+  .tnode.short  { opacity:.6 }
+  .tnode.locked { opacity:.22; border-style:dashed; cursor:not-allowed }
+  .tnode.sel    { box-shadow:0 0 0 3px #fff8, 0 0 20px -2px currentColor }
+  .tnode .lv { position:absolute; right:-5px; bottom:-5px; font-style:normal; font-size:10px;
+    background:#080d16; border:1.5px solid currentColor; border-radius:9px; padding:0 4px; color:#fff }
+  @keyframes tpulse { 0%,100%{box-shadow:0 0 10px -3px currentColor} 50%{box-shadow:0 0 20px 0 currentColor} }
 
+  #tcard { display:none; position:fixed; top:44px; left:50%; transform:translateX(-50%);
+    z-index:44; border:2px solid; background:#05080e; padding:12px 22px 13px; text-align:center;
+    min-width:240px; max-width:min(92vw,420px); box-shadow:0 0 34px -8px currentColor }
+  #tcard.on { display:block }
+  #tcard .th { font-size:10.5px; letter-spacing:2px; opacity:.85 }
+  #tcard .tn { font-size:20px; color:#fff; margin-top:3px; letter-spacing:.5px }
+  #tcard .tb { font-size:10.5px; opacity:.6; margin-top:1px; letter-spacing:1px }
+  #tcard .td { font-size:10.5px; color:#dfe8f4; opacity:.62; line-height:1.45; margin-top:8px }
+  #tcard .tc { font-size:16px; color:#fff; margin-top:9px; letter-spacing:1px }
+  #tcard .tc.short { color:#e66 }
+
+  #upgsub { position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+    text-align:center; font-size:11px; opacity:.75; z-index:44; margin:0; line-height:1.7 }
+  #upgsub b { color:#c88bff; font-weight:normal; font-size:15px }
   #statgrid { display:flex; gap:14px; justify-content:center; flex-wrap:wrap;
     max-width:1000px; margin:0 auto; align-items:flex-start }
-  .cxbox { width:290px; border:1px solid #2a4a3c; background:rgba(0,0,0,.5); padding:12px 14px }
-  .cxbox h4 { font-size:11px; font-weight:normal; letter-spacing:2px; color:#7ec; margin-bottom:9px }
+  .cxbox { width:300px; border:1px solid #24405c; background:rgba(0,0,0,.5); padding:12px 14px }
+  .cxbox h4 { font-size:11px; font-weight:normal; letter-spacing:2px; color:#7ce8ff; margin-bottom:9px }
   .cxrow { display:flex; justify-content:space-between; font-size:11px; padding:3px 0; gap:14px }
   .cxrow span { opacity:.55 } .cxrow b { font-weight:normal; color:#fff }
   .cxrow.dim b { opacity:.3 }
+  .cxrow.gold b { color:#ffd75e }
 
-  #toast { position:absolute; bottom:84px; left:50%; transform:translateX(-50%);
+  #toast { position:absolute; bottom:92px; left:50%; transform:translateX(-50%);
     font-size:12px; color:#fff; opacity:0; transition:opacity .4s; pointer-events:none;
     letter-spacing:1px; text-shadow:0 0 10px #000; z-index:50; text-align:center }
   #toast.on { opacity:1 }
 
-  #welcome { position:absolute; inset:0; display:none; align-items:center; justify-content:center;
-    background:rgba(4,10,8,.85); z-index:60 }
-  .wcard { border:2px solid #2ed; background:#07120e; padding:22px 26px; min-width:290px;
+  #welcome, #gold { position:absolute; inset:0; display:none; align-items:center;
+    justify-content:center; background:rgba(7,10,18,.88); z-index:60 }
+  .wcard { border:2px solid #2ed; background:#08131b; padding:22px 26px; min-width:290px;
     box-shadow:0 0 40px -8px #2ed8 }
   .wtitle { color:#2ed; font-size:12px; letter-spacing:3px; text-align:center; margin-bottom:16px }
   .wrow { display:flex; justify-content:space-between; gap:26px; font-size:13px; padding:5px 0 }
   .wrow span { opacity:.6 } .wrow b { color:#fff; font-weight:normal }
-  .wnote { font-size:10.5px; opacity:.5; margin-top:10px; max-width:250px; line-height:1.4 }
-  #wok { margin-top:18px; width:100%; background:none; border:1px solid #2ed; color:#2ed;
+  .wnote { font-size:10.5px; opacity:.5; margin-top:10px; max-width:260px; line-height:1.4 }
+  #wok, #gok { margin-top:18px; width:100%; background:none; border:1px solid #2ed; color:#2ed;
     padding:8px; font-family:inherit; font-size:11px; letter-spacing:2px; cursor:pointer }
-  #wok:hover { background:#2ed2 }
+  #wok:hover, #gok:hover { background:#2ed2 }
+  #gold .wcard { border-color:#ffd75e; box-shadow:0 0 70px -6px #ffd75e; background:#141005 }
+  #gold .wtitle { color:#ffd75e; font-size:19px; letter-spacing:6px }
+  #gok { border-color:#ffd75e; color:#ffd75e } #gok:hover { background:#ffd75e2a }
 
   #boot { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    background:#040806; z-index:99; font-size:13px; letter-spacing:3px; color:#6d9 }
+    background:#070a12; z-index:99; font-size:13px; letter-spacing:3px; color:#7ce8ff }
 
   #menu { position:absolute; inset:0; display:none; align-items:center; justify-content:center;
-    background:rgba(4,8,6,.93); z-index:80 }
+    background:rgba(7,10,18,.94); z-index:80 }
   #menu.on { display:flex }
-  .mcard { border:2px solid #2ed; background:#06110d; padding:30px 34px; min-width:330px;
+  .mcard { border:2px solid #2ed; background:#08131b; padding:30px 34px; min-width:340px;
     box-shadow:0 0 60px -10px #2ed9; text-align:center }
   .mtitle { font-size:22px; letter-spacing:7px; color:#8ff; text-shadow:0 0 18px #2ed8 }
   .msub { font-size:10px; letter-spacing:3px; opacity:.4; margin-top:7px; margin-bottom:20px }
@@ -113,34 +152,36 @@
   /* ---------- touch controls ---------- */
   #mobibar { position:absolute; bottom:8px; left:0; right:0; display:none;
     justify-content:center; gap:6px; padding:0 8px; z-index:30 }
-  #mobibar button { flex:1 1 70px; max-width:130px; background:rgba(0,0,0,.6); border:1px solid #2a5346;
-    color:#8fd; font-family:inherit; font-size:10px; letter-spacing:1px; padding:11px 4px;
+  #mobibar button { flex:1 1 66px; max-width:120px; background:rgba(0,0,0,.6); border:1px solid #24405c;
+    color:#7ce8ff; font-family:inherit; font-size:10px; letter-spacing:1px; padding:11px 4px;
     cursor:pointer; border-radius:2px }
   #mobibar button:active { background:#2ed3; color:#fff }
+  #mobibar button.on { border-color:#7ce8ff; color:#fff; background:#2ed2 }
   #pclose { position:fixed; top:10px; right:10px; display:none; z-index:45;
     background:rgba(0,0,0,.7); border:1px solid #2ed; color:#2ed; font-family:inherit;
     font-size:15px; width:40px; height:40px; cursor:pointer; border-radius:2px }
   #pclose.on { display:block }
 
-  /* ---------- phones / narrow screens ---------- */
   @media (max-width: 820px) {
     #hint { display:none }
     #mobibar { display:flex }
-    .panel { backdrop-filter:none; background:rgba(4,10,8,.95); padding:58px 10px 30px }
+    .panel { backdrop-filter:none; background:rgba(7,10,18,.96); padding:58px 10px 30px }
     #topleft { top:calc(8px + env(safe-area-inset-top)); left:8px; font-size:11px }
-    #dia { font-size:18px }
+    #px { font-size:19px }
     #topright { top:calc(8px + env(safe-area-inset-top)); right:8px; font-size:9.5px; line-height:1.5 }
-    #ready { bottom:104px } #prompt { bottom:162px; font-size:12px; letter-spacing:1px; padding:0 16px }
-    #toast { bottom:152px; font-size:11px; padding:0 16px }
-    .node { width:100%; max-width:440px }
-    .cxbox { width:100%; max-width:440px }
+    #dock { bottom:98px; gap:5px; flex-wrap:wrap; max-width:100%; padding:0 6px }
+    .slot { min-width:0; flex:1 1 60px; max-width:84px; padding:6px 3px }
+    .slot .kk { display:none }
+    #prompt { bottom:176px; font-size:12px; letter-spacing:1px; padding:0 16px }
+    #toast { bottom:168px; font-size:11px; padding:0 16px }
+    .cxbox { width:100%; max-width:430px }
     .mcard { min-width:0; width:calc(100vw - 40px); max-width:380px; padding:26px 22px }
     .mtitle { font-size:19px; letter-spacing:5px }
     .mcard button { padding:13px }
     .wcard { min-width:0; width:calc(100vw - 48px); max-width:340px }
   }
   @media (max-width: 820px) and (orientation: landscape) {
-    #ready { bottom:92px } #prompt { bottom:140px }
+    #dock { bottom:92px } #prompt { bottom:150px }
   }
 </style>
 </head>
@@ -148,38 +189,44 @@
 <canvas id="c"></canvas>
 
 <div class="hud" id="topleft">
-  <div id="dia">&#9670; 0</div>
+  <div id="px">0 <i>px</i></div>
   <div id="rate2">+0 /s</div>
 </div>
 
 <div class="hud" id="topright">
+  <div id="tok" class="none">&#10022; <b id="tokn">0</b></div>
   <div>fps <b id="fps">&ndash;</b></div>
-  <div>depth <b id="depth">0</b></div>
   <div>mined <b id="mined">0</b></div>
-  <div>blocks <b id="rate">0/s</b></div>
+  <div>cleared <b id="pct">0%</b></div>
+  <div>reach <b id="depth">0</b></div>
+  <div>px/sec <b id="rate">0</b></div>
   <div>balls <b id="ballct">0</b></div>
-  <div>board <b id="pct">0%</b></div>
 </div>
 
-<div class="hud" id="prompt">CLICK TO AIM &amp; LAUNCH</div>
-<div id="ready"><div class="rn">BALLS READY</div><div class="rc">0<i>/1</i></div></div>
+<div class="hud" id="prompt">CLICK ANYWHERE TO LAUNCH A BALL</div>
+<div id="dock"></div>
 <div class="hud" id="toast"></div>
-<div class="hud" id="hint">[click] fire &middot; [drag] pan &middot; [wheel] zoom &middot; [F] refit &middot; [U] upgrades &middot; [S] stats &middot; [space] recall &middot; [Esc] menu</div>
+<div class="hud" id="hint">[click] launch here &middot; [1-7] ball &middot; [A] auto &middot; [drag] pan &middot; [wheel] zoom &middot; [F] refit &middot; [U] upgrades &middot; [S] stats &middot; [Esc] menu</div>
 
 <div id="mobibar">
-  <button data-a="upg">UPGRADES</button>
+  <button data-a="upg">BALLS</button>
   <button data-a="stats">STATS</button>
-  <button data-a="recall">RECALL</button>
+  <button data-a="auto">AUTO</button>
   <button data-a="menu">MENU</button>
 </div>
 <button id="pclose">&#10005;</button>
 
-<div class="panel" id="upg"><div class="ptitle">UPGRADES &mdash; [U] TO CLOSE</div><div id="nodes"></div></div>
+<div class="panel" id="upg">
+  <div class="ptitle">UPGRADES &mdash; [U] TO CLOSE</div>
+  <div id="tcard"></div>
+  <div id="balls"></div>
+  <div class="psub" id="upgsub"></div>
+</div>
 <div class="panel" id="stats"><div class="ptitle">STATS &mdash; [S] TO CLOSE</div><div id="statgrid"></div></div>
 
 <div id="menu"><div class="mcard">
   <div class="mtitle">OREBOUND</div>
-  <div class="msub">bounce &middot; mine &middot; dig deeper</div>
+  <div class="msub">dig deep &middot; find the golden pixel</div>
   <div id="msave"></div>
   <button id="mcont">CONTINUE</button>
   <button id="mnew" class="danger">NEW GAME</button>
@@ -191,80 +238,114 @@
   <button id="wok">CONTINUE</button>
 </div></div>
 
+<div id="gold"><div class="wcard">
+  <div class="wtitle">THE GOLDEN PIXEL</div><div id="gbody"></div>
+  <button id="gok">CONTINUE DIGGING</button>
+</div></div>
+
 <div id="boot">GENERATING WORLD&hellip;</div>
 
 <script>
 "use strict";
 //===========================================================================
-// OREBOUND — the core loop, and nothing else.
+// OREBOUND
 //
-// Five upgrades, one currency, one kind of ball. Everything that used to sit
-// on top of this (ore colours, Cores, timed research, Residue, strata, the
-// Monolith chamber and its sixteen powers) has been removed. The entire
-// balance of the game is now two constants and five cost curves, all of them
-// in this header block where they can be read at a glance.
+// Dig through a vast pixel world to find the one golden pixel.
+//
+// Two currencies and nothing else:
+//   PIXELS         — what you mine, and what you spend to fire balls.
+//   UPGRADE PIXELS — rare, found only by digging. Unlock and upgrade balls.
+//
+// The economy is deliberately curve-free. A shot costs a FLAT price and buys a
+// FIXED number of impacts. Rock gets harder the further out you erode, so the
+// pixels returned per shot decay on their own until a found upgrade raises your
+// damage again. Nothing here needs a hand-tuned cost curve, because the board
+// is the cost curve.
+//
+// Note on travel speed: it is a per-ball flavour stat and is NOT upgradeable.
+// In an earlier build speed multiplied bounce rate, bounce rate multiplied
+// damage, and damage drove income — so speed was secretly the strongest damage
+// upgrade in the game. Paying for impacts rather than for time severs that link
+// permanently.
 //===========================================================================
 
-const GRID = 1024, CX = GRID >> 1, CY = GRID >> 1;
-const SEED = 1337, SAVEKEY = "orebound.basics.v1";
-// Old saves are not migrated: they encode currencies and systems that no longer
-// exist, and a half-conversion would hide bugs rather than fix them.
-const RETIRED = ["orebound.v2", "orebound.v1", "pixelbouncer.v3"];
+const WORLD = 3163;                       // 3163^2 = 10,004,569 mineable pixels
+const TOTAL = WORLD * WORLD;
+const CX = WORLD >> 1, CY = WORLD >> 1;
+// The golden pixel's location must change every playthrough, so the world seed
+// is rolled per run and saved. A fixed seed hid it in the same cell every time.
+let RUNSEED = (Math.random() * 0x7ffffff) | 0;
+const SAVEKEY = "orebound.10m.v1";
+const RETIRED = ["orebound.10m.v0", "orebound.basics.v1", "orebound.v2", "orebound.v1", "pixelbouncer.v3"];
+
+// Ten thousand-odd chunks of cells cannot be generated at boot — it is a
+// multi-second freeze.
+// The world is generated one 64x64 chunk at a time, on demand, as balls and
+// light approach it. 2500 chunks, ~4k cells each, a fraction of a millisecond.
+const CHUNK = 64, CW = Math.ceil(WORLD / CHUNK);
 
 //--------------------------------------------------------------- the curve
-// THE balance constant. Block HP and block value both derive from depth, so
-// difficulty and income share a single source instead of drifting apart — which
-// is exactly how the old version broke (x127k rock vs x2.1M ore).
-//
-// The exponent is only just above 1, so the curve is close to a straight
-// exponential in depth — gentle over the first twenty cells, then compounding
-// hard. Tuned against a simulated playthrough: x1.9 hardness at depth 20, x42
-// at 100, x3.4k at 200, x360k at 300, x7.2e9 at the rim. An earlier, flatter
-// version (K=.0055, E=1.25) only reached x7 by depth 112, which let damage
-// outrun the board and emptied the entire upgrade tree in six minutes.
-const DEPTH_K = 0.0215, DEPTH_E = 1.12;
+// Hardness and value both derive from one depth term, so difficulty and income
+// can never drift apart. Value climbs at only VAL_POW of hardness's rate, which
+// is what makes each shot's profit decay as the cavern widens.
+const DEPTH_K = 0.0035, DEPTH_E = 1.10;
 const depthMul = d => Math.exp(DEPTH_K * Math.pow(d, DEPTH_E));
-
-// Value climbs at only VAL_POW of the rate HP does. This is the brake on the
-// whole economy: a deeper block always costs more to break than it pays back,
-// so depth has to be bought with upgrades and can never be earned by waiting.
-const VAL_POW = 0.30;
+const VAL_POW = 0.32;
 
 //--------------------------------------------------------------- tier table
-// Tiers are now visual variety plus an hp/value step. They gate nothing — there
-// is one currency, so there is nothing left to gate.
+const T_UPG = 9, T_GOLD = 10, T_OBJ = 11, T_ORANGE = 12, T_PURPLE = 13;
+const isHazard = t => t === T_ORANGE || t === T_PURPLE;
+// Hard ceiling on live hazard cells. Without it a bad roll can cascade and
+// swallow the whole cavern, which is a lost save rather than a challenge.
+const HAZ_CAP = 45000;
+let hazCount = 0;
+// Which hazard cells have already had their one chance to spread. See below for
+// why spreading must be once-per-pixel rather than once-per-hit.
+const hazSpread = new Set();
 const TIERS = [
   null,
-  { name:"Dust",     hp:1,    val:1,    col:[ 74, 78, 76] },
-  { name:"Stone",    hp:3,    val:4,    col:[138,144,140] },
-  { name:"Quartz",   hp:6,    val:13,   col:[232,238,234] },
-  { name:"Amber",    hp:16,   val:38,   col:[242,132, 32] },
-  { name:"Cinnabar", hp:40,   val:110,  col:[228, 40, 40] },
-  { name:"Azurite",  hp:95,   val:320,  col:[ 56,178,240] },
-  { name:"Verdite",  hp:220,  val:900,  col:[ 62,220, 82] },
-  { name:"Voidgem",  hp:520,  val:2600, col:[228, 64,228] },
+  { name:"Dust",    hp:1,    val:1,    col:[ 62, 74, 96] },
+  { name:"Slate",   hp:3,    val:3,    col:[ 96,116,148] },
+  { name:"Quartz",  hp:7,    val:9,    col:[214,230,246] },
+  { name:"Amber",   hp:18,   val:26,   col:[248,150, 46] },
+  { name:"Cinnabar",hp:44,   val:74,   col:[240, 70, 78] },
+  { name:"Azurite", hp:105,  val:210,  col:[ 66,182,248] },
+  { name:"Verdite", hp:250,  val:600,  col:[ 76,232,110] },
+  { name:"Voidgem", hp:600,  val:1700, col:[212, 96,248] },
+  // Rewards must be SOFT. An earlier pass gave these 900-2600 base HP, which put
+  // them 250-500x above the rock around them: they were uncovered on schedule and
+  // then sat there permanently unbreakable, so progression never started at all.
+  // A reward you cannot collect is worse than no reward.
+  { name:"Upgrade", hp:6,    val:0,    col:[200,139,255] },   // T_UPG
+  { name:"Golden",  hp:30,   val:0,    col:[255,236,140] },   // T_GOLD
+  // Relics are the exception and are meant to be tough: they survive as
+  // silhouettes while the soft rock erodes around them. Still breakable.
+  { name:"Relic",   hp:60,   val:900,  col:[176,196,222] },   // T_OBJ (handcrafted)
+  // The world fights back. These two spread into ground you have already cleared
+  // when you strike them, so throughput alone is not enough -- you have to deal
+  // with them or they eat the cavern behind you. They are the counterweight that
+  // lets ball count go up without the game becoming trivial.
+  { name:"Bloom",   hp:10,   val:34,   col:[255,142, 36] },   // T_ORANGE
+  { name:"Creep",   hp:70,   val:120,  col:[188, 72,236] },   // T_PURPLE
 ];
 
-//--------------------------------------------------------------- world data
-let tier, dmg, lit;              // dmg is Float64: block HP exceeds Uint32 at depth
-const LITMUL = [0.10, 0.34, 0.66, 1.0];
+// Upgrade pixel density falls off as 1/d. That is not arbitrary: a uniform
+// density scales with AREA, so the count inside radius r grows as r-squared and
+// upgrades either flood the late game or never arrive at all in the early one.
+// At 1/d the count inside radius r grows LINEARLY with r, so upgrades arrive at
+// a steady pace the whole way out no matter how wide the cavern gets.
+// UPG_A is calibrated so ~2*PI*A*r upgrades exist inside radius r: about 19 by
+// radius 100, ~92 by radius 320, and ~447 by the time the golden pixel is in reach.
+const UPG_A = 0.046;
+const upgDensity = d => UPG_A / Math.max(30, d);
 
-function stampLight(x, y, mark) {
-  for (let oy = -4; oy <= 4; oy++) {
-    const ny = y + oy; if (ny < 0 || ny >= GRID) continue;
-    for (let ox = -4; ox <= 4; ox++) {
-      const nx = x + ox; if (nx < 0 || nx >= GRID) continue;
-      const c = Math.max(Math.abs(ox), Math.abs(oy));
-      const lvl = c <= 1 ? 3 : c <= 2 ? 2 : 1, i = ny * GRID + nx;
-      if (lit[i] < lvl) { lit[i] = lvl; if (mark) markDirty(nx, ny); }
-    }
-  }
-}
-function relight() {
-  lit = new Uint8Array(GRID * GRID);
-  for (let i = 0; i < tier.length; i++)
-    if (!tier[i]) { const x = i % GRID, y = (i / GRID) | 0; stampLight(x, y, false); growBounds(x, y); }
-}
+//--------------------------------------------------------------- world data
+let tier, lit, chunkReady;
+const dmg = new Map();        // sparse: only cells that have been hit and survived
+const poison = new Map();
+let GOLD_I = -1;              // the one golden pixel, index into tier
+
+const LITMUL = [0.10, 0.34, 0.66, 1.0];
 
 //--------------------------------------------------------------- rng / noise
 function hash2(x, y, s) {
@@ -280,131 +361,355 @@ function vnoise(x, y, s) {
   const c = hash2(xi, yi + 1, s), d = hash2(xi + 1, yi + 1, s);
   return (a + (b - a) * xf) * (1 - yf) + (c + (d - c) * xf) * yf;
 }
-const fbm = (x, y, s) => vnoise(x, y, s) * .55 + vnoise(x*2.1, y*2.1, s+7) * .3 + vnoise(x*4.3, y*4.3, s+19) * .15;
+const fbm = (x, y, s) => vnoise(x,y,s)*.55 + vnoise(x*2.1,y*2.1,s+7)*.3 + vnoise(x*4.3,y*4.3,s+19)*.15;
 
-//--------------------------------------------------------------- generation
-function generate() {
-  tier = new Uint8Array(GRID * GRID);
-  dmg  = new Float64Array(GRID * GRID);
+//---------------------------------------------------------- handcrafted objects
+// "Hidden inside the world you will find solid objects that have been carefully
+// handcrafted." Small hand-drawn bitmaps stamped into the procedural rock at
+// fixed spots, made of much tougher Relic pixels so they survive as silhouettes
+// while the soft rock around them erodes away.
+const ART = {
+  skull: ["..#####..",".#######.",
+          "#.##.##.#","#.##.##.#","#########","#..###..#",
+          "#########",".#.#.#.#.","..#.#.#..","...###..."],
+  key:   ["..####....",".#....#...","#..##..#..","#.#..#.#..","#..##..#..",
+          ".#....#...","..####....","....#.....","....###...","....#.#..."],
+  heart: [".##...##.","#####.###","#########","#########",".#######.",
+          "..#####..","...###...","....#...."],
+  arrow: ["....#....","...###...","..#####..",".#######.","....#....",
+          "....#....","....#....","....#....","....#...."],
+};
+// Placed on a widening spiral so every distance band has something buried in it.
+const OBJECTS = (function () {
+  const names = Object.keys(ART), out = [];
+  for (let i = 0; i < 26; i++) {
+    const a = i * 2.399963;                       // golden angle, no clustering
+    const r = 190 + i * 52;
+    out.push({ art: ART[names[i % names.length]],
+               x: Math.round(CX + Math.cos(a) * r),
+               y: Math.round(CY + Math.sin(a) * r) });
+  }
+  return out;
+})();
 
-  for (let y = 0; y < GRID; y++) {
-    for (let x = 0; x < GRID; x++) {
-      const i = y * GRID + x;
-      const dx = x - CX, dy = y - CY, d = Math.sqrt(dx*dx + dy*dy);
-      if (d < 7) { tier[i] = 0; continue; }
+//--------------------------------------------------------- chunked generation
+function genCell(x, y) {
+  const dx = x - CX, dy = y - CY, d = Math.sqrt(dx*dx + dy*dy);
+  if (d < 7) return 0;                            // the starting hollow
 
-      let t = d < 55 ? 1 : d < 170 ? 2 : 3;
-      const vein = ((fbm(x/14, y/14, SEED) * .76 + fbm(x/3.2, y/3.2, SEED+9) * .24) - .5) * 4;
-      if (vein > 0.30 && d > 18) {
-        const q = (fbm(x/31, y/31, SEED+55) - .5) * 4;
-        t = 4;
-        if (d >  80 && q > -0.35) t = 5;
-        if (d > 170 && q > -0.05) t = 6;
-        if (d > 270 && q >  0.25) t = 7;
-        if (d > 370 && q >  0.55) t = 8;
-      }
-      tier[i] = t;
+  let t = d < 60 ? 1 : d < 200 ? 2 : 3;
+  const vein = ((fbm(x/16, y/16, RUNSEED) * .76 + fbm(x/3.4, y/3.4, RUNSEED+9) * .24) - .5) * 4;
+  if (vein > 0.30 && d > 20) {
+    const q = (fbm(x/34, y/34, RUNSEED+55) - .5) * 4;
+    t = 4;
+    if (d >  110 && q > -0.35) t = 5;
+    if (d >  260 && q > -0.05) t = 6;
+    if (d >  520 && q >  0.25) t = 7;
+    if (d >  900 && q >  0.55) t = 8;
+  }
+  // Upgrade pixels sit inside solid rock only, never in the opening hollow.
+  const hz = hash2(x, y, RUNSEED + 777);
+  if (d > 150 && hz < 0.0040) t = T_ORANGE;
+  else if (d > 420 && hz > 0.9955) t = T_PURPLE;
+  if (d > 34 && hash2(x, y, RUNSEED + 4241) < upgDensity(d)) t = T_UPG;
+  return t;
+}
+
+function stampObjects(x0, y0, x1, y1) {
+  for (const o of OBJECTS) {
+    const h = o.art.length, w = o.art[0].length;
+    if (o.x + w < x0 || o.x >= x1 || o.y + h < y0 || o.y >= y1) continue;
+    for (let r = 0; r < h; r++) for (let cIdx = 0; cIdx < w; cIdx++) {
+      if (o.art[r][cIdx] !== "#") continue;
+      const px = o.x + cIdx, py = o.y + r;
+      if (px < x0 || px >= x1 || py < y0 || py >= y1) continue;
+      if (px < 0 || py < 0 || px >= WORLD || py >= WORLD) continue;
+      tier[py*WORLD + px] = T_OBJ;
     }
   }
 }
 
+function ensureChunk(cx, cy) {
+  if (cx < 0 || cy < 0 || cx >= CW || cy >= CW) return;
+  const ci = cy*CW + cx;
+  if (chunkReady[ci]) return;
+  chunkReady[ci] = 1;
+  const x0 = cx*CHUNK, y0 = cy*CHUNK;
+  const x1 = Math.min(WORLD, x0+CHUNK), y1 = Math.min(WORLD, y0+CHUNK);
+  for (let y = y0; y < y1; y++)
+    for (let x = x0; x < x1; x++) {
+      const t = genCell(x, y);
+      tier[y*WORLD + x] = t;
+      if (isHazard(t)) hazCount++;      // counted here too, or HAZ_CAP is meaningless
+    }
+  stampObjects(x0, y0, x1, y1);
+  if (GOLD_I >= 0) {                              // the golden pixel outranks terrain
+    const gx = GOLD_I % WORLD, gy = (GOLD_I / WORLD) | 0;
+    if (gx >= x0 && gx < x1 && gy >= y0 && gy < y1) tier[GOLD_I] = T_GOLD;
+  }
+  paintChunk(cx, cy);
+}
+// Keep everything within one chunk of a point generated, so a ball can never
+// travel into ungenerated space and read it as empty.
+function ensureAround(x, y) {
+  const cx = (x / CHUNK) | 0, cy = (y / CHUNK) | 0;
+  for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) ensureChunk(cx+ox, cy+oy);
+}
+
+// The golden pixel: one cell, uniformly placed, no hint system. Kept out of the
+// opening hollow so it cannot be won in the first ten seconds.
+function placeGolden() {
+  let gx, gy, n = 0;
+  do {
+    gx = Math.floor(hash2(n, 77, RUNSEED+9001) * WORLD);
+    gy = Math.floor(hash2(n, 178, RUNSEED+9001) * WORLD);
+    n++;
+  } while (n < 64 && Math.hypot(gx-CX, gy-CY) < 120);
+  GOLD_I = gy*WORLD + gx;
+}
+
 function cellHP(x, y, t) {
-  const d = Math.hypot(x - CX, y - CY);
-  return Math.ceil(TIERS[t].hp * depthMul(d));
+  return Math.ceil(TIERS[t].hp * depthMul(Math.hypot(x-CX, y-CY)));
 }
 function cellVal(x, y, t) {
-  const d = Math.hypot(x - CX, y - CY);
-  return TIERS[t].val * Math.pow(depthMul(d), VAL_POW) * 0.6;
+  return TIERS[t].val * Math.pow(depthMul(Math.hypot(x-CX, y-CY)), VAL_POW) * 0.55;
 }
 
-//=================================================================== upgrades
-// Five, all bought with diamonds, all visible at once on a single screen.
-//
-// The rule that keeps this balanced — and that the old version broke in five
-// places at once — is ONE OWNER PER STAT. Damage is multiplied by Impact and by
-// nothing else. Income is multiplied by Refining and by nothing else. There is
-// no second system quietly stacking another exponential on top of either.
-//
-// Effect growth is deliberately slower than cost growth on every line (1.30 vs
-// 1.70, 1.18 vs 1.75, 1.25 vs 1.65), so each level buys strictly less per
-// diamond than the last. Progress comes from the board paying more as you get
-// deeper, never from an upgrade outrunning its own price.
-//
-// Impact and Refining are UNCAPPED. That is deliberate and it is the other half
-// of the balance: income is exponential, so any finite tree gets emptied and the
-// game ends. A tree with no last level means diamonds always have somewhere to
-// go, and the depth curve above is what decides how fast they get there.
-const AUTO_BASE = 4.5;
-const NOCAP = 1e9;
-const UPG = [
-  { id:"dmg",   name:"Impact",      max:NOCAP, cost:l => 20 * Math.pow(1.70, l),
-    desc:"Damage every bounce deals to rock. No last level — the rock gets harder faster than this gets stronger.",
-    fmt:l => "x" + fmt(Math.pow(1.30, l)) },
-
-  // Speed stops mattering once a ball bounces on every substep, which is why it
-  // is the one combat stat with a ceiling. In a wide cavern it is still the
-  // difference between six bounces a second and one.
-  { id:"speed", name:"Velocity",    max:25, cost:l => 60 * Math.pow(1.75, l),
-    desc:"How fast balls travel. Bounce rate falls as the cavern widens, so this is never optional.",
-    fmt:l => Math.round(55 * Math.pow(1.18, l)) + " cells/s" },
-
-  // Capped for frame budget, not for balance: past this the swarm costs more to
-  // draw than it earns. Everything beyond it has to be bought as Impact.
-  { id:"balls", name:"Swarm",       max:24, cost:l => 200 * Math.pow(2.10, l),
-    desc:"One more ball in the cavern. Linear power, steep price — that is the trade.",
-    fmt:l => (1 + l) + " ball" + (l ? "s" : "") },
-
-  { id:"value", name:"Refining",    max:NOCAP, cost:l => 90 * Math.pow(1.65, l),
-    desc:"Diamonds recovered from every block you break. Also uncapped.",
-    fmt:l => "x" + fmt(Math.pow(1.25, l)) },
-
-  { id:"auto",  name:"Auto-Launch", max:12, cost:l => l ? 260 * Math.pow(1.72, l) : 500,
-    desc:"Parked balls deploy themselves, in the tab or out of it. Also earns while the game is closed.",
-    fmt:l => l ? (AUTO_BASE * Math.pow(0.87, l - 1)).toFixed(2) + "s" : "off" },
+//====================================================================== balls
+// Seven balls, as in the reference design. Slot 0 is the starter; slots 1-3 are
+// the three whose behaviour is documented; slots 4-6 are deliberately unbuilt
+// and show as UNKNOWN until their abilities are specified.
+const BALLS = [
+  { k:0, name:"Prospector", hue:"Orange", col:"#ff9a3c", cost:8,  imp:40, spd:80,  unlock:0,
+    desc:"The ball you start with. A plain bounce that breaks the softest rock in one hit." },
+  { k:1, name:"Directional", hue:"Blue",col:"#46b6ff", cost:19, imp:34, spd:110, unlock:1,
+    desc:"Only travels in a straight vertical or horizontal line, drifting sideways each bounce so it carves wide tunnels." },
+  { k:2, name:"Smash", hue:"Red",      col:"#ff4a4a", cost:26, imp:26, spd:70,  unlock:2,
+    desc:"Detonates on impact, hitting every pixel in a surrounding area." },
+  { k:3, name:"Poison", hue:"Green",     col:"#4cf05c", cost:34, imp:22, spd:74,  unlock:2,
+    desc:"Poisons pixels on impact. Poison erodes them over time and spreads to nearby pixels on its own." },
+  { k:4, name:"Lightning", hue:"Yellow",  col:"#ffe14a", cost:44, imp:20, spd:100, unlock:3,
+    desc:"Arcs from the point of impact, shocking pixels some distance away." },
+  { k:5, name:"Rush", hue:"Purple",       col:"#c060ff", cost:30, imp:30, spd:260, unlock:3,
+    desc:"Travels far faster than any other ball, spending its impacts in a fraction of the time." },
+  { k:6, name:"Unknown", hue:"—", col:"#8a93a8", cost:0,  imp:0,  spd:0,   unlock:-1, desc:"" },
 ];
-const UPGBY = {}; UPG.forEach(u => UPGBY[u.id] = u);
+const NBALL = BALLS.length;
+const built = b => b.unlock >= 0;                 // slots 5-6 are not specified yet
+
+// Upgrades CHANGE WHAT A BALL DOES. They do not nudge a percentage.
+//
+// This is the single most important design rule here, and it is the one the
+// first pass of this rewrite broke: cards reading "DAMAGE +55%" and
+// "IMPACTS +10" are the genre's classic failure mode, where an upgrade moves a
+// number without changing how the game feels or how you play. Every perk below
+// alters behaviour you can see on screen.
+//
+// Refine (further down) is the one deliberate exception: a repeatable damage
+// multiplier that exists purely to absorb surplus upgrade pixels and to let
+// damage keep pace with the depth curve. Flavour is behavioural; scaling is not.
+const PERKS = {
+  0:[ {id:"frag",  n:"Fragment",     c:2,  d:"The first impact splits the ball in two, each keeping half the remaining impacts."},
+      {id:"cross", n:"Crossbreak",   c:4,  d:"Every impact also strikes the four pixels orthogonally around it."},
+      {id:"heavy", n:"Heavy Strike", c:8, d:"Every eighth impact lands five times as hard."} ],
+  1:[ {id:"wide",  n:"Widebore",     c:2,  d:"Carves a three-wide tunnel instead of a single line."},
+      {id:"pierce",n:"Pierce",       c:4,  d:"Punches through up to four pixels behind the impact instead of stopping at one."},
+      {id:"free",  n:"Freewheel",    c:8, d:"Only impacts that actually break a pixel count against the ball's budget."} ],
+  2:[ {id:"wider", n:"Wider Blast",  c:2,  d:"The crater is two pixels wider."},
+      {id:"after", n:"Aftershock",   c:4,  d:"Craters keep burning and strike again a moment later."},
+      {id:"chain2",n:"Chain Blast",  c:8, d:"A blast has a one-in-four chance of setting off a second blast nearby."} ],
+  3:[ {id:"diag",  n:"Virulence",    c:2,  d:"Poison spreads diagonally as well as orthogonally."},
+      {id:"fast",  n:"Fast Rot",     c:4,  d:"Poison ticks twice as often."},
+      {id:"conta", n:"Contagion",    c:8, d:"Poison spreads on every tick instead of by chance, and never dies out on its own."} ],
+  5:[ {id:"burn",  n:"Afterburner",  c:2,  d:"Accelerates with every bounce, ending far faster than it started."},
+      {id:"slip",  n:"Slipstream",   c:4,  d:"Drags a wake behind it that damages pixels it passes close to."},
+      {id:"blur",  n:"Blur",         c:8,  d:"Moving fast enough that every impact lands twice."} ],
+  4:[ {id:"arc",   n:"Arc",          c:2,  d:"Each impact jumps to three more pixels nearby."},
+      {id:"fork",  n:"Fork",         c:4,  d:"Every arc splits, doubling the pixels struck."},
+      {id:"over",  n:"Overload",     c:8, d:"Arcs reach twice as far."} ],
+};
+const perk = (k, id) => !!S.perks[k + ":" + id];
+
+//================================================================= tech tree
+// A sprawling node graph rather than a list of cards. Every node belongs to a
+// ball (which gives it its colour) and carries an icon for what it does. Nodes
+// unlock outward along dotted links, so spending points feels like exploring the
+// tree the same way finding them feels like exploring the world.
+//
+// kind:  "ball" = unlock that ball   "perk" = a behaviour change   "refine" = damage
+// icon:  drawn as inline SVG, keyed in ICONS below.
+// x / y: layout units, roughly -8..8. Scaled to fit whatever the panel gets.
+const NODES = [
+  // ---- root: the ball you start with ----
+  { id:"root",   ball:0, kind:"ball",   icon:"ball",  x:0,    y:0,    cost:0,  req:[] },
+  { id:"o_ref1", ball:0, kind:"refine", icon:"sword", x:-1.5, y:-1.1, cost:1,  req:["root"] },
+  { id:"0:frag", ball:0, kind:"perk",   icon:"split", x:1.5,  y:-1.1, cost:2,  req:["root"] },
+  { id:"0:cross",ball:0, kind:"perk",   icon:"cross", x:2.9,  y:-2.0, cost:4,  req:["0:frag"] },
+  { id:"o_ref2", ball:0, kind:"refine", icon:"sword", x:-2.9, y:-2.0, cost:1,  req:["o_ref1"] },
+  { id:"0:heavy",ball:0, kind:"perk",   icon:"hammer",x:-4.2, y:-1.2, cost:8,  req:["o_ref2"] },
+
+  // ---- red / smash ----
+  { id:"b2",     ball:2, kind:"ball",   icon:"ball",  x:0,    y:-2.4, cost:2,  req:["root"] },
+  { id:"2:wider",ball:2, kind:"perk",   icon:"burst", x:-1.1, y:-3.4, cost:2,  req:["b2"] },
+  { id:"2:after",ball:2, kind:"perk",   icon:"burst", x:0.3,  y:-3.9, cost:4,  req:["b2"] },
+  { id:"2:chain2",ball:2,kind:"perk",   icon:"burst", x:1.6,  y:-3.2, cost:8,  req:["2:after"] },
+  { id:"r_ref",  ball:2, kind:"refine", icon:"sword", x:-2.2, y:-4.3, cost:1,  req:["2:wider"] },
+
+  // ---- green / poison ----
+  { id:"b3",     ball:3, kind:"ball",   icon:"ball",  x:2.4,  y:0.6,  cost:2,  req:["root"] },
+  { id:"3:diag", ball:3, kind:"perk",   icon:"skull", x:3.9,  y:0.0,  cost:2,  req:["b3"] },
+  { id:"3:fast", ball:3, kind:"perk",   icon:"skull", x:4.4,  y:1.4,  cost:4,  req:["b3"] },
+  { id:"3:conta",ball:3, kind:"perk",   icon:"skull", x:5.8,  y:0.7,  cost:8,  req:["3:diag","3:fast"] },
+  { id:"g_ref",  ball:3, kind:"refine", icon:"sword", x:3.4,  y:2.6,  cost:1,  req:["3:fast"] },
+
+  // ---- blue / directional ----
+  { id:"b1",     ball:1, kind:"ball",   icon:"ball",  x:0.6,  y:2.5,  cost:1,  req:["root"] },
+  { id:"1:wide", ball:1, kind:"perk",   icon:"tunnel",x:1.6,  y:3.7,  cost:2,  req:["b1"] },
+  { id:"1:pierce",ball:1,kind:"perk",   icon:"tunnel",x:0.2,  y:4.2,  cost:4,  req:["b1"] },
+  { id:"1:free", ball:1, kind:"perk",   icon:"tunnel",x:1.2,  y:5.4,  cost:8,  req:["1:wide","1:pierce"] },
+  { id:"b_ref",  ball:1, kind:"refine", icon:"sword", x:-1.1, y:3.5,  cost:1,  req:["b1"] },
+
+  // ---- yellow / lightning ----
+  { id:"b4",     ball:4, kind:"ball",   icon:"bolt",  x:-2.4, y:-3.4, cost:3,  req:["b2"] },
+  { id:"4:arc",  ball:4, kind:"perk",   icon:"bolt",  x:-3.6, y:-4.3, cost:2,  req:["b4"] },
+  { id:"4:fork", ball:4, kind:"perk",   icon:"bolt",  x:-4.9, y:-3.6, cost:4,  req:["4:arc"] },
+  { id:"4:over", ball:4, kind:"perk",   icon:"bolt",  x:-5.4, y:-2.2, cost:8,  req:["4:fork"] },
+
+  // ---- purple / rush ----
+  { id:"b5",     ball:5, kind:"ball",   icon:"ball",  x:-2.6, y:1.4,  cost:3,  req:["root"] },
+  { id:"5:burn", ball:5, kind:"perk",   icon:"comet", x:-4.0, y:1.0,  cost:2,  req:["b5"] },
+  { id:"5:slip", ball:5, kind:"perk",   icon:"comet", x:-3.9, y:2.5,  cost:4,  req:["b5"] },
+  { id:"5:blur", ball:5, kind:"perk",   icon:"comet", x:-5.3, y:1.9,  cost:8,  req:["5:burn","5:slip"] },
+  { id:"p_ref",  ball:5, kind:"refine", icon:"sword", x:-2.0, y:2.8,  cost:1,  req:["b5"] },
+
+  // ---- the reserved slot ----
+  { id:"b6",     ball:6, kind:"ball",   icon:"lock",  x:3.4,  y:-2.9, cost:0,  req:["b2"] },
+];
+const NODEBY = {}; NODES.forEach(n => NODEBY[n.id] = n);
+
+// Refine nodes are repeatable; everything else is bought once.
+const isRefine = n => n.kind === "refine";
+const nodeTaken = n => isRefine(n) ? false : !!S.nodes[n.id];
+const nodeReady = n => n.req.every(r => {
+  const p = NODEBY[r];
+  return p ? (isRefine(p) ? !!S.nodes[p.id] : !!S.nodes[p.id]) : true;
+});
+function nodeCost(n) { return isRefine(n) ? REFINE_COST(S.refine) : n.cost; }
+
+const ICONS = {
+  ball:   '<circle cx="12" cy="12" r="6"/>',
+  sword:  '<path d="M6 18 L14 10 M12 4 L20 12 L16 16 L8 8 Z"/>',
+  split:  '<circle cx="8" cy="14" r="4"/><circle cx="17" cy="9" r="3"/>',
+  cross:  '<path d="M12 4 V20 M4 12 H20"/>',
+  hammer: '<path d="M5 19 L13 11 M10 5 H19 V11 H10 Z"/>',
+  burst:  '<path d="M12 3 L14 10 L21 12 L14 14 L12 21 L10 14 L3 12 L10 10 Z"/>',
+  skull:  '<circle cx="12" cy="10" r="6"/><circle cx="9.5" cy="10" r="1.6" fill="currentColor"/><circle cx="14.5" cy="10" r="1.6" fill="currentColor"/><path d="M9 18 H15"/>',
+  tunnel: '<path d="M4 8 H20 M4 16 H20 M12 4 V20"/>',
+  bolt:   '<path d="M13 3 L6 13 H11 L10 21 L18 10 H13 Z"/>',
+  comet:  '<circle cx="15" cy="9" r="4"/><path d="M4 20 L10 14 M4 14 L8 12 M9 20 L12 17"/>',
+  lock:   '<path d="M8 11 V8 a4 4 0 0 1 8 0 V11 M6 11 H18 V20 H6 Z"/>',
+};
+
 
 //================================================================ game state
 const S = {
-  dia:0, lv:{},
+  px:160, tokens:0, tokensFound:0,
+  owned:[1,0,0,0,0,0,0],
+  perks:{}, nodes:{root:1}, refine:0,
   minedCount:0, maxDepth:0, rate:0, bestRate:0, playtime:0,
+  shots:0, auto:false, goldFound:false, objectsFound:{},
 };
-UPG.forEach(u => S.lv[u.id] = 0);
 
-const L = id => S.lv[id] || 0;
+// Refine has to out-run an exponential depth curve, so its cost curve is shallow
+// on purpose. Verified against the worst case where a player spends on every
+// perk and unlock BEFORE refining even once: damage still overtakes rock by
+// reach ~320 and stays ahead. Players buy the interesting-looking thing first,
+// and the balance has to survive that rather than assume otherwise.
+const REFINE_COST = lv => 1 + Math.floor(lv / 3);
+// Refine is GLOBAL, not per ball. Per-ball damage meant that unlocking a new
+// ball threw away everything you had invested — measured as a drop from x69 to
+// x4.1 the moment Electric came online. That punishes the experimentation the
+// seven ball types exist to encourage, so damage scaling belongs to the player,
+// not to one ball. The per-ball character lives entirely in the perks.
+const ballDmg  = k => Math.pow(1.60, S.refine);
+const ballImp  = k => BALLS[k].imp;
+const ballCost = k => BALLS[k].cost;
 
-// The five derived numbers. Each one reads exactly one level, and nothing else.
-const baseDmg = () => Math.pow(1.30, L("dmg"));
-// Speed must scale exponentially: bounce rate falls as 1/cavern-radius, so a
-// linear gain gets swallowed as the cavern widens and throughput dies.
-const ballSpd = () => 55 * Math.pow(1.18, L("speed"));
-const ballCap = () => 1 + L("balls");
-const valMul  = () => Math.pow(1.25, L("value"));
-const autoInt = () => AUTO_BASE * Math.pow(0.87, L("auto") - 1);
-const OFFLINE_FRAC = 0.40;                      // flat. No longer an upgrade.
+const MAXLIVE = 400;                              // concurrent balls on screen
+const START_PX = 160;                             // seed stock, or the first shot is unaffordable
+
+// A currency you spend to earn currency can strand you at zero. If nothing is in
+// flight and the cheapest ball you own is unaffordable, the world hands you one
+// shot for free. Without this the game can soft-lock permanently, and no amount
+// of good balance prevents it — only this check does.
+//
+// It must price off the CHEAPEST OWNED ball, not the basic one: selecting a
+// pricier ball and going broke otherwise strands you at a top-up that can never
+// afford a shot, which is a dead save.
+function cheapestOwned() {
+  let best = Infinity;
+  for (const B of BALLS) if (built(B) && S.owned[B.k]) best = Math.min(best, ballCost(B.k));
+  return isFinite(best) ? best : ballCost(0);
+}
+function salvage() {
+  if (balls.length || S.px >= cheapestOwned()) return;
+  S.px = cheapestOwned();
+}
 
 //====================================================================== balls
-const BALLCOL = "#ffffff";
-let balls = [];
+let balls = [], selKind = 0;
+const liveCount = () => balls.length;
 
-const flying    = () => balls.reduce((n,b) => n + (b.state === "fly"  ? 1 : 0), 0);
-const idleCount = () => balls.reduce((n,b) => n + (b.state === "idle" ? 1 : 0), 0);
-const idleOne   = () => balls.find(b => b.state === "idle");
-
-function syncRoster() {
-  while (balls.length < ballCap())
-    balls.push({ x:CX+.5, y:CY+.5, vx:0, vy:0, trail:[], state:"idle", stall:0 });
-  if (balls.length > ballCap()) balls.length = ballCap();
+// Balls launch from wherever you click, not from the middle of the world. This is
+// the difference between eroding one disc outward and actually steering the dig:
+// you can drive a shaft toward an upgrade pixel, or work a rich seam you found.
+function spawnClear(x, y) {
+  x = Math.max(1, Math.min(WORLD-2, Math.round(x)));
+  y = Math.max(1, Math.min(WORLD-2, Math.round(y)));
+  ensureAround(x, y);
+  if (!solid(x, y)) return [x, y];
+  // Clicked inside rock: walk out to the nearest open cell so the ball has room.
+  for (let r = 1; r < 90; r++) {
+    for (let a = 0; a < 12; a++) {
+      const th = a * (Math.PI/6);
+      const nx = Math.round(x + Math.cos(th)*r), ny = Math.round(y + Math.sin(th)*r);
+      if (nx<1||ny<1||nx>=WORLD-1||ny>=WORLD-1) continue;
+      ensureAround(nx, ny);
+      if (!solid(nx, ny)) return [nx, ny];
+    }
+  }
+  return null;
 }
-function launchOne(ang) {
-  const b = idleOne();
-  if (!b) return false;
-  const sp = ballSpd();
-  b.x = CX+.5; b.y = CY+.5; b.vx = Math.cos(ang)*sp; b.vy = Math.sin(ang)*sp;
-  b.trail.length = 0; b.state = "fly"; b.stall = 0;
+function fire(kind, ang, ox, oy) {
+  const B = BALLS[kind];
+  if (!built(B) || !S.owned[kind]) return false;
+  if (balls.length >= MAXLIVE) return false;
+  const c = ballCost(kind);
+  if (S.px < c) return false;
+  const at = spawnClear(ox === undefined ? CX : ox, oy === undefined ? CY : oy);
+  if (!at) return false;
+  S.px -= c; S.shots++;
+  let a = ang;
+  if (kind === 1) a = Math.round(ang / (Math.PI/2)) * (Math.PI/2);
+  const sp = B.spd;
+  balls.push({ x:at[0]+.5, y:at[1]+.5, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+               kind, trail:[], left:ballImp(kind), stall:0, hits:0, boost:1 });
   return true;
 }
-const parkAll = () => { for (const b of balls) if (b.state === "fly") b.state = "idle"; };
+
+// Auto-fire picks a spot on the working face rather than the middle, so idle
+// play keeps widening the frontier instead of re-grinding cleared ground.
+function frontierSpawn() {
+  for (let t = 0; t < 24; t++) {
+    const a = Math.random()*Math.PI*2;
+    const r = Math.max(6, S.maxDepth * (0.55 + Math.random()*0.45));
+    const x = Math.round(CX + Math.cos(a)*r), y = Math.round(CY + Math.sin(a)*r);
+    if (x<1||y<1||x>=WORLD-1||y>=WORLD-1) continue;
+    ensureAround(x, y);
+    if (!solid(x, y)) return [x, y];
+  }
+  return [CX, CY];
+}
 
 //==================================================================== mining
 let dirty = [];
@@ -412,36 +717,101 @@ const markDirty = (x,y) => { dirty.push(x,y); };
 
 function payout(x, y, t) {
   S.minedCount++;
-  S.dia += cellVal(x, y, t) * valMul();
   const d = Math.hypot(x-CX, y-CY);
   if (d > S.maxDepth) S.maxDepth = d;
+
+  if (t === T_UPG) { S.tokens++; S.tokensFound++; toast("UPGRADE PIXEL FOUND"); return; }
+  if (t === T_GOLD) { S.goldFound = true; showGolden(); return; }
+  if (t === T_OBJ && !S.objectsFound[(x>>6)+","+(y>>6)]) {
+    S.objectsFound[(x>>6)+","+(y>>6)] = 1;
+    toast("YOU UNCOVERED SOMETHING BURIED");
+  }
+  S.px += cellVal(x, y, t);
 }
 
 function hitCell(x, y, amount) {
-  if (x < 0 || y < 0 || x >= GRID || y >= GRID) return;
-  const i = y * GRID + x, t = tier[i];
+  if (x < 0 || y < 0 || x >= WORLD || y >= WORLD) return;
+  const i = y*WORLD + x, t = tier[i];
   if (!t) return;
-  dmg[i] += amount;
-  if (dmg[i] >= cellHP(x, y, t)) {
-    tier[i] = 0; dmg[i] = 0;
+  const cur = (dmg.get(i) || 0) + amount;
+  if (cur >= cellHP(x, y, t)) {
+    tier[i] = 0; dmg.delete(i); poison.delete(i);
+    if (isHazard(t)) hazCount--;
     payout(x, y, t);
-    spawnSpark(x, y, TIERS[t].col, t >= 4 ? 4 : 1);
+    spawnSpark(x, y, TIERS[t].col, t >= 4 ? 5 : 1);
     stampLight(x, y, true);
     growBounds(x, y);
+    hazSpread.delete(i);
+    // Creep seeds one child on death, at under even odds.
+    if (t === T_PURPLE && Math.random() < 0.50) spreadHazard(x, y, T_PURPLE, 1);
+    markDirty(x, y);
+    return true;
+  } else {
+    dmg.set(i, cur);
+    // Bloom expands when struck — but ONLY the first time that pixel is struck.
+    //
+    // This has to be once-per-pixel, not once-per-hit. Per-hit spreading looks
+    // reasonable until you do the arithmetic: a Bloom deep in the world takes
+    // well over a hundred hits to break, so even a small per-hit chance means
+    // dozens of offspring each, and the hazard grows exponentially and eats the
+    // cavern. Measured: 3k -> 12k -> 23k cells in sixteen minutes.
+    //
+    // Gated this way each Bloom has a single chance below 1, so the expected
+    // offspring per pixel is 0.55 and total growth from one seed converges to
+    // 1/(1-0.55) ~= 2.2 cells. Bounded by construction, not by tuning.
+    if (t === T_ORANGE && !hazSpread.has(i)) {
+      hazSpread.add(i);
+      if (Math.random() < 0.55) spreadHazard(x, y, T_ORANGE, 1);
+    }
   }
   markDirty(x, y);
+  return false;
+}
+
+// Hazards only grow into ground you have ALREADY cleared, never into fresh rock.
+// That keeps them a threat to your progress rather than a wall against it.
+function spreadHazard(x, y, t, n) {
+  if (hazCount >= HAZ_CAP) return;
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+  for (let k = 0; k < n; k++) {
+    const d = dirs[(Math.random()*4)|0];
+    const nx = x + d[0], ny = y + d[1];
+    if (nx < 0 || ny < 0 || nx >= WORLD || ny >= WORLD) continue;
+    const j = ny*WORLD + nx;
+    if (tier[j] !== 0 || !lit[j]) continue;          // cleared, lit ground only
+    tier[j] = t; dmg.delete(j); hazCount++;
+    markDirty(nx, ny);
+  }
+}
+
+function blast(cx0, cy0, radius, amount) {
+  const r = Math.ceil(radius);
+  for (let oy = -r; oy <= r; oy++)
+    for (let ox = -r; ox <= r; ox++) {
+      const dd = Math.sqrt(ox*ox + oy*oy);
+      if (dd > radius) continue;
+      hitCell(cx0+ox, cy0+oy, Math.max(1, amount * (1 - dd/(radius+1))));
+    }
+}
+
+function stampLight(x, y, mark) {
+  for (let oy = -4; oy <= 4; oy++) {
+    const ny = y + oy; if (ny < 0 || ny >= WORLD) continue;
+    for (let ox = -4; ox <= 4; ox++) {
+      const nx = x + ox; if (nx < 0 || nx >= WORLD) continue;
+      const c = Math.max(Math.abs(ox), Math.abs(oy));
+      const lvl = c <= 1 ? 3 : c <= 2 ? 2 : 1, i = ny*WORLD + nx;
+      if (lit[i] < lvl) { lit[i] = lvl; if (mark) markDirty(nx, ny); }
+    }
+  }
 }
 
 //=================================================================== physics
-const solid = (x,y) => x<0||y<0||x>=GRID||y>=GRID|| tier[y*GRID+x] !== 0;
+const solid = (x,y) => x<0||y<0||x>=WORLD||y>=WORLD|| tier[y*WORLD+x] !== 0;
 
-// Any ball crossing a lot of open ground without hitting anything re-aims at the
-// nearest rock. Without this, balls idle forever in a wide cavern. A normal
-// crossing is up to 2x the cavern radius, so only treat a ball as stuck well
-// beyond that, or they appear to steer themselves in mid-air.
-const STALL_MIN = 140;
+const STALL_MIN = 180;
 function stallLimit() {
-  const r = Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0) / 2;
+  const r = Math.max(bb.x1-bb.x0, bb.y1-bb.y0) / 2;
   return Math.max(STALL_MIN, r * 3);
 }
 function reseek(b) {
@@ -449,60 +819,146 @@ function reseek(b) {
   let best = null, bestD = 1e9;
   for (let r = 0; r < 32; r++) {
     const a = r * (Math.PI*2/32), dx = Math.cos(a), dy = Math.sin(a);
-    for (let s = 2; s < 500; s += 2) {
+    for (let s = 2; s < 900; s += 3) {
       const x = (b.x + dx*s)|0, y = (b.y + dy*s)|0;
-      if (x<0||y<0||x>=GRID||y>=GRID) break;
-      if (tier[y*GRID+x]) { if (s < bestD) { bestD = s; best = a; } break; }
+      if (x<0||y<0||x>=WORLD||y>=WORLD) break;
+      if (tier[y*WORLD+x]) { if (s < bestD) { bestD = s; best = a; } break; }
     }
   }
-  if (best === null) return;
-  const sp = ballSpd();
-  b.vx = Math.cos(best)*sp; b.vy = Math.sin(best)*sp;
+  if (best === null) { b.left = 0; return; }      // nothing reachable: retire it
+  let a = best;
+  if (b.kind === 1) a = Math.round(a/(Math.PI/2))*(Math.PI/2);
+  const sp = BALLS[b.kind].spd;
+  b.vx = Math.cos(a)*sp; b.vy = Math.sin(a)*sp;
+}
+
+function onImpact(b, hx, hy) {
+  b.stall = 0; b.left--; b.hits = (b.hits || 0) + 1;
+  const k = b.kind;
+  let d = ballDmg(k);
+  let destroyed = false;
+
+  if (k === 0) {
+    if (perk(0,"heavy") && b.hits % 8 === 0) d *= 5;       // Heavy Strike
+    destroyed = hitCell(hx, hy, d);
+    if (perk(0,"cross")) {                                  // Crossbreak
+      hitCell(hx+1,hy,d); hitCell(hx-1,hy,d);
+      hitCell(hx,hy+1,d); hitCell(hx,hy-1,d);
+    }
+    if (perk(0,"frag") && !b.frag && b.left > 4 && balls.length < MAXLIVE) {
+      b.frag = 1;                                           // Fragment: split once
+      const half = b.left >> 1; b.left -= half;
+      const a = Math.random()*Math.PI*2, sp = BALLS[0].spd;
+      balls.push({ x:b.x, y:b.y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+                   kind:0, trail:[], left:half, stall:0, frag:1, hits:0 });
+    }
+  } else if (k === 1) {
+    destroyed = hitCell(hx, hy, d);
+    if (perk(1,"wide")) {                                   // Widebore
+      const px = Math.abs(b.vx) > Math.abs(b.vy) ? [0,1] : [1,0];
+      hitCell(hx+px[0], hy+px[1], d); hitCell(hx-px[0], hy-px[1], d);
+    }
+    if (perk(1,"pierce")) {                                 // Pierce
+      const sx = Math.sign(b.vx), sy = Math.sign(b.vy);
+      for (let i = 1; i <= 4; i++) hitCell(hx + sx*i, hy + sy*i, d);
+    }
+    if (perk(1,"free") && !destroyed) b.left++;              // Freewheel: refund
+  } else if (k === 2) {
+    const r = 1.5 + (perk(2,"wider") ? 2 : 0);
+    blast(hx, hy, r, d);
+    if (perk(2,"after")) aftershocks.push({ x:hx, y:hy, r, d:d*0.7, t:0.45 });
+    if (perk(2,"chain2") && Math.random() < 0.25) {
+      const a = Math.random()*Math.PI*2, off = 3 + Math.random()*4;
+      blast(hx + Math.round(Math.cos(a)*off), hy + Math.round(Math.sin(a)*off), r, d*0.8);
+    }
+  } else if (k === 3) {
+    destroyed = hitCell(hx, hy, d);
+    const i = hy*WORLD + hx;
+    if (tier[i] && !isHazard(tier[i]) && poison.size < POISON_CAP)
+      poison.set(i, (poison.get(i)||0) + 1);
+  } else if (k === 4) {
+    destroyed = hitCell(hx, hy, d);
+    let n = 2 + (perk(4,"arc") ? 3 : 0);                    // Arc
+    if (perk(4,"fork")) n *= 2;                             // Fork
+    const reach = (perk(4,"over") ? 6 : 3);                 // Overload
+    for (let i = 0; i < n; i++) {
+      const a = Math.random()*Math.PI*2, r = 1 + Math.random()*reach;
+      hitCell(hx + Math.round(Math.cos(a)*r), hy + Math.round(Math.sin(a)*r), d*0.8);
+    }
+  } else if (k === 5) {
+    if (perk(5,"blur")) d *= 2;                             // Blur: double strike
+    destroyed = hitCell(hx, hy, d);
+    if (perk(5,"burn")) b.boost = Math.min(3, (b.boost || 1) * 1.05);   // Afterburner
+  } else {
+    destroyed = hitCell(hx, hy, d);
+  }
+}
+
+// Aftershock craters, ticked from the main loop.
+const aftershocks = [];
+function tickAftershocks(dt) {
+  for (let i = aftershocks.length-1; i >= 0; i--) {
+    const a = aftershocks[i];
+    a.t -= dt;
+    if (a.t > 0) continue;
+    blast(a.x, a.y, a.r, a.d);
+    aftershocks.splice(i, 1);
+  }
 }
 
 function stepBall(b, dt) {
+  ensureAround(b.x, b.y);
   b.trail.push(b.x, b.y);
-  if (b.trail.length > 26) b.trail.splice(0,2);
+  if (b.trail.length > 24) b.trail.splice(0,2);
 
   const mag = Math.hypot(b.vx, b.vy) || 1;
   const ux = b.vx/mag, uy = b.vy/mag;
   let remain = mag * dt;
 
-  while (remain > 0 && b.state === "fly") {
+  while (remain > 0 && b.left > 0) {
     const s = Math.min(0.35, remain);
     remain -= s;
     const nx = b.x + ux*s, ny = b.y + uy*s;
     const cxi = Math.floor(b.x), cyi = Math.floor(b.y);
     const gxi = Math.floor(nx),  gyi = Math.floor(ny);
-    const d = baseDmg();
 
     let bounced = false;
-    if (gxi !== cxi && solid(gxi, cyi)) { hitCell(gxi, cyi, d); b.vx = -b.vx; bounced = true; }
-    if (gyi !== cyi && solid(cxi, gyi)) { hitCell(cxi, gyi, d); b.vy = -b.vy; bounced = true; }
+    if (gxi !== cxi && solid(gxi, cyi)) { onImpact(b, gxi, cyi); b.vx = -b.vx; bounced = true; }
+    if (gyi !== cyi && solid(cxi, gyi)) { onImpact(b, cxi, gyi); b.vy = -b.vy; bounced = true; }
     if (!bounced && (gxi !== cxi || gyi !== cyi) && solid(gxi, gyi)) {
-      hitCell(gxi, gyi, d); b.vx = -b.vx; b.vy = -b.vy; bounced = true;
+      onImpact(b, gxi, gyi); b.vx = -b.vx; b.vy = -b.vy; bounced = true;
     }
 
     if (bounced) {
-      b.stall = 0;
-      const sp = ballSpd();
+      if (b.kind === 1) {                          // Directional: axis-lock + drift
+        if (Math.random() < .5) { const t = b.vx; b.vx = b.vy; b.vy = t; }
+        const perp = Math.abs(b.vx) > Math.abs(b.vy) ? [0,1] : [1,0];
+        const offs = (Math.random() < .5 ? -1 : 1) * (1 + (Math.random()*3|0));
+        const tx = b.x + perp[0]*offs, ty = b.y + perp[1]*offs;
+        if (!solid(Math.floor(tx), Math.floor(ty))) { b.x = tx; b.y = ty; }
+      }
+      const sp = BALLS[b.kind].spd * (b.boost || 1);
       const m = Math.hypot(b.vx, b.vy) || 1;
       b.vx = b.vx/m*sp; b.vy = b.vy/m*sp;
       return;
     }
     b.x = nx; b.y = ny; b.stall += s;
+    if (b.kind === 5 && perk(5,"slip") && Math.random() < 0.05) {   // Slipstream wake
+      const wd = ballDmg(5) * 0.5;
+      hitCell(Math.floor(nx)+1, Math.floor(ny), wd);
+      hitCell(Math.floor(nx)-1, Math.floor(ny), wd);
+      hitCell(Math.floor(nx), Math.floor(ny)+1, wd);
+      hitCell(Math.floor(nx), Math.floor(ny)-1, wd);
+    }
   }
   if (b.stall > stallLimit()) reseek(b);
 }
 
-//--------------------------------------------------------------- collisions
-// Balls bounce off one another. Bucketed by an 8-cell grid so the swarm stays cheap.
+// Directional balls must stay axis-aligned after being knocked about.
 const buckets = new Map();
 function collide() {
   buckets.clear();
-  const fly = [];
-  for (const b of balls) if (b.state === "fly") fly.push(b);
-  for (const b of fly) {
+  for (const b of balls) {
     const k = ((b.x/8)|0) + "," + ((b.y/8)|0);
     let a = buckets.get(k); if (!a) buckets.set(k, a = []);
     a.push(b);
@@ -520,7 +976,7 @@ function collide() {
         if (d2 > R2 || d2 < 1e-9) continue;
         const d = Math.sqrt(d2), nx = dx/d, ny = dy/d;
         const p = (a.vx-b.vx)*nx + (a.vy-b.vy)*ny;
-        if (p <= 0) continue;                       // already separating
+        if (p <= 0) continue;
         a.vx -= p*nx; a.vy -= p*ny; b.vx += p*nx; b.vy += p*ny;
         const sep = (R-d)/2 + .01;
         a.x -= nx*sep; a.y -= ny*sep; b.x += nx*sep; b.y += ny*sep;
@@ -528,43 +984,96 @@ function collide() {
       }
     }
   }
+  for (const b of balls) if (b.kind === 1) {
+    const sp = Math.hypot(b.vx,b.vy)||1;
+    if (Math.abs(b.vx) > Math.abs(b.vy)) { b.vx = Math.sign(b.vx)*sp; b.vy = 0; }
+    else { b.vy = Math.sign(b.vy)*sp; b.vx = 0; }
+  }
+}
+
+//=================================================================== poison
+let poisonAcc = 0;
+const POISON_CAP = 60000;
+function tickPoison(dt) {
+  if (!poison.size) return;
+  poisonAcc += dt;
+  const interval = perk(3,"fast") ? 0.15 : 0.30;          // Fast Rot
+  if (poisonAcc < interval) return;
+  poisonAcc = 0;
+  const pot = ballDmg(3) * 0.45;
+  const always = perk(3,"conta");                          // Contagion
+  const spr = always ? 1 : 0.10;
+  const dirs = perk(3,"diag")                              // Virulence
+    ? [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]
+    : [[1,0],[-1,0],[0,1],[0,-1]];
+  const adds = [];
+  for (const entry of poison) {
+    const i = entry[0], st = entry[1];
+    const x = i % WORLD, y = (i / WORLD) | 0;
+    if (!tier[i]) { poison.delete(i); continue; }
+    hitCell(x, y, Math.max(1, pot * st));
+    if (!tier[i]) { poison.delete(i); continue; }
+    if (Math.random() < spr) {
+      const n = dirs[(Math.random()*dirs.length)|0];
+      const nx = x+n[0], ny = y+n[1];
+      if (nx>=0 && ny>=0 && nx<WORLD && ny<WORLD) {
+        const j = ny*WORLD+nx;
+        if (tier[j] && !isHazard(tier[j])) adds.push(j);
+      }
+    }
+  }
+  for (const i of adds) if (poison.size < POISON_CAP) poison.set(i, poison.get(i)||1);
 }
 
 //================================================================= particles
 const sparks = [];
 function spawnSpark(x,y,col,n) {
-  if (sparks.length > 320) return;
+  if (sparks.length > 340) return;
   for (let i=0;i<n;i++) {
     const a = Math.random()*6.283, s = 2+Math.random()*9;
     sparks.push({ x:x+.5, y:y+.5, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:.35+Math.random()*.5, t:0, col });
   }
 }
-const motes = [];
-for (let i=0;i<90;i++) motes.push({ x:Math.random(), y:Math.random(), p:Math.random()*6.28,
-  c: Math.random()<.5 ? "#e040e0" : "#40e070" });
 
 //================================================================== renderer
 const cv = document.getElementById("c"), ctx = cv.getContext("2d");
-const off = document.createElement("canvas"); off.width = off.height = GRID;
+const off = document.createElement("canvas"); off.width = off.height = WORLD;
 const octx = off.getContext("2d", { alpha:false });
 let W=0, H=0, DPR=1;
 
-const GLOW = (function () {
+const GLOW = {};
+function glowFor(col) {
+  if (GLOW[col]) return GLOW[col];
   const g = document.createElement("canvas"); g.width = g.height = 32;
   const c = g.getContext("2d");
   const grad = c.createRadialGradient(16,16,0, 16,16,16);
-  grad.addColorStop(0, BALLCOL); grad.addColorStop(0.35, BALLCOL+"88"); grad.addColorStop(1, BALLCOL+"00");
+  grad.addColorStop(0, col); grad.addColorStop(0.35, col+"88"); grad.addColorStop(1, col+"00");
   c.fillStyle = grad; c.fillRect(0,0,32,32);
-  return g;
-})();
+  return GLOW[col] = g;
+}
 
+// Auto-fit with a zoom floor. Once the cavern outgrows the floor the camera
+// stops pulling back and follows the mining instead, so the world stays
+// readable and most of the world stays off-screen and unexplored.
+const ZOOM_MIN = 2.2, ZOOM_MAX = 40;
 const cam = { x:CX, y:CY, z:9, tx:CX, ty:CY, tz:9, manual:false };
 const bb = { x0:CX-8, y0:CY-8, x1:CX+8, y1:CY+8 };
 function growBounds(x,y){ if(x<bb.x0)bb.x0=x; if(x>bb.x1)bb.x1=x; if(y<bb.y0)bb.y0=y; if(y>bb.y1)bb.y1=y; }
+
+let focusX = CX, focusY = CY;
 function fitCamera() {
-  cam.tx = (bb.x0+bb.x1)/2; cam.ty = (bb.y0+bb.y1)/2;
   const zx = W/(bb.x1-bb.x0+26), zy = H/(bb.y1-bb.y0+26);
-  cam.tz = Math.max(1.0, Math.min(46, Math.min(zx,zy)));
+  const fit = Math.min(zx, zy);
+  if (fit >= ZOOM_MIN) {                          // whole cavern still fits
+    cam.tz = Math.min(ZOOM_MAX, fit);
+    cam.tx = (bb.x0+bb.x1)/2; cam.ty = (bb.y0+bb.y1)/2;
+  } else {                                        // floored: follow the action
+    cam.tz = ZOOM_MIN;
+    let sx = 0, sy = 0, n = 0;
+    for (const b of balls) { sx += b.x; sy += b.y; n++; }
+    if (n) { focusX += (sx/n - focusX) * 0.05; focusY += (sy/n - focusY) * 0.05; }
+    cam.tx = focusX; cam.ty = focusY;
+  }
 }
 function resize() {
   DPR = Math.min(devicePixelRatio||1, 2);
@@ -577,25 +1086,36 @@ addEventListener("resize", resize);
 
 function cellColor(i, t) {
   const c = TIERS[t].col;
-  const hp = cellHP(i%GRID, (i/GRID)|0, t);
-  let f = dmg[i] > 0 ? Math.max(.28, 1 - dmg[i]/hp*.72) : 1;
+  const hp = cellHP(i%WORLD, (i/WORLD)|0, t);
+  const dv = dmg.get(i) || 0;
+  let f = dv > 0 ? Math.max(.28, 1 - dv/hp*.72) : 1;
   f *= LITMUL[lit[i]];
-  return "rgb("+((c[0]*f)|0)+","+((c[1]*f)|0)+","+((c[2]*f)|0)+")";
+  const p = poison.has(i) ? 1 : 0;
+  const r = c[0]*f*(1-p*.55), g = c[1]*f + p*90, b = c[2]*f*(1-p*.55);
+  return "rgb("+(r|0)+","+(g|0)+","+(b|0)+")";
 }
-function paintAll() {
-  octx.fillStyle = "#050b09"; octx.fillRect(0,0,GRID,GRID);
-  for (let i=0;i<GRID*GRID;i++) {
-    const t = tier[i];
+// Painting is per-chunk, never over the whole board.
+function paintChunk(cx, cy) {
+  const x0 = cx*CHUNK, y0 = cy*CHUNK;
+  const x1 = Math.min(WORLD, x0+CHUNK), y1 = Math.min(WORLD, y0+CHUNK);
+  octx.fillStyle = "#070a12"; octx.fillRect(x0, y0, x1-x0, y1-y0);
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+    const i = y*WORLD + x, t = tier[i];
     if (!t || !lit[i]) continue;
-    octx.fillStyle = cellColor(i,t); octx.fillRect(i%GRID,(i/GRID)|0,1,1);
+    octx.fillStyle = cellColor(i,t); octx.fillRect(x,y,1,1);
   }
+}
+function repaintReady() {
+  octx.fillStyle = "#070a12"; octx.fillRect(0,0,WORLD,WORLD);
+  for (let cy = 0; cy < CW; cy++) for (let cx = 0; cx < CW; cx++)
+    if (chunkReady[cy*CW+cx]) paintChunk(cx, cy);
 }
 function flushDirty() {
   for (let k=0;k<dirty.length;k+=2) {
     const x=dirty[k], y=dirty[k+1];
-    if (x<0||y<0||x>=GRID||y>=GRID) continue;
-    const i = y*GRID+x, t = tier[i];
-    octx.fillStyle = (t && lit[i]) ? cellColor(i,t) : "#050b09";
+    if (x<0||y<0||x>=WORLD||y>=WORLD) continue;
+    const i = y*WORLD+x, t = tier[i];
+    octx.fillStyle = (t && lit[i]) ? cellColor(i,t) : "#070a12";
     octx.fillRect(x,y,1,1);
   }
   dirty.length = 0;
@@ -603,22 +1123,13 @@ function flushDirty() {
 
 function draw(dt) {
   flushDirty();
-  ctx.fillStyle = "#040806"; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = "#070a12"; ctx.fillRect(0,0,W,H);
   const z = cam.z, sw = W/z, sh = H/z, sx = cam.x-sw/2, sy = cam.y-sh/2;
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(off, sx, sy, sw, sh, 0, 0, W, H);
   const toS = (wx,wy) => [(wx-sx)*z, (wy-sy)*z];
 
   ctx.globalCompositeOperation = "lighter";
-  for (const m of motes) {
-    m.p += dt*.6;
-    const P = toS(m.x*sw+sx, m.y*sh+sy+Math.sin(m.p)*1.5);
-    ctx.fillStyle = m.c; ctx.globalAlpha = .07+Math.sin(m.p*1.7)*.05;
-    const ms = Math.max(1, Math.min(2.5, z*.3));
-    ctx.fillRect(P[0],P[1],ms,ms);
-  }
-  ctx.globalAlpha = 1;
-
   for (let i=sparks.length-1;i>=0;i--) {
     const p = sparks[i]; p.t += dt;
     if (p.t > p.life) { sparks.splice(i,1); continue; }
@@ -630,15 +1141,13 @@ function draw(dt) {
   }
   ctx.globalAlpha = 1;
 
-  // Trails shorten as the swarm grows so total segment count stays bounded.
-  const live = flying();
-  const tailPts = live > 18 ? 7 : live > 8 ? 10 : 14;
+  const tailPts = balls.length > 26 ? 6 : balls.length > 14 ? 9 : 13;
   for (const b of balls) {
-    if (b.state !== "fly") continue;
+    const col = BALLS[b.kind].col;
     const seg = Math.min(tailPts, b.trail.length>>1);
     if (seg > 1) {
-      ctx.strokeStyle = BALLCOL; ctx.lineWidth = Math.max(1, z*.22);
-      ctx.globalAlpha = .4; ctx.beginPath();
+      ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, z*.22);
+      ctx.globalAlpha = .38; ctx.beginPath();
       const start = b.trail.length - seg*2;
       for (let k=start;k<b.trail.length;k+=2) {
         const P = toS(b.trail[k], b.trail[k+1]);
@@ -648,50 +1157,79 @@ function draw(dt) {
     }
     const P = toS(b.x,b.y), sz = Math.max(2, z*.8), g = Math.max(8, sz*3.2);
     ctx.globalAlpha = 1;
-    ctx.drawImage(GLOW, P[0]-g/2, P[1]-g/2, g, g);   // cached glow, no shadowBlur
-    ctx.fillStyle = BALLCOL;
+    ctx.drawImage(glowFor(col), P[0]-g/2, P[1]-g/2, g, g);
+    ctx.fillStyle = col;
     ctx.fillRect(P[0]-sz/2, P[1]-sz/2, sz, sz);
   }
   ctx.globalCompositeOperation = "source-over";
 
-  if (aim !== null && idleOne()) {
-    const P = toS(CX+.5, CY+.5);
-    ctx.strokeStyle = BALLCOL; ctx.globalAlpha = .8;
-    ctx.setLineDash([4,6]); ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(P[0],P[1]);
-    ctx.lineTo(P[0]+Math.cos(aim)*220, P[1]+Math.sin(aim)*220);
-    ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
-    ctx.fillStyle = BALLCOL; ctx.fillRect(P[0]-2,P[1]-2,4,4);
+  if (aim !== null && canFire(selKind)) {
+    const okHere = !solid(Math.round(aim[0]), Math.round(aim[1]));
+    const P = toS(aim[0], aim[1]), col = BALLS[selKind].col;
+    ctx.strokeStyle = okHere ? col : "#7b8598"; ctx.globalAlpha = okHere ? .85 : .4;
+    ctx.lineWidth = 1.5;
+    const r = 9;
+    ctx.beginPath();
+    ctx.moveTo(P[0]-r,P[1]); ctx.lineTo(P[0]-3,P[1]);
+    ctx.moveTo(P[0]+3,P[1]); ctx.lineTo(P[0]+r,P[1]);
+    ctx.moveTo(P[0],P[1]-r); ctx.lineTo(P[0],P[1]-3);
+    ctx.moveTo(P[0],P[1]+3); ctx.lineTo(P[0],P[1]+r);
+    ctx.stroke();
+    ctx.globalAlpha = .35; ctx.beginPath();
+    ctx.arc(P[0],P[1],r,0,6.2832); ctx.stroke();
+    ctx.globalAlpha = 1;
   }
 
   const g2 = ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.12, W/2,H/2,Math.max(W,H)*.72);
-  g2.addColorStop(0,"rgba(4,8,6,0)"); g2.addColorStop(.6,"rgba(4,8,6,.12)"); g2.addColorStop(1,"rgba(4,8,6,.62)");
+  g2.addColorStop(0,"rgba(7,10,18,0)"); g2.addColorStop(.6,"rgba(7,10,18,.14)");
+  g2.addColorStop(1,"rgba(7,10,18,.66)");
   ctx.fillStyle = g2; ctx.fillRect(0,0,W,H);
 }
 
 //====================================================================== loop
 let last = performance.now(), aim = null;
-let rateT = 0, rateMark = 0, diaMark = 0, diaRate = 0;
+let rateT = 0, rateMark = 0, pxMark = 0, pxRate = 0;
 let fps = 0, fpsAcc = 0, fpsFrames = 0;
+const canFire = k => built(BALLS[k]) && S.owned[k] && S.px >= ballCost(k) && balls.length < MAXLIVE;
+
 function tickRate(dt) {
   rateT += dt; S.playtime += dt;
   if (rateT < 1) return;
   const obs = (S.minedCount - rateMark)/rateT;
   S.rate = S.rate ? S.rate*.75 + obs*.25 : obs;
   if (S.rate > S.bestRate) S.bestRate = S.rate;
-  const dobs = (S.dia - diaMark)/rateT;
-  diaRate = diaRate ? diaRate*.75 + dobs*.25 : dobs;
-  rateMark = S.minedCount; diaMark = S.dia; rateT = 0;
+  const pobs = (S.px - pxMark)/rateT;
+  pxRate = pxRate ? pxRate*.75 + pobs*.25 : pobs;
+  rateMark = S.minedCount; pxMark = S.px; rateT = 0;
 }
 let autoT = 0;
-// Auto-launches always pick a random heading. Steering them at the richest rock
-// made the cavern erode into an unnaturally even disc.
+const AUTO_INT = 0.05;
+const AUTO_BURST = 12;            // most launches per tick, so it ramps not spikes
+// Auto-fire tops the swarm up rather than firing on a fixed timer.
+//
+// A one-shot-per-tick rate was a hidden ceiling: balls launched at the working
+// face spend their impact budget almost immediately and die young, so
+// concurrency collapsed and total output pinned at shots/sec x impacts/shot no
+// matter how rich the player got. Your pixels should be the limit, not a timer.
 function tickAuto(dt) {
-  if (!L("auto")) return;
+  if (!S.auto) return;
   autoT += dt;
-  if (autoT < autoInt()) return;
+  if (autoT < AUTO_INT) return;
   autoT = 0;
-  if (idleOne()) launchOne(Math.random() * Math.PI * 2);
+  for (let i = 0; i < AUTO_BURST; i++) {
+    if (balls.length >= MAXLIVE) return;
+    let k = canFire(selKind) ? selKind : -1;
+    if (k < 0) {                                  // fall back to anything affordable
+      let bestC = Infinity;
+      for (const B of BALLS) {
+        if (!canFire(B.k)) continue;
+        if (ballCost(B.k) < bestC) { bestC = ballCost(B.k); k = B.k; }
+      }
+    }
+    if (k < 0) return;
+    const at = frontierSpawn();
+    if (!fire(k, Math.random()*Math.PI*2, at[0], at[1])) return;
+  }
 }
 
 function frame(now) {
@@ -701,13 +1239,14 @@ function frame(now) {
   const dt = paused ? 0 : real;
   if (!paused) {
     const sub = 3;
-    for (let s=0;s<sub;s++) for (const b of balls) if (b.state==="fly") stepBall(b, dt/sub);
+    for (let s=0;s<sub;s++) for (const b of balls) if (b.left > 0) stepBall(b, dt/sub);
     collide();
-    tickAuto(dt); tickRate(dt);
+    for (let i=balls.length-1;i>=0;i--) if (balls[i].left <= 0) balls.splice(i,1);
+    tickPoison(dt); tickAftershocks(dt); tickAuto(dt); tickRate(dt); salvage();
   }
 
   if (!cam.manual) fitCamera();
-  const k = Math.min(1, dt*(cam.manual ? 9 : .9));
+  const k = Math.min(1, dt*(cam.manual ? 9 : 1.1));
   cam.x += (cam.tx-cam.x)*k; cam.y += (cam.ty-cam.y)*k; cam.z += (cam.tz-cam.z)*k;
 
   draw(dt);
@@ -724,30 +1263,45 @@ function fmt(n) {
   let i=-1; while (n >= 1000 && i < u.length-1) { n/=1000; i++; }
   return n.toFixed(n<10?2:n<100?1:0)+u[i];
 }
-let hudAcc = 0, readySig = "";
+let hudAcc = 0, dockSig = "";
 function updateHUD() {
-  $("dia").innerHTML = "&#9670; "+fmt(S.dia);
-  $("rate2").textContent = "+"+fmt(diaRate)+" /s";
+  $("px").innerHTML = fmt(S.px) + ' <i>px</i>';
+  $("rate2").textContent = (pxRate>=0?"+":"") + fmt(pxRate) + " /s";
+  $("tokn").textContent = S.tokens;
+  $("tok").className = S.tokens ? "" : "none";
   if (fps) { $("fps").textContent = fps.toFixed(0);
              $("fps").className = fps < 30 ? "bad" : "ok"; }
-  $("pct").textContent = (S.minedCount/(GRID*GRID)*100).toFixed(3)+"%";
+  $("pct").textContent = (S.minedCount/TOTAL*100).toFixed(4)+"%";
   $("mined").textContent = fmt(S.minedCount);
-  $("rate").textContent = fmt(S.rate)+"/s";
-  $("ballct").textContent = flying()+" / "+balls.length;
+  $("rate").textContent = fmt(S.rate);
+  $("ballct").textContent = balls.length + " / " + MAXLIVE;
   $("depth").textContent = Math.round(S.maxDepth);
-  $("prompt").classList.toggle("on", S.minedCount < 30 && !!idleOne());
-
-  const ic = idleCount(), sig = ic+"/"+balls.length;
-  if (sig !== readySig) {
-    readySig = sig;
-    $("ready").innerHTML = '<div class="rn">BALLS READY</div><div class="rc">'
-      + ic + '<i>/' + balls.length + '</i></div>';
-    $("ready").classList.toggle("armed", ic > 0);
-  }
+  $("prompt").classList.toggle("on", S.shots < 6 && canFire(selKind));
+  drawDock();
   if (++hudAcc % 20 === 0) {
     if (panelOpen === "upg")   refreshUpg();
     if (panelOpen === "stats") refreshStats();
   }
+}
+function drawDock() {
+  const sig = BALLS.map(B => (S.owned[B.k]?1:0)+(canFire(B.k)?"c":"")).join("|")+selKind+S.tokens;
+  if (sig === dockSig) return;
+  dockSig = sig;
+  let h = "";
+  for (const B of BALLS) {
+    const isLocked = !S.owned[B.k];
+    h += '<div class="slot'+(B.k===selKind?" sel":"")+(canFire(B.k)?" can":"")
+       + (isLocked?" locked":"")+'" style="color:'+B.col+';border-color:'+B.col+'" data-k="'+B.k+'">'
+       + '<div class="kn">'+(isLocked && !built(B) ? "?????" : B.name.toUpperCase())+'</div>'
+       + '<div class="kc">'+(isLocked ? "—" : fmt(ballCost(B.k))+"px")+'</div>'
+       + '<div class="kk">['+(B.k+1)+']</div></div>';
+  }
+  const d = $("dock"); d.innerHTML = h;
+  for (const el of d.children) el.onclick = () => {
+    const k = +el.dataset.k;
+    if (!S.owned[k]) { openPanel("upg"); return; }
+    selKind = k; dockSig = ""; drawDock();
+  };
 }
 let toastT = 0;
 function toast(msg) {
@@ -767,93 +1321,165 @@ function openPanel(name) {
   if (panelOpen === "stats") refreshStats();
 }
 
-function buildUpg() {
-  const wrap = $("nodes"); wrap.innerHTML = "";
-  for (const u of UPG) {
-    const n = document.createElement("div");
-    n.className = "node"; n.dataset.id = u.id;
-    n.innerHTML = '<div class="nm">'+u.name+'</div><div class="lv"></div>'
-                + '<div class="desc">'+u.desc+'</div><div class="cost"></div>';
-    n.onclick = () => buy(u.id);
-    wrap.appendChild(n);
-  }
-  refreshUpg();
+// ---- the tech tree ----
+// SVG for the dotted links, absolutely positioned buttons for the nodes, so the
+// graph scales to any panel size while nodes stay crisp and clickable.
+let treeSel = null;
+const NODE_R = 26;
+function nodeLabel(n) {
+  if (n.kind === "ball")   return built(BALLS[n.ball]) ? BALLS[n.ball].name + " ball" : "?????";
+  if (n.kind === "refine") return "Refine";
+  const P = (PERKS[n.ball]||[]).find(x => n.id === n.ball + ":" + x.id);
+  return P ? P.n : n.id;
 }
-function refreshUpg() {
-  for (const n of document.querySelectorAll("#nodes .node")) {
-    const u = UPGBY[n.dataset.id], lv = L(u.id), maxed = lv >= u.max;
-    n.querySelector(".lv").textContent = maxed
-      ? "MAX — " + u.fmt(lv)
-      : "Lv " + lv + "   ·   " + u.fmt(lv) + " → " + u.fmt(lv+1);
-    let can = false, html = "";
-    if (!maxed) {
-      const c = Math.ceil(u.cost(lv));
-      can = S.dia >= c;
-      html = '<span class="'+(can?"":"short")+'">◆'+fmt(c)+'</span>';
-    }
-    n.querySelector(".cost").innerHTML = html;
-    n.classList.toggle("max", maxed);
-    n.classList.toggle("afford", can);
-  }
+function nodeDesc(n) {
+  if (n.kind === "ball")   return built(BALLS[n.ball]) ? BALLS[n.ball].desc
+                                : "This ball has not been specified yet. The slot is reserved.";
+  if (n.kind === "refine") return "Sharpens every ball you own. The one plain multiplier, so damage "
+                                + "can keep pace with rock that hardens the further out you dig.";
+  const P = (PERKS[n.ball]||[]).find(x => n.id === n.ball + ":" + x.id);
+  return P ? P.d : "";
 }
-function buy(id) {
-  const u = UPGBY[id], lv = L(id);
-  if (lv >= u.max) return;
-  const c = Math.ceil(u.cost(lv));
-  if (S.dia < c) { toast("NOT ENOUGH DIAMONDS"); return; }
-  S.dia -= c;
-  S.lv[id] = lv + 1;
-  syncRoster();
-  if (id === "auto" && lv === 0) toast("AUTO-LAUNCH ONLINE");
-  refreshUpg(); save();
+function nodeState(n) {
+  if (n.kind === "ball" && !built(BALLS[n.ball])) return "locked";
+  if (nodeTaken(n)) return "taken";
+  if (!nodeReady(n)) return "locked";
+  return S.tokens >= nodeCost(n) ? "ready" : "short";
 }
 
-//================================================================== stats UI
+function refreshUpg() {
+  const host = $("balls");
+  const xs = NODES.map(n=>n.x), ys = NODES.map(n=>n.y);
+  const minX = Math.min(...xs)-1, maxX = Math.max(...xs)+1;
+  const minY = Math.min(...ys)-1, maxY = Math.max(...ys)+1;
+  const SCALE = 74;
+  const w = (maxX-minX)*SCALE, h = (maxY-minY)*SCALE;
+  const px = n => (n.x-minX)*SCALE, py = n => (n.y-minY)*SCALE;
+
+  let links = "";
+  for (const n of NODES) for (const r of n.req) {
+    const pnt = NODEBY[r]; if (!pnt) continue;
+    const on = nodeTaken(n) || nodeState(n) !== "locked";
+    links += '<line x1="'+px(pnt)+'" y1="'+py(pnt)+'" x2="'+px(n)+'" y2="'+py(n)
+          +  '" stroke="'+(on ? BALLS[n.ball].col : "#26303f")+'" stroke-width="2"'
+          +  ' stroke-dasharray="3 6" opacity="'+(on?.7:.35)+'"/>';
+  }
+  let nodes = "";
+  for (const n of NODES) {
+    const st = nodeState(n), col = BALLS[n.ball].col;
+    const round = n.kind === "ball" ? "50%" : "8px";
+    nodes += '<button class="tnode '+st+(treeSel===n.id?" sel":"")+'" data-id="'+n.id+'"'
+      + ' style="left:'+(px(n)-NODE_R)+'px;top:'+(py(n)-NODE_R)+'px;'
+      + 'width:'+(NODE_R*2)+'px;height:'+(NODE_R*2)+'px;border-radius:'+round+';color:'+col+'">'
+      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"'
+      + ' stroke-linecap="round" stroke-linejoin="round">'+ICONS[n.icon]+'</svg>'
+      + (isRefine(n) && S.nodes[n.id] ? '<i class="lv">'+S.refine+'</i>' : '')
+      + '</button>';
+  }
+  host.innerHTML = '<div id="treewrap" style="width:'+w+'px;height:'+h+'px">'
+    + '<svg width="'+w+'" height="'+h+'">'+links+'</svg>' + nodes + '</div>';
+
+  for (const b of host.querySelectorAll(".tnode")) b.onclick = () => {
+    treeSel = b.dataset.id; buyNode(NODEBY[treeSel]); refreshUpg();
+  };
+  renderCard();
+  $("upgsub").innerHTML = "Points available &nbsp; <b>&#10022; " + S.tokens + "</b>"
+    + '<br><span style="opacity:.65">Found by digging &mdash; ' + S.tokensFound + " in total</span>";
+}
+
+function renderCard() {
+  const n = treeSel ? NODEBY[treeSel] : null;
+  const el = $("tcard");
+  if (!n) { el.className = ""; el.innerHTML = ""; return; }
+  const col = BALLS[n.ball].col, st = nodeState(n);
+  const head = n.kind === "ball" ? "New ball" : n.kind === "refine" ? "Upgrade" : "Ball ability";
+  el.className = "on";
+  el.style.borderColor = col; el.style.color = col;
+  el.innerHTML = '<div class="th">'+head+'</div>'
+    + '<div class="tn">'+nodeLabel(n)+'</div>'
+    + '<div class="tb">'+(BALLS[n.ball].hue||"")+'</div>'
+    + '<div class="td">'+nodeDesc(n)+'</div>'
+    + (st === "taken" ? '<div class="tc">OWNED</div>'
+       : st === "locked" ? '<div class="tc">LOCKED</div>'
+       : '<div class="tc'+(st==="short"?" short":"")+'">&#10022; '+nodeCost(n)+'</div>');
+}
+
+function buyNode(n) {
+  if (!n) return;
+  if (nodeState(n) === "taken")  { toast("ALREADY OWNED"); return; }
+  if (nodeState(n) === "locked") { toast("LOCKED — UNLOCK WHAT LEADS TO IT FIRST"); return; }
+  const c = nodeCost(n);
+  if (S.tokens < c) { toast("NOT ENOUGH UPGRADE PIXELS"); return; }
+  S.tokens -= c;
+  S.nodes[n.id] = 1;
+  if (n.kind === "ball")   { S.owned[n.ball] = 1; selKind = n.ball; dockSig = "";
+                             toast("NEW BALL — " + BALLS[n.ball].name.toUpperCase()); }
+  else if (n.kind === "refine") { S.refine++; }
+  else { S.perks[n.id] = 1;
+         toast(BALLS[n.ball].name.toUpperCase() + " — " + nodeLabel(n).toUpperCase()); }
+  drawDock(); save();
+}
+
 function statBox(title, rows) {
   let h = '<div class="cxbox"><h4>'+title+'</h4>';
   for (const r of rows)
-    h += '<div class="cxrow'+(r[2]?" dim":"")+'"><span>'+r[0]+'</span><b>'+r[1]+'</b></div>';
+    h += '<div class="cxrow'+(r[2]?" "+r[2]:"")+'"><span>'+r[0]+'</span><b>'+r[1]+'</b></div>';
   return h + '</div>';
 }
 function refreshStats() {
   const hrs = Math.floor(S.playtime/3600), mins = Math.floor(S.playtime%3600/60);
+  const objs = Object.keys(S.objectsFound).length;
+  const B = BALLS[selKind];
   $("statgrid").innerHTML =
-    statBox("MINING", [
-      ["Damage per bounce", fmt(baseDmg())],
-      ["Ball speed", Math.round(ballSpd()) + " cells/s"],
-      ["Balls", balls.length],
-      ["In flight", flying()],
-      ["Auto-launch", L("auto") ? "every " + autoInt().toFixed(2) + "s" : "off", !L("auto")],
+    statBox("THE HUNT", [
+      ["Golden pixel", S.goldFound ? "FOUND" : "still buried", "gold"],
+      ["Pixels mined", fmt(S.minedCount)],
+      ["Of the world", (S.minedCount/TOTAL*100).toFixed(4)+"%"],
+      ["Buried objects found", objs + " / " + OBJECTS.length],
+      ["Upgrade pixels found", S.tokensFound],
+      ["Hazard pixels live", fmt(hazCount)],
+      ["Furthest reach", Math.round(S.maxDepth)],
     ]) +
-    statBox("YIELD", [
-      ["Refining multiplier", "x" + fmt(valMul())],
-      ["Blocks / sec", fmt(S.rate)],
-      ["Best rate", fmt(S.bestRate) + "/s"],
-      ["Diamonds / sec", fmt(diaRate)],
-      ["Offline share", L("auto") ? Math.round(OFFLINE_FRAC*100) + "%" : "—", !L("auto")],
+    statBox("SELECTED BALL — " + B.name.toUpperCase(), [
+      ["Cost to fire", built(B) ? fmt(ballCost(selKind)) + " px" : "—"],
+      ["Damage per impact", built(B) ? "x"+fmt(ballDmg(selKind)) : "—"],
+      ["Perks", built(B) ? (PERKS[selKind]||[]).filter(P=>perk(selKind,P.id)).length + " / " + (PERKS[selKind]||[]).length : "—"],
+      ["Impacts per shot", built(B) ? ballImp(selKind) : "—"],
+      ["Travel speed", built(B) ? B.spd + " cells/s (fixed)" : "—"],
+      ["Shots fired", fmt(S.shots)],
     ]) +
-    statBox("PROGRESS", [
-      ["Depth reached", Math.round(S.maxDepth)],
-      ["Blocks mined", fmt(S.minedCount)],
-      ["Board cleared", (S.minedCount/(GRID*GRID)*100).toFixed(3) + "%"],
-      ["Rock hardness here", "x" + fmt(depthMul(S.maxDepth))],
-      ["Ore value here", "x" + fmt(Math.pow(depthMul(S.maxDepth), VAL_POW))],
+    statBox("RATE", [
+      ["Pixels / sec", fmt(S.rate)],
+      ["Best rate", fmt(S.bestRate)],
+      ["Income / sec", fmt(pxRate)],
+      ["Balls live", balls.length + " / " + MAXLIVE],
+      ["Hardness at reach", "x"+fmt(depthMul(S.maxDepth))],
       ["Playtime", hrs + "h " + mins + "m"],
     ]);
 }
 
-//===================================================================== input
-function aimAt(e) {
-  const sw = W/cam.z, sh = H/cam.z;
-  const wx = cam.x-sw/2 + e.clientX/cam.z, wy = cam.y-sh/2 + e.clientY/cam.z;
-  const a = Math.atan2(wy-(CY+.5), wx-(CX+.5));
-  return isFinite(a) ? a : 0;
+function showGolden() {
+  $("gbody").innerHTML =
+      '<div class="wrow"><span>Pixels mined</span><b>'+fmt(S.minedCount)+'</b></div>'
+    + '<div class="wrow"><span>Of the world</span><b>'+(S.minedCount/TOTAL*100).toFixed(4)+'%</b></div>'
+    + '<div class="wrow"><span>Shots fired</span><b>'+fmt(S.shots)+'</b></div>'
+    + '<div class="wrow"><span>Playtime</span><b>'+Math.floor(S.playtime/3600)+'h '
+      + Math.floor(S.playtime%3600/60)+'m</b></div>'
+    + '<div class="wnote">One golden pixel in the whole world, and you dug it out.</div>';
+  $("gold").style.display = "flex";
+  save();
 }
-// One pointer path for mouse, pen and touch: tap fires, drag pans, two fingers pinch.
+
+//===================================================================== input
+// Screen point -> world cell. The cursor is now a launch site, not an aim vector.
+function worldAt(e) {
+  const sw = W/cam.z, sh = H/cam.z;
+  return [cam.x-sw/2 + e.clientX/cam.z, cam.y-sh/2 + e.clientY/cam.z];
+}
 const ptrs = new Map();
 let pinchLen = 0, tapOK = false;
 const TAP_SLOP = 10;
-const setZoom = z => { cam.tz = Math.max(1.0, Math.min(46, z)); };
+const setZoom = z => { cam.tz = Math.max(1.0, Math.min(ZOOM_MAX, z)); };
 function pinchSpan() {
   const a = [...ptrs.values()];
   return a.length < 2 ? 0 : Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y);
@@ -863,30 +1489,27 @@ cv.addEventListener("pointerdown", e => {
   if (paused) return;
   try { cv.setPointerCapture(e.pointerId); } catch (err) {}
   ptrs.set(e.pointerId, { x:e.clientX, y:e.clientY, moved:0 });
-  if (ptrs.size === 1) { tapOK = true; aim = aimAt(e); }
+  if (ptrs.size === 1) { tapOK = true; aim = worldAt(e); }
   else { tapOK = false; pinchLen = pinchSpan(); }
 });
-
 cv.addEventListener("pointermove", e => {
   const p = ptrs.get(e.pointerId);
-  if (!p) { if (!paused && e.pointerType === "mouse") aim = aimAt(e); return; }
+  if (!p) { if (!paused && e.pointerType === "mouse") aim = worldAt(e); return; }
   const dx = e.clientX-p.x, dy = e.clientY-p.y;
   p.moved += Math.abs(dx)+Math.abs(dy);
   p.x = e.clientX; p.y = e.clientY;
   if (p.moved > TAP_SLOP) tapOK = false;
-
   if (ptrs.size === 1) {
     if (p.moved > TAP_SLOP) {
       cam.manual = true;
       cam.tx -= dx/cam.z; cam.ty -= dy/cam.z; cam.x -= dx/cam.z; cam.y -= dy/cam.z;
-    } else if (e.pointerType === "mouse") aim = aimAt(e);
+    } else if (e.pointerType === "mouse") aim = worldAt(e);
   } else if (ptrs.size === 2) {
     const d = pinchSpan();
     if (pinchLen > 0 && d > 0) { cam.manual = true; setZoom(cam.tz * d/pinchLen); cam.z = cam.tz; }
     pinchLen = d;
   }
 });
-
 cv.addEventListener("pointerup", e => {
   const p = ptrs.get(e.pointerId);
   if (!p) return;
@@ -894,8 +1517,15 @@ cv.addEventListener("pointerup", e => {
   if (ptrs.size < 2) pinchLen = 0;
   if (paused) return;
   if (tapOK && p.moved <= TAP_SLOP && ptrs.size === 0) {
-    aim = aimAt(e);
-    if (!launchOne(aim)) toast("NO BALLS READY");
+    aim = worldAt(e);
+    if (!fire(selKind, Math.random()*Math.PI*2, aim[0], aim[1])) {
+      // Report the real reason. These fail for genuinely different causes and
+      // "NEED n PX" while standing on solid rock is actively misleading.
+      if (!S.owned[selKind]) toast("BALL LOCKED — FIND UPGRADE PIXELS");
+      else if (balls.length >= MAXLIVE) toast("TOO MANY BALLS IN FLIGHT");
+      else if (S.px < ballCost(selKind)) toast("NEED " + fmt(ballCost(selKind)) + " PX");
+      else toast("SOLID ROCK — LAUNCH INSIDE GROUND YOU HAVE OPENED");
+    }
   }
   if (ptrs.size === 0) tapOK = false;
 });
@@ -907,47 +1537,53 @@ addEventListener("wheel", e => {
   setZoom(cam.tz*(e.deltaY<0 ? 1.18 : .85));
 }, { passive:true });
 
-// on-screen controls, for phones with no keyboard
+function toggleAuto() {
+  S.auto = !S.auto;
+  toast(S.auto ? "AUTO-FIRE ON" : "AUTO-FIRE OFF");
+  for (const b of document.querySelectorAll('#mobibar button[data-a="auto"]'))
+    b.classList.toggle("on", S.auto);
+  save();
+}
 for (const b of document.querySelectorAll("#mobibar button")) {
   b.onclick = () => {
     const a = b.dataset.a;
     if (a === "menu") { paused ? closeMenu() : openMenu(); }
-    else if (a === "recall") { if (!paused) parkAll(); }
+    else if (a === "auto") { if (!paused) toggleAuto(); }
     else openPanel(a);
   };
 }
 $("pclose").onclick = () => { if (panelOpen) openPanel(panelOpen); };
 addEventListener("keydown", e => {
   const k = e.key.toLowerCase();
-  if (k === "escape") {                        // close a panel first, else toggle the menu
+  if (k === "escape") {
     if (panelOpen) { panelOpen = null; $("pclose").classList.remove("on");
       for (const p of ["upg","stats"]) $(p).classList.remove("on"); }
     else if (paused) { if (!$("mcont").disabled) $("mcont").click(); }
     else openMenu();
     return;
   }
-  if (paused) return;                          // menu swallows everything else
+  if (paused) return;
+  if (k >= "1" && k <= "7") { const n = +k-1; if (S.owned[n]) { selKind = n; dockSig=""; drawDock(); } }
   if (k === "u") openPanel("upg");
   if (k === "s") openPanel("stats");
+  if (k === "a") toggleAuto();
   if (k === "f") { cam.manual = false; toast("CAMERA REFIT"); }
-  if (k === " ") { e.preventDefault(); parkAll(); }
   if (k === "r") openMenu();
 });
 
 //=================================================================== offline
-const OFFLINE_CAP_S = 12*3600, OFFLINE_MAX_BLOCKS = 250000;
-// Credits away-time by eroding the frontier through the same payout path a live
-// block uses, so offline income can never diverge from online income.
+const OFFLINE_CAP_S = 12*3600, OFFLINE_MAX = 400000;
+// Credits away-time by eroding the cavern frontier through the same payout path
+// a live pixel uses, so offline income can never diverge from online income.
 function erodeFrontier(n) {
   if (n <= 0) return 0;
-  const seen = new Uint8Array(GRID*GRID);
-  const front = [];
-  const x0 = Math.max(1,bb.x0-2), x1 = Math.min(GRID-2,bb.x1+2);
-  const y0 = Math.max(1,bb.y0-2), y1 = Math.min(GRID-2,bb.y1+2);
+  const seen = new Set(), front = [];
+  const x0 = Math.max(1,bb.x0-2), x1 = Math.min(WORLD-2,bb.x1+2);
+  const y0 = Math.max(1,bb.y0-2), y1 = Math.min(WORLD-2,bb.y1+2);
   for (let y=y0;y<=y1;y++) for (let x=x0;x<=x1;x++) {
-    const i = y*GRID+x;
-    if (!tier[i] || seen[i]) continue;
-    if (!tier[i-1]||!tier[i+1]||!tier[i-GRID]||!tier[i+GRID]) { seen[i]=1; front.push(i); }
+    const i = y*WORLD+x;
+    if (!tier[i] || seen.has(i)) continue;
+    if (!tier[i-1]||!tier[i+1]||!tier[i-WORLD]||!tier[i+WORLD]) { seen.add(i); front.push(i); }
   }
   let done = 0;
   while (done < n && front.length) {
@@ -955,75 +1591,90 @@ function erodeFrontier(n) {
     front[p] = front[front.length-1]; front.pop();
     const t = tier[i];
     if (!t) continue;
-    const x = i%GRID, y = (i/GRID)|0;
-    tier[i] = 0; dmg[i] = 0;
+    const x = i%WORLD, y = (i/WORLD)|0;
+    tier[i] = 0; dmg.delete(i);
     payout(x,y,t); growBounds(x,y); done++;
-    for (const j of [i-1,i+1,i-GRID,i+GRID])
-      if (j>=0 && j<tier.length && tier[j] && !seen[j]) { seen[j]=1; front.push(j); }
+    for (const j of [i-1,i+1,i-WORLD,i+WORLD])
+      if (j>=0 && j<tier.length && tier[j] && !seen.has(j)) { seen.add(j); front.push(j); }
   }
   return done;
 }
 function runOffline(awaySec) {
-  if (!L("auto") || awaySec < 60 || S.rate <= 0) return null;
+  if (!S.auto || awaySec < 60 || S.rate <= 0) return null;
   const t = Math.min(awaySec, OFFLINE_CAP_S);
-  const want = Math.min(OFFLINE_MAX_BLOCKS, Math.floor(S.rate*OFFLINE_FRAC*t));
+  const want = Math.min(OFFLINE_MAX, Math.floor(S.rate*0.40*t));
   if (want < 1) return null;
-  const d0 = S.dia;
+  const p0 = S.px, tk0 = S.tokensFound;
   const got = erodeFrontier(want);
-  return got ? { blocks:got, dia:S.dia-d0, secs:t,
-                 capped: got >= OFFLINE_MAX_BLOCKS || awaySec > OFFLINE_CAP_S } : null;
+  return got ? { pixels:got, px:S.px-p0, tokens:S.tokensFound-tk0, secs:t,
+                 capped: got >= OFFLINE_MAX || awaySec > OFFLINE_CAP_S } : null;
 }
 function showWelcome(r) {
   const h = Math.floor(r.secs/3600), m = Math.floor(r.secs%3600/60);
   $("wbody").innerHTML =
       '<div class="wrow"><span>Away</span><b>'+(h?h+"h ":"")+m+'m</b></div>'
-    + '<div class="wrow"><span>Blocks mined</span><b>'+fmt(r.blocks)+'</b></div>'
-    + '<div class="wrow"><span>Diamonds</span><b>◆ '+fmt(r.dia)+'</b></div>'
+    + '<div class="wrow"><span>Pixels mined</span><b>'+fmt(r.pixels)+'</b></div>'
+    + '<div class="wrow"><span>Earned</span><b>'+fmt(r.px)+' px</b></div>'
+    + (r.tokens ? '<div class="wrow"><span>Upgrade pixels</span><b>◆ '+r.tokens+'</b></div>' : '')
     + (r.capped ? '<div class="wnote">Offline yield was capped. Check in more often.</div>' : '');
   $("welcome").style.display = "flex";
 }
 
-//=================================================== background / tabbed away
-// requestAnimationFrame stops in a hidden tab and on a sleeping phone, so the
-// simulation cannot simply keep running. Instead we credit the elapsed wall-clock
-// time through exactly the same path a cold start uses.
 let hiddenAt = 0;
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) { hiddenAt = Date.now(); save(); return; }
   const sec = hiddenAt ? (Date.now()-hiddenAt)/1000 : 0;
   hiddenAt = 0;
-  last = performance.now();                    // never let one giant dt through
+  last = performance.now();
   if (sec < 15) return;
   const r = runOffline(sec);
   if (!r) return;
-  relight(); paintAll();
-  if (!paused) toast("WHILE AWAY — " + fmt(r.blocks) + " BLOCKS, ◆" + fmt(r.dia));
+  relight(); repaintReady();
+  if (!paused) toast("WHILE AWAY — " + fmt(r.pixels) + " PIXELS");
   save();
 });
 
+function relight() {
+  lit = new Uint8Array(TOTAL);
+  for (let cy = 0; cy < CW; cy++) for (let cx = 0; cx < CW; cx++) {
+    if (!chunkReady[cy*CW+cx]) continue;
+    const x0 = cx*CHUNK, y0 = cy*CHUNK;
+    const x1 = Math.min(WORLD, x0+CHUNK), y1 = Math.min(WORLD, y0+CHUNK);
+    for (let y=y0;y<y1;y++) for (let x=x0;x<x1;x++) {
+      const i = y*WORLD+x;
+      if (!tier[i]) { stampLight(x, y, false); growBounds(x, y); }
+    }
+  }
+}
+
 //====================================================================== save
-function rle(arr) {
+// The mined mask is run-length encoded over every cell on the board. Almost all of
+// it is a single enormous run, so it stays small; only generated chunks can hold
+// mined pixels, and chunkReady is stored alongside so terrain can be rebuilt.
+function rleMined() {
   const out = []; let run = 0, cur = 0;
-  for (let i=0;i<arr.length;i++) {
-    const v = arr[i] ? 1 : 0;
+  for (let i = 0; i < TOTAL; i++) {
+    const ready = chunkReady[(((i/WORLD)|0)/CHUNK|0)*CW + ((i%WORLD)/CHUNK|0)];
+    const v = (ready && !tier[i]) ? 1 : 0;
     if (v === cur) run++; else { out.push(run.toString(36)); cur = v; run = 1; }
   }
   out.push(run.toString(36));
   return out.join(".");
 }
-// Guard against the reset race: removeItem() followed by a reload fires beforeunload,
-// which used to run save() and write the old progress straight back.
 let saveLocked = false;
 function save() {
   if (saveLocked) return;
   try {
-    const mined = new Uint8Array(GRID*GRID);
-    for (let i=0;i<mined.length;i++) mined[i] = tier[i] ? 0 : 1;
     const dm = [];
-    for (let i=0;i<dmg.length;i++) if (dmg[i]) dm.push(i, dmg[i]);
+    for (const e of dmg) { dm.push(e[0], Math.round(e[1])); }
+    const cr = [];
+    for (let i=0;i<chunkReady.length;i++) if (chunkReady[i]) cr.push(i);
     localStorage.setItem(SAVEKEY, JSON.stringify({
-      v:1, dia:S.dia, lv:S.lv, rate:S.rate, br:S.bestRate, pt:S.playtime,
-      mc:S.minedCount, md:S.maxDepth, t:Date.now(), mined:rle(mined), dm
+      v:1, px:S.px, tokens:S.tokens, tokensFound:S.tokensFound,
+      owned:S.owned, perks:S.perks, nodes:S.nodes, refine:S.refine, seed:RUNSEED,
+      mc:S.minedCount, md:S.maxDepth, rate:S.rate, br:S.bestRate, pt:S.playtime,
+      shots:S.shots, auto:S.auto, gold:S.goldFound, objs:S.objectsFound,
+      t:Date.now(), cr, mined:rleMined(), dm
     }));
   } catch (err) { console.warn("save failed", err); }
 }
@@ -1039,8 +1690,7 @@ function readSave() {
 }
 function savedAway() {
   try {
-    const r = readSave();
-    if (!r) return 0;
+    const r = readSave(); if (!r) return 0;
     const d = JSON.parse(r);
     return Math.max(0, (Date.now()-(d.t||Date.now()))/1000);
   } catch (err) { return 0; }
@@ -1050,38 +1700,53 @@ function load() {
   if (!raw) return;
   try {
     const d = JSON.parse(raw);
-    S.dia = d.dia||0; S.rate = d.rate||0; S.bestRate = d.br||0; S.playtime = d.pt||0;
-    S.minedCount = d.mc||0; S.maxDepth = d.md||0;
-    Object.assign(S.lv, d.lv||{});
+    S.px = d.px||0; S.tokens = d.tokens||0; S.tokensFound = d.tokensFound||0;
+    if (d.owned) S.owned = d.owned;
+    if (d.perks) S.perks = d.perks;
+    if (d.nodes) S.nodes = d.nodes;
+    if (typeof d.refine === 'number') S.refine = d.refine;
+    S.minedCount = d.mc||0; S.maxDepth = d.md||0; S.rate = d.rate||0;
+    S.bestRate = d.br||0; S.playtime = d.pt||0; S.shots = d.shots||0;
+    S.auto = !!d.auto; S.goldFound = !!d.gold; S.objectsFound = d.objs||{};
+    for (const ci of (d.cr||[])) ensureChunk(ci % CW, (ci / CW) | 0);
     let i = 0, cur = 0;
-    for (const tok of d.mined.split(".")) {
+    for (const tok of (d.mined||"").split(".")) {
       const run = parseInt(tok,36);
+      if (!isFinite(run)) break;
       if (cur) for (let k=0;k<run;k++) tier[i+k] = 0;
       i += run; cur ^= 1;
     }
-    for (let k=0;k<(d.dm||[]).length;k+=2) dmg[d.dm[k]] = d.dm[k+1];
+    dmg.clear();
+    for (let k=0;k<(d.dm||[]).length;k+=2) dmg.set(d.dm[k], d.dm[k+1]);
   } catch (err) { console.warn("load failed", err); }
 }
 
 //================================================================= start menu
-// Wipes every scrap of progression AND rebuilds the arena from scratch, in memory,
-// with no reload — so there is no unload event that could resurrect the old save.
+function freshWorld() {
+  tier = new Uint8Array(TOTAL);
+  lit  = new Uint8Array(TOTAL);
+  chunkReady = new Uint8Array(CW*CW);
+  dmg.clear(); poison.clear(); hazSpread.clear(); hazCount = 0;
+  placeGolden();
+  ensureAround(CX, CY);
+  for (let r = 0; r < 3; r++) ensureChunk((CX/CHUNK|0)+r, CY/CHUNK|0);
+}
 function resetGame() {
   saveLocked = true;
   try { localStorage.removeItem(SAVEKEY); for (const k of RETIRED) localStorage.removeItem(k); } catch (err) {}
-
-  S.dia = 0; S.minedCount = 0; S.maxDepth = 0; S.rate = 0; S.bestRate = 0; S.playtime = 0;
-  S.lv = {}; UPG.forEach(u => S.lv[u.id] = 0);
-
-  generate();
-  sparks.length = 0; dirty.length = 0;
-  balls = [];
+  S.px = START_PX; S.tokens = 0; S.tokensFound = 0;
+  S.owned = [1,0,0,0,0,0,0]; S.perks = {}; S.nodes = {root:1}; S.refine = 0;
+  RUNSEED = (Math.random() * 0x7ffffff) | 0;   // a new world hides the pixel elsewhere
+  S.minedCount = 0; S.maxDepth = 0; S.rate = 0; S.bestRate = 0; S.playtime = 0;
+  S.shots = 0; S.auto = false; S.goldFound = false; S.objectsFound = {};
+  freshWorld();
+  sparks.length = 0; dirty.length = 0; balls = []; selKind = 0; dockSig = "";
   bb.x0 = CX-8; bb.y0 = CY-8; bb.x1 = CX+8; bb.y1 = CY+8;
-  relight(); paintAll();
-  syncRoster();
-  cam.manual = false; fitCamera(); cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz;
-  rateT = 0; rateMark = 0; diaMark = 0; diaRate = 0; autoT = 0;
-  aim = null; hudAcc = 0; readySig = "";
+  relight(); repaintReady();
+  cam.manual = false; focusX = CX; focusY = CY;
+  fitCamera(); cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz;
+  rateT = 0; rateMark = 0; pxMark = 0; pxRate = 0; autoT = 0;
+  aim = null; hudAcc = 0;
   try { refreshUpg(); } catch (err) { console.warn("panel refresh failed", err); }
   finally { saveLocked = false; save(); }
 }
@@ -1093,16 +1758,15 @@ function openMenu() {
   $("mnew").textContent = "NEW GAME";
   $("mnote").textContent = "";
   const has = S.minedCount > 0 || S.playtime > 0;
-  // Resumable once you are in a run, even with nothing mined yet — otherwise opening
-  // the menu early would strand you with New Game as the only way out.
   $("mcont").disabled = !(has || sessionStarted);
   $("mcont").textContent = sessionStarted ? "RESUME" : "CONTINUE";
   if (retiredSave) $("mnote").textContent =
-    "A save from an older version was retired — the game was stripped back to its core loop.";
+    "A save from an older version was retired — the world was rebuilt.";
   $("msave").innerHTML = has
-    ? '<div class="r"><span>Depth reached</span><b>'+Math.round(S.maxDepth)+'</b></div>'
-      + '<div class="r"><span>Blocks mined</span><b>'+fmt(S.minedCount)+'</b></div>'
-      + '<div class="r"><span>Diamonds</span><b>◆ '+fmt(S.dia)+'</b></div>'
+    ? '<div class="r"><span>Pixels mined</span><b>'+fmt(S.minedCount)+'</b></div>'
+      + '<div class="r"><span>Of the world</span><b>'+(S.minedCount/TOTAL*100).toFixed(4)+'%</b></div>'
+      + '<div class="r"><span>Upgrade pixels</span><b>◆ '+S.tokensFound+'</b></div>'
+      + '<div class="r"><span>Golden pixel</span><b>'+(S.goldFound?"FOUND":"buried")+'</b></div>'
       + '<div class="r"><span>Playtime</span><b>'+Math.floor(S.playtime/3600)+'h '
         + Math.floor(S.playtime%3600/60)+'m</b></div>'
     : '<div class="none">NO SAVED RUN</div>';
@@ -1113,18 +1777,17 @@ function closeMenu() {
   paused = false; sessionStarted = true;
   last = performance.now();
 }
-
 $("mcont").onclick = () => {
   if ($("mcont").disabled) return;
   closeMenu();
   if (pendingOffline) { showWelcome(pendingOffline); pendingOffline = null; }
 };
 $("mnew").onclick = () => {
-  if (!armed) {                                 // two-step, so it cannot be a misclick
+  if (!armed) {
     armed = 1;
     $("mnew").classList.add("armed");
     $("mnew").textContent = "ERASE EVERYTHING?";
-    $("mnote").textContent = "All progress and the current arena will be destroyed.";
+    $("mnote").textContent = "All progress and the current world will be destroyed.";
     setTimeout(() => { if (armed === 1) {
       armed = 0; $("mnew").classList.remove("armed");
       $("mnew").textContent = "NEW GAME"; $("mnote").textContent = "";
@@ -1138,24 +1801,23 @@ $("mnew").onclick = () => {
   pendingOffline = null;
   resetGame();
   closeMenu();
-  toast("NEW GAME — ARENA REBUILT");
+  toast("NEW WORLD GENERATED");
 };
 
 //====================================================================== boot
-generate();
+freshWorld();
 const away = savedAway();
 load();
 relight();
 let pendingOffline = runOffline(away);
-if (pendingOffline) relight();
-paintAll();
+repaintReady();
 resize();
-buildUpg();
-syncRoster();
+drawDock();
 fitCamera(); cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz;
 $("wok").onclick = () => { $("welcome").style.display = "none"; };
-openMenu();                                    // every session starts at the menu
-setInterval(save, 10000);
+$("gok").onclick = () => { $("gold").style.display = "none"; };
+openMenu();
+setInterval(save, 15000);
 addEventListener("beforeunload", save);
 $("boot").style.display = "none";
 requestAnimationFrame(frame);

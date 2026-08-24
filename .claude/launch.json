@@ -3,9 +3,12 @@
   "configurations": [
     {
       "name": "orebound",
+      "autoPort": true,
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8765"],
-      "port": 8765
+      "runtimeArgs": [
+        "-c",
+        "import os,http.server,socketserver;socketserver.TCPServer.allow_reuse_address=True;p=int(os.environ.get('PORT','8765'));socketserver.TCPServer(('',p),http.server.SimpleHTTPRequestHandler).serve_forever()"
+      ]
     }
   ]
 }

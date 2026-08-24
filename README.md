@@ -2,10 +2,12 @@
 
 **Play it: https://sevin47.github.io/orebound/**
 
-An incremental mining game, stripped to its core loop. You fire pixels into solid
-rock; they bounce forever, chewing a cavern out of a 1024 x 1024 board. Every
-block you break pays diamonds. Diamonds buy five upgrades. That is the entire
-game.
+Dig through a vast pixel world to find the one golden pixel.
+
+Shoot balls into solid rock. They bounce, they break pixels, and every pixel you
+break is currency to fire more balls. Buried in the world are rare **upgrade
+pixels** that unlock new ball types and change how they behave — and somewhere
+in the world is a single golden one. Find it and the run is over.
 
 Single file, no build step, no dependencies. Open `index.html` in any browser.
 
@@ -13,164 +15,199 @@ Single file, no build step, no dependencies. Open `index.html` in any browser.
 
 | Input | Action |
 |---|---|
-| Click / tap | Aim and launch one ball |
-| Drag | Pan the camera |
-| Wheel / pinch | Zoom |
+| Click / tap | Launch the selected ball **at that spot** |
+| `1`–`7` / dock | Select ball type |
+| `A` | Toggle auto-fire |
+| Drag | Pan &middot; **Wheel / pinch** Zoom |
 | `F` | Return camera to auto-fit |
-| `U` | Upgrades |
-| `S` | Stats |
-| `Space` | Recall every ball |
-| `Esc` / `R` | Start menu (pauses the game) |
+| `U` | Tech tree &middot; `S` Stats |
+| `Esc` / `R` | Start menu (pauses) |
 
-Below 820px wide the layout switches to a single column with a touch-sized
-bottom bar: Upgrades, Stats, Recall, Menu.
+Below 820px the layout switches to a single column with a touch bar.
 
-Every session opens on a **start menu**. *Continue* resumes and shows your run's
-stats; *New Game* takes two clicks to confirm, then wipes all progression and
-rebuilds the arena in memory — no reload, so nothing can write the old save back.
+## The two currencies
 
-Balls fire independently. Buy a new one mid-run and send it out immediately while
-the rest keep bouncing. The camera never follows a ball; it frames the cavern.
+**Pixels** are mined and spent. Firing a ball costs a flat price and buys a
+**fixed number of impacts** — not a duration. That distinction is the whole
+economy: rock gets harder the further out you erode, so the pixels returned per
+shot decay on their own, until a found upgrade raises your damage again. There
+is no hand-tuned cost curve anywhere, because the board *is* the cost curve.
 
-## The five upgrades
+It also permanently fixes a bug from an earlier build: travel speed used to
+multiply bounce rate, bounce rate multiplied damage, and damage drove income —
+so speed was secretly the strongest damage upgrade in the game. Paying for
+impacts rather than for time severs that link. Speed is now per-ball flavour.
 
-| Upgrade | Effect | Cost | Cap |
-|---|---|---|---|
-| **Impact** | x1.30 damage per level | x1.70 per level | none |
-| **Velocity** | x1.18 ball speed | x1.75 | 25 |
-| **Swarm** | +1 ball | x2.10 | 24 |
-| **Refining** | x1.25 diamonds per block | x1.65 | none |
-| **Auto-Launch** | parked balls deploy themselves | x1.72 | 12 |
+**Upgrade points** cannot be bought. They are buried, and the only way to get
+them is to dig. Their density falls off as `1/d`, which is not arbitrary: a
+uniform density scales with *area*, so the count inside radius `r` grows as `r²`
+and upgrades either flood the late game or never arrive in the early one. At
+`1/d` the count grows **linearly** with `r`, so they arrive at a steady pace the
+whole way out.
 
-Effect growth is slower than cost growth on every line, so each level buys
-strictly less per diamond than the last. Progress comes from the board paying
-more as you get deeper, never from an upgrade outrunning its own price.
+## The balls
 
-**Impact and Refining are uncapped**, and that is load-bearing. Income in a game
-like this is exponential, so any finite tree gets emptied and the game ends. A
-tree with no last level means diamonds always have somewhere to go.
+Seven slots, six built, one reserved. Colour is identity — the tech tree, the
+dock and the ball itself all share it.
 
-## The curve
+| | Colour | Behaviour |
+|---|---|---|
+| **Prospector** | orange | The ball you start with. A plain bounce that breaks the softest rock in one hit. |
+| **Directional** | blue | Travels only in straight vertical or horizontal lines, drifting sideways each bounce to carve wide tunnels. |
+| **Smash** | red | Detonates on impact, hitting every pixel in a surrounding area. |
+| **Poison** | green | Poisons pixels; poison erodes and spreads on its own. |
+| **Lightning** | yellow | Arcs from the point of impact, shocking pixels some distance away. |
+| **Rush** | purple | Travels far faster than any other ball, spending its impacts in a fraction of the time. |
+| **?????** | — | Not specified yet. Slot reserved. |
 
-Two constants decide everything, and they live together at the top of the script:
+Ball choice is not cosmetic. Measured on the same save, switching from Rush
+(single target) to Smash (area clear) moved throughput from **601 to 1664
+pixels/sec**.
 
-```js
-const DEPTH_K = 0.0215, DEPTH_E = 1.12;
-const depthMul = d => Math.exp(DEPTH_K * Math.pow(d, DEPTH_E));
-const VAL_POW  = 0.30;
-```
+## Launch from anywhere
 
-Block HP is `tierHP × depthMul(d)`. Block value is `tierVal × depthMul(d)^0.30`.
-Both derive from the same depth term, so difficulty and income can never drift
-apart — and because value climbs at only 30% of the rate hardness does, a deeper
-block always costs more to break than it pays back. Depth has to be bought with
-upgrades; it can never be earned by waiting.
+Balls launch from wherever you click, not from the middle of the world. That is
+the difference between eroding one disc outward and actually steering the dig —
+you can drive a shaft toward an upgrade pixel or work a seam you found.
 
-The exponent sits just above 1, so the curve is close to a straight exponential
-in depth: gentle over the first twenty cells, then compounding hard.
+It has a pleasing emergent constraint: you can only launch into ground you have
+already opened, so **your cavern is the set of valid launch sites**, and it grows
+as you mine. Auto-fire picks spots on the working face rather than the middle,
+so idle play widens the frontier instead of re-grinding cleared ground.
 
-| Depth | Hardness |
-|---|---|
-| 20 | x1.9 |
-| 100 | x42 |
-| 200 | x3.4k |
-| 300 | x360k |
-| 500 | x7.2e9 |
+## The tech tree
 
-## One owner per stat
+Upgrades live in a sprawling node graph, not a list. Every node belongs to a ball
+(which gives it its colour) and carries an icon for what it does; nodes unlock
+outward along dotted links, so spending points feels like exploring the tree the
+same way finding them feels like exploring the world. Selecting one raises a card
+naming it, its colour, and its cost.
 
-Damage is multiplied by Impact and by nothing else. Income is multiplied by
-Refining and by nothing else. No second system stacks another exponential on top
-of either.
+Every perk alters something you can see on screen:
 
-This is the rule the previous version broke in five places at once: damage was
-`1.34^dmg × 1.35^overch`, then x9 on crit, then x`lens`, then x`vein` and
-x`tough` against ore — five independent multipliers on one number with no shared
-budget. The result was x127k rock hardness against x2.1M ore value and a game
-that emptied itself in minutes.
+- **Prospector** — Fragment (first impact splits the ball in two) · Crossbreak (each impact also strikes four neighbours) · Heavy Strike (every 8th impact lands 5×)
+- **Directional** — Widebore (three-wide tunnel) · Pierce (punches through four pixels behind the impact) · Freewheel (only impacts that actually *break* a pixel cost budget)
+- **Smash** — Wider Blast · Aftershock (craters strike again a moment later) · Chain Blast (1-in-4 chance of a second blast)
+- **Poison** — Virulence (spreads diagonally) · Fast Rot (ticks twice as often) · Contagion (spreads every tick and never dies out)
+- **Lightning** — Arc (jumps to three more pixels) · Fork (every arc splits) · Overload (arcs reach twice as far)
+- **Rush** — Afterburner (accelerates with every bounce) · Slipstream (drags a damaging wake) · Blur (every impact lands twice)
+
+The rule is that an upgrade must modify ball behaviour directly rather than
+nudge a percentage. Upgrades that move a number without changing how the game
+feels are the idle genre's dominant failure mode. An earlier pass of this
+rewrite shipped cards reading `DAMAGE +55%` and `IMPACTS +10`: exactly that
+failure mode. They are gone.
+
+**Refine** is the one deliberate exception — a repeatable global damage
+multiplier, so damage can keep pace with an exponential depth curve. It is
+**global, not per ball**: per-ball damage meant unlocking a new ball threw away
+everything you had invested (measured as a drop from ×69 to ×4.1 the moment a new
+ball came online), which punishes exactly the experimentation six ball types
+exist to encourage.
+
+## The world fights back
+
+Two hazard pixels spread into ground you have **already cleared**:
+
+- **Bloom** (orange) expands when struck
+- **Creep** (purple) seeds a child when destroyed
+
+They are the counterweight that lets ball count go up without the game becoming
+trivial. Their growth is bounded *by construction*, not by tuning — see below.
+
+Also buried: **handcrafted relics**, hand-drawn bitmaps stamped into the
+procedural rock and made of much tougher pixels, so they emerge as silhouettes
+while the soft rock erodes around them.
+
+## Architecture
+
+Ten thousand-odd chunks of cells cannot be generated at boot — that is a
+multi-second freeze.
+The world is built one **64×64 chunk** at a time, on demand, as balls approach
+it: 2500 chunks, ~4k cells each. The canvas is a single offscreen texture
+updated per dirty cell, never redrawn wholesale. Collision is bucketed on an
+8-cell grid.
+
+Measured with 400 balls live: **simulation 0.96 ms/frame, draw 0.8–1.2 ms/frame**
+at every zoom level — comfortably inside a 16.7 ms budget.
+
+Damage is stored sparsely in a `Map` (only cells hit and not destroyed), because
+a `Float64Array` over every cell would be 80 MB on its own.
 
 ## Balance, measured
 
-The curve above was not guessed. It was fitted by running the real physics
-headless with a "buy the cheapest affordable upgrade" player and reading the
-depth it reached:
+Nothing here was guessed. The curve was fitted by running the real physics
+headless with an auto-buying player, re-measured after every structural change:
 
-| Elapsed | Depth | Blocks/sec | Levels (impact / velocity / swarm / refining / auto) |
-|---|---|---|---|
-| 2 min | 18 | 3 | 3 / 0 / 0 / 0 / 0 |
-| 5 min | 30 | 2 | 4 / 2 / 0 / 2 / 0 |
-| 10 min | 50 | 22 | 9 / 7 / 3 / 6 / 4 |
-| 15 min | 152 | 520 | 27 / 24 / 16 / 26 / 12 |
-| 20 min | 214 | 172 | 36 / 25 / 22 / 35 / 12 |
-| 30 min | 254 | 76 | 40 / 25 / 24 / 40 / 12 |
-| 45 min | 279 | 42 | 43 / 25 / 24 / 42 / 12 |
-| 65 min | 297 | 20 | 44 / 25 / 24 / 44 / 12 |
+| Build | Curve | Golden pixel |
+|---|---|---|
+| First working build | reach ≈ 43.9·t^0.503 | **~24 h** |
+| After throughput rework | reach ≈ 76.3·t^0.620 | ~2.1 h |
+| Slower balls + frontier launch | reach ≈ 104.1·t^0.404 | ~13.2 h &nbsp;*(regression)* |
+| Economy-limited auto-fire | reach ≈ 174.5·t^0.561 | **~0.8 h** typical, 1.6 h worst case |
 
-The jump between minutes 10 and 15 is Swarm, Velocity and Auto-Launch all
-landing at once — the engine igniting. It self-corrects as depth bites. After
-the capped upgrades run out, only Impact and Refining remain, and the game
-settles into roughly one level per ten minutes, indefinitely.
+That third row is worth keeping. Slowing ball speeds and launching from the
+working face both looked like pure improvements, and together they cost a factor
+of six — because balls spawned at the face spend their impact budget immediately
+and die young, which exposed a hidden ceiling: auto-fire was **rate**-limited to
+ten shots a second, so total output pinned at shots/sec × impacts/shot no matter
+how rich the player got. Auto-fire now tops the swarm up until the *pixels* run
+out. Your wallet is the limit, not a timer.
 
-The first tuning attempt used `K=.0055, E=1.25`. That only reached x7 hardness by
-depth 112, damage outran the board, and the entire tree bought out in six
-minutes — the same failure as the old build, in a smaller game. The fix was a
-much steeper curve in the 0–250 range, not more systems on top.
+Those figures assume near-optimal play. A casual run lands nearer 2–3 hours.
 
-## Why Velocity is capped and the others are not
+### What simulation caught that reading the code would not
 
-A ball's step loop discards its remaining travel when it bounces, so a ball can
-land at most one impact per substep — three per frame, about 180 hits a second.
-Past that, speed buys nothing. The cap is where the stat stops working, not a
-balance decision.
+- **The economy could not start.** You began with 0 pixels and a shot cost 8, so
+  you could never fire. Zero shots in five minutes.
+- **A permanent soft-lock.** Auto-fire only tried the *selected* ball while the
+  salvage top-up priced off the *basic* ball. Select a pricier ball, go broke,
+  and nothing could ever fire again. Dead at minute 3.
+- **Upgrade pixels were uncollectable.** They generated on schedule but carried
+  900 base HP against surrounding rock at 5 — 250–500× tougher — so they were
+  uncovered and then sat there unbreakable forever. A reward you cannot collect
+  is worse than no reward.
+- **Hazards grew exponentially.** Spreading was per-*hit*, and a Bloom deep in
+  the world takes 160+ hits to break, so each produced ~36 offspring. Measured
+  3k → 12k → 23k cells in sixteen minutes. Now each Bloom gets a single chance
+  below 1 (p=0.55), so expected offspring converges to ~2.2 cells — bounded by
+  arithmetic rather than by a tuning constant.
 
-Swarm is capped for frame budget: past 25 balls the swarm costs more to draw
-than it earns. Everything beyond it has to be bought as Impact.
+Note also that the balance is verified against the *worst case* where a player
+buys every shiny perk and unlock **before** refining even once. Players buy the
+interesting-looking thing first, and the design has to survive that.
 
-## Offline and tabbed away
+## Golden pixel & seeds
 
-`requestAnimationFrame` stops in a hidden tab and on a sleeping phone, so the
-simulation cannot simply keep running. Elapsed wall-clock time is credited
-instead, by eroding the cavern frontier through the same `payout()` path a live
-block uses — so offline income can never diverge from online income.
+One cell, uniformly placed, **no hint system** — a true needle in a haystack. It
+is kept out of the opening hollow so it cannot be won in the first ten seconds.
 
-Requires Auto-Launch. Pays 40% of your observed block rate, capped at 12 hours
-and 250,000 blocks per return.
+The world seed is **rolled per run and saved**, so the golden pixel hides
+somewhere new every playthrough.
 
-## What was removed
+## Offline
 
-The previous version layered five progression systems onto this loop: an ore
-tree with six colour currencies, a Forge running real-time research on Cores, a
-Residue meta tree, a stratum/descent prestige reset, and a Monolith minigame
-with sixteen unique powers. All of it is gone, along with Smash/Drill/Poison
-balls, crits, shockwaves, poison spread, and the Codex.
-
-Old saves (`orebound.v2`, `orebound.v1`, `pixelbouncer.v3`) are **not migrated**
-— they encode currencies that no longer exist, and a half-conversion would hide
-bugs rather than fix them. They are cleared on first load with a notice on the
-start menu.
-
-The file went from 2161 lines to 1151.
+Away time is credited by eroding the cavern frontier through the same `payout()`
+path a live pixel uses, so offline income can never diverge from online income.
+Requires auto-fire; pays 40% of your observed rate, capped at 12 hours and
+400,000 pixels per return.
 
 ## Local development
 
-`index.html` sits at the repo root and GitHub Pages serves it from `main`.
-Pushing to `main` redeploys; there is no build step.
-
-To serve it locally:
+`index.html` sits at the repo root; GitHub Pages serves it from `main`.
 
 ```bash
 python -m http.server 8765
 ```
 
-A `.claude/launch.json` is included so the preview tooling can start that server
-by name. `file://` works too, except that `localStorage` is unavailable, so saves
-silently no-op.
+`.claude/launch.json` lets the preview tooling start that server by name.
+`file://` works too, except `localStorage` is unavailable so saves silently
+no-op.
 
 ## Known limitations
 
-- `paintAll()` walks all 1,048,576 cells. It runs on boot, on reset and after an
-  offline credit — a visible hitch on slow machines, but not in the frame loop.
-- The save embeds a run-length mask of the whole board plus every partially
-  damaged cell. It stays small in practice but grows with a heavily chewed board.
-- Corners of the board sit at depth ~724 and are effectively impenetrable. That
-  is the intended wall; there is no bedrock shell.
+- One of seven ball abilities is unspecified and shows as `?????`.
+- Save embeds a run-length mask of every cell plus every partially
+  damaged cell (~25 KB at 8% cleared; grows with a heavily chewed board).
+- Board corners sit at depth ~2236 and are effectively impenetrable; that is the
+  intended wall, there is no bedrock shell.
