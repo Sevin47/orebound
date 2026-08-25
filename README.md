@@ -15,7 +15,7 @@ Single file, no build step, no dependencies. Open `index.html` in any browser.
 
 | Input | Action |
 |---|---|
-| Click | Launch at that spot &middot; **drag** to aim |
+| Click | Launch at that spot &middot; **drag back** to sling |
 | Right-drag / two fingers | Pan |
 | `1`–`7` / dock | Select ball type |
 | `A` | Toggle auto-fire |
@@ -122,13 +122,29 @@ measurement**. Removing the cap put it at 58.
 **Balls render at a quarter of a block.** Measured 0.19, 0.27 and 0.28 across
 three scenes; they had been drawn at 0.8, about three times too large.
 
-## Aiming
+## Aiming is a slingshot
 
-Press to set the launch point, drag to aim, release to fire. **Pull further back
-to throw harder** — drag length scales launch speed from 30% up to the ball's own
-maximum, and never past it. A plain click with no drag fires at full speed.
+Press where you want the ball to launch from, **drag back away from your target**,
+and release. The ball flies opposite the pull, and the further back you draw the
+harder it leaves. While you drag, the band stretches from the cursor to the
+launch point and thickens under tension, a dashed arrow shows the shot going the
+other way, and the power reads out as a percentage.
 
-Power changes only how the ball travels: a soft lob and a hard throw cost the
+**Power is continuous: 0.5% per screen pixel**, floor 25%, full draw at 200px.
+Every pixel of mouse movement is a distinct speed.
+
+| Pulled | 0–50px | 100px | 150px | 200px+ |
+|---|---|---|---|---|
+| Power | 25% | 50% | 75% | 100% |
+| Speed (Prospector) | 1.32 | 2.20 | 3.30 | 4.40 |
+
+Two details that matter. It is measured in **screen** pixels, not world cells:
+camera zoom ranges from about 2 to 40, so a fixed distance in cells is a flick at
+one end and an arm's length at the other. And the ramp is smooth — the previous
+curve jumped from full power to 30% the instant the drag passed six cells, a 3.3×
+step off a single pixel of movement, which is what made it feel chunky.
+
+Power changes only how the ball travels: a soft lob and a hard sling cost the
 same and mine the same.
 
 ## The tech tree

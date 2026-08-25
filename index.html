@@ -211,10 +211,10 @@
   <div>balls <b id="ballct">0</b></div>
 </div>
 
-<div class="hud" id="prompt">CLICK TO LAUNCH &middot; DRAG TO AIM</div>
+<div class="hud" id="prompt">CLICK TO LAUNCH &middot; DRAG BACK TO SLING</div>
 <div id="dock"></div>
 <div class="hud" id="toast"></div>
-<div class="hud" id="hint">[click] launch &middot; [drag] aim &middot; [right-drag] pan &middot; [1-7] ball &middot; [A] auto &middot; [wheel] zoom &middot; [F] refit &middot; [U] upgrades &middot; [S] stats &middot; [Esc] menu</div>
+<div class="hud" id="hint">[click] launch &middot; [drag back] sling &middot; [right-drag] pan &middot; [1-7] ball &middot; [A] auto &middot; [wheel] zoom &middot; [F] refit &middot; [U] upgrades &middot; [S] stats &middot; [Esc] menu</div>
 
 <div id="mobibar">
   <button data-a="upg">BALLS</button>
@@ -1413,7 +1413,45 @@ function draw(dt) {
     const src = aimFrom || aim;
     const okHere = !solid(Math.round(src[0]), Math.round(src[1]));
     const P = toS(src[0], src[1]);
-    ctx.strokeStyle = okHere ? col : "#7b8598"; ctx.globalAlpha = okHere ? .9 : .4;
+    const pulled = aimFrom && Math.hypot(aim[0]-aimFrom[0], aim[1]-aimFrom[1]) >= PULL_DEAD;
+
+    if (pulled) {
+      // The band: drawn from the cursor back to the launch point, thickening as
+      // it draws, so it reads as something under tension rather than a heading.
+      const pw = launchPower();
+      const C = toS(aim[0], aim[1]);
+      ctx.strokeStyle = col; ctx.globalAlpha = .30 + pw*.45;
+      ctx.lineWidth = 1 + pw*3;
+      ctx.beginPath(); ctx.moveTo(C[0],C[1]); ctx.lineTo(P[0],P[1]); ctx.stroke();
+
+      // the nock you are dragging
+      ctx.globalAlpha = .8; ctx.beginPath();
+      ctx.arc(C[0],C[1], 3+pw*3, 0, 6.2832); ctx.stroke();
+
+      // and the shot itself, opposite the pull, its length showing the power
+      const a = launchAngle(), L = 34 + pw*150;
+      const hx = P[0]+Math.cos(a)*L, hy = P[1]+Math.sin(a)*L;
+      ctx.globalAlpha = .9; ctx.lineWidth = 1 + pw*2.4;
+      ctx.setLineDash([5,5]);
+      ctx.beginPath(); ctx.moveTo(P[0],P[1]); ctx.lineTo(hx,hy); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(hx, hy);
+      ctx.lineTo(hx-Math.cos(a-0.42)*(9+pw*7), hy-Math.sin(a-0.42)*(9+pw*7));
+      ctx.moveTo(hx, hy);
+      ctx.lineTo(hx-Math.cos(a+0.42)*(9+pw*7), hy-Math.sin(a+0.42)*(9+pw*7));
+      ctx.stroke();
+
+      // power readout, so the ramp is legible while you drag
+      ctx.globalAlpha = .85; ctx.fillStyle = col;
+      ctx.font = "11px ui-monospace, Consolas, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(Math.round(pw*100)+"%", P[0], P[1]-16);
+      ctx.textAlign = "start";
+    }
+
+    ctx.strokeStyle = okHere ? col : "#7b8598";
+    ctx.globalAlpha = okHere ? .9 : .4;
     ctx.lineWidth = 1.5;
     const r = 9;
     ctx.beginPath();
@@ -1422,22 +1460,6 @@ function draw(dt) {
     ctx.moveTo(P[0],P[1]-r); ctx.lineTo(P[0],P[1]-3);
     ctx.moveTo(P[0],P[1]+3); ctx.lineTo(P[0],P[1]+r);
     ctx.stroke();
-    if (aimFrom) {                            // dragging: show heading AND power
-      const pw = launchPower();
-      const a = launchAngle(), L = 60 + pw*130;
-      ctx.lineWidth = 1 + pw*2.2;
-      ctx.globalAlpha = .75; ctx.setLineDash([5,5]);
-      ctx.beginPath(); ctx.moveTo(P[0],P[1]);
-      ctx.lineTo(P[0]+Math.cos(a)*L, P[1]+Math.sin(a)*L);
-      ctx.stroke(); ctx.setLineDash([]);
-      const hx = P[0]+Math.cos(a)*L, hy = P[1]+Math.sin(a)*L;
-      ctx.beginPath();
-      ctx.moveTo(hx, hy);
-      ctx.lineTo(hx-Math.cos(a-0.4)*11, hy-Math.sin(a-0.4)*11);
-      ctx.moveTo(hx, hy);
-      ctx.lineTo(hx-Math.cos(a+0.4)*11, hy-Math.sin(a+0.4)*11);
-      ctx.stroke();
-    }
     ctx.globalAlpha = 1;
   }
 
@@ -1820,24 +1842,36 @@ function pinchSpan() {
   const a = [...ptrs.values()];
   return a.length < 2 ? 0 : Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y);
 }
-// Pull further back to throw harder. Ratio of the drag length to PULL_FULL,
-// clamped so you can never exceed the ball's own top speed.
-const PULL_MIN = 6, PULL_FULL = 90;               // world cells
+// Slingshot. You drag AWAY from where the ball will go and let go, and the
+// further back you pull the harder it leaves.
+//
+// Power is continuous in the drag length -- 0.5% per screen pixel, so a full
+// draw is 200px and every pixel in between is a distinct speed. The old curve
+// jumped from full power to 30% the moment the drag passed six cells, a 3.3x
+// step off a single pixel of mouse movement, which is what made it feel chunky.
+//
+// Measured in SCREEN pixels, not world cells: the camera zoom ranges from about
+// 2 to 40, so a fixed distance in cells is a flick at one end and an arm's
+// length at the other. Screen distance feels the same at every zoom.
+const PULL_RATE = 0.005;                          // power gained per screen pixel
+const PULL_FLOOR = 0.25;                          // a bare tap still lobs it gently
+const PULL_DEAD = 0.4;                            // cells of slop before it counts as a pull
+function pullScreenPx() {
+  if (!aimFrom || !aim) return 0;
+  return Math.hypot(aim[0]-aimFrom[0], aim[1]-aimFrom[1]) * cam.z;
+}
 function launchPower() {
-  if (!aimFrom || !aim) return 1;
-  const d = Math.hypot(aim[0]-aimFrom[0], aim[1]-aimFrom[1]);
-  if (d < PULL_MIN) return 1;                     // a plain click fires at full speed
-  return Math.max(0.3, Math.min(1, d / PULL_FULL));
+  return Math.max(PULL_FLOOR, Math.min(1, pullScreenPx() * PULL_RATE));
 }
 
 function launchAngle() {
   if (!aimFrom || !aim) return Math.random()*Math.PI*2;
   const dx = aim[0]-aimFrom[0], dy = aim[1]-aimFrom[1];
-  if (Math.hypot(dx, dy) < 0.9) {          // no meaningful drag: fire outward
+  if (Math.hypot(dx, dy) < PULL_DEAD) {    // nothing pulled: send it outward
     const a = Math.atan2(aimFrom[1]-CY, aimFrom[0]-CX);
     return isFinite(a) && (aimFrom[0]!==CX || aimFrom[1]!==CY) ? a : Math.random()*Math.PI*2;
   }
-  return Math.atan2(dy, dx);
+  return Math.atan2(-dy, -dx);             // INVERTED: it flies opposite the pull
 }
 
 cv.addEventListener("contextmenu", e => e.preventDefault());
