@@ -57,8 +57,8 @@ dock and the ball itself all share it.
 | **Directional** | blue | Travels only in straight vertical or horizontal lines, drifting sideways each bounce to carve wide tunnels. |
 | **Smash** | red | Detonates on impact, hitting every pixel in a surrounding area. |
 | **Poison** | green | Poisons pixels; poison erodes and spreads on its own. |
-| **Lightning** | yellow | Arcs from the point of impact, shocking pixels some distance away. |
-| **Rush** | purple | Travels far faster than any other ball, spending its impacts in a fraction of the time. |
+| **Lightning** | yellow | Crackles with static *as it flies*, arcing into nearby pixels before it ever touches them. |
+| **Rush** | purple | Streaks across the cavern like a shooting star, spending its impacts in seconds. |
 | **?????** | — | Not specified yet. Slot reserved. |
 
 Ball choice is not cosmetic. Measured on the same save, switching from Rush
@@ -76,21 +76,42 @@ set of valid launch sites**, and it grows as you mine. Auto-fire picks spots on
 the working face, so idle play widens the frontier instead of re-grinding cleared
 ground.
 
-## Slow balls, big swarm
+## A calm swarm
 
-Balls drift at **3.5–12 cells per second**. That is deliberate and it is the
-balance for having a large swarm in the arena: fast balls plus a high ball cap is
-the combination that lets an idle mode play itself.
+Balls drift at **4.4–8.8 cells per second**, and the live cap is a **flat 140**.
+Both numbers are chosen for the same reason: the game is something you watch
+erode, not something that demands attention. An earlier build scaled the cap
+with cavern size and reached 2000+ balls, which is chaos to look at.
 
-Because impacts per second per ball is proportional to speed, slow balls only
-work if there are a great many of them. The live cap therefore **scales with how
-much cavern you have opened** — roughly one ball per 35 cleared cells, up to a
-ceiling of 2500. A flat cap looked catastrophic early: 2500 balls in a radius-58
-cavern is one ball per four cells, a solid mass of dots with no rock visible.
+**Rush is the deliberate exception** at 75 cells/sec with a long tail — a
+shooting star crossing an otherwise slow arena.
 
-Special balls are capped hard and separately (Rush 18, Lightning 30, Poison 35,
-Smash 40, Directional 60). Letting auto-fire spam the strongest ball is not a
-strategy, it is an exploit.
+Special balls are capped separately and hard: Rush 10, Lightning 18, Poison 20,
+Smash 22, Directional 30.
+
+**Balls never steer themselves.** A ball flies exactly where you sent it until it
+bounces off rock, and if it crosses 55 cells of open ground it simply retires and
+auto-fire replaces it at the working face. An earlier build re-aimed idle balls
+at the nearest rock, which looked like they were flying themselves and quietly
+took the aiming decision away from the player.
+
+**Ball-to-ball collision is gone.** Hundreds of elastic collisions a frame read as
+noise rather than physics, and they kept knocking balls off the headings you
+chose. Balls pass through one another.
+
+Because the swarm is small and fixed, throughput cannot come from more impacts —
+so it comes from each impact clearing more ground. **Smash craters widen with
+Refine**, up to +7 cells of radius, which is the late-game accelerator and is
+calm to watch.
+
+## Aiming
+
+Press to set the launch point, drag to aim, release to fire. **Pull further back
+to throw harder** — drag length scales launch speed from 30% up to the ball's own
+maximum, and never past it. A plain click with no drag fires at full speed.
+
+Power changes only how the ball travels: a soft lob and a hard throw cost the
+same and mine the same.
 
 ## The tech tree
 
@@ -132,9 +153,14 @@ Two hazard pixels spread into ground you have **already cleared**:
 They are the counterweight that lets ball count go up without the game becoming
 trivial. Their growth is bounded *by construction*, not by tuning — see below.
 
-Also buried: **handcrafted relics**, hand-drawn bitmaps stamped into the
-procedural rock and made of much tougher pixels, so they emerge as silhouettes
-while the soft rock erodes around them.
+Also buried: **handcrafted relics**, hand-drawn bitmaps of much tougher pixels
+that emerge as silhouettes while the soft rock erodes around them.
+
+And **90 unbreakable monuments** — rings, crosses, spirals, bars and lenses,
+scaled from 26 to 78 cells across, defined as distance fields rather than bitmaps
+so they cost nothing to store. They take no damage ever, and they exist purely to
+give the cavern a shape: without them erosion converges on a featureless disc.
+None are placed within 26 cells of spawn, so a run can never be sealed in.
 
 ## Architecture
 

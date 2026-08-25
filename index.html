@@ -299,7 +299,8 @@ const depthMul = d => Math.exp(DEPTH_K * Math.pow(d, DEPTH_E));
 const VAL_POW = 0.32;
 
 //--------------------------------------------------------------- tier table
-const T_UPG = 9, T_GOLD = 10, T_OBJ = 11, T_ORANGE = 12, T_PURPLE = 13;
+const T_UPG = 9, T_GOLD = 10, T_OBJ = 11, T_ORANGE = 12, T_PURPLE = 13, T_WALL = 14;
+const unbreakable = t => t === T_WALL;
 const isHazard = t => t === T_ORANGE || t === T_PURPLE;
 // Hard ceiling on live hazard cells. Without it a bad roll can cascade and
 // swallow the whole cavern, which is a lost save rather than a challenge.
@@ -333,6 +334,9 @@ const TIERS = [
   // lets ball count go up without the game becoming trivial.
   { name:"Bloom",   hp:10,   val:34,   col:[255,142, 36] },   // T_ORANGE
   { name:"Creep",   hp:70,   val:120,  col:[188, 72,236] },   // T_PURPLE
+  // Unbreakable. Never takes damage, never drops anything, and exists purely to
+  // give the cavern a shape. Without it erosion converges on a featureless disc.
+  { name:"Bedrock", hp:Infinity, val:0, col:[120,132,152] },  // T_WALL
 ];
 
 // Upgrade pixel density falls off as 1/d. That is not arbitrary: a uniform
@@ -341,8 +345,10 @@ const TIERS = [
 // At 1/d the count inside radius r grows LINEARLY with r, so upgrades arrive at
 // a steady pace the whole way out no matter how wide the cavern gets.
 // UPG_A is calibrated so ~2*PI*A*r upgrades exist inside radius r: about 19 by
-// radius 100, ~92 by radius 320, and ~447 by the time the golden pixel is in reach.
-const UPG_A = 0.046;
+// radius 100 and rising steadily from there. Raised threefold when the ball cap
+// became a flat 140: a smaller swarm clears far less ground, so points spread
+// over AREA arrive far too slowly to keep the tree moving.
+const UPG_A = 0.140;
 const upgDensity = d => UPG_A / Math.max(30, d);
 
 //--------------------------------------------------------------- world data
@@ -398,6 +404,63 @@ const OBJECTS = (function () {
   return out;
 })();
 
+//--------------------------------------------------------- monuments
+// Large unbreakable structures scattered through the world. These are what stop
+// a run from eroding into a perfect circle: the cavern has to grow AROUND them,
+// so its outline is dictated by what is buried rather than by the radius.
+//
+// Each is a signed-distance test in world space, so they can be any size without
+// storing a bitmap, and a chunk only tests the handful that overlap it.
+const MONUMENTS = (function () {
+  const out = [];
+  const kinds = ["ring", "cross", "bars", "spiral", "lens"];
+  for (let i = 0; i < 90; i++) {
+    const a = i * 2.399963;                        // golden angle: no clustering
+    const r = 150 + i * 78;
+    out.push({
+      kind: kinds[i % kinds.length],
+      x: Math.round(CX + Math.cos(a) * r),
+      y: Math.round(CY + Math.sin(a) * r),
+      s: 26 + (i % 5) * 13,                        // half-size in cells
+      rot: (i * 0.7) % Math.PI,
+    });
+  }
+  return out;
+})();
+
+function inMonument(m, x, y) {
+  const dx = x - m.x, dy = y - m.y;
+  const c = Math.cos(m.rot), sn = Math.sin(m.rot);
+  const px = dx*c + dy*sn, py = -dx*sn + dy*c;     // rotate into the shape's frame
+  const s = m.s, t = Math.max(3, s * 0.16);        // stroke thickness
+  switch (m.kind) {
+    case "ring":   { const d = Math.hypot(px, py); return Math.abs(d - s) < t; }
+    case "cross":  return (Math.abs(px) < t && Math.abs(py) < s)
+                       || (Math.abs(py) < t && Math.abs(px) < s);
+    case "bars":   return Math.abs(py) < s && (Math.abs(px % (t*3)) < t) && Math.abs(px) < s;
+    case "lens":   { const d1 = Math.hypot(px - s*0.5, py), d2 = Math.hypot(px + s*0.5, py);
+                     return d1 < s && d2 < s && (d1 > s - t || d2 > s - t); }
+    case "spiral": { const d = Math.hypot(px, py);
+                     if (d > s || d < t) return false;
+                     const ang = Math.atan2(py, px);
+                     const arm = ((ang + Math.PI) / (Math.PI*2)) * s;
+                     return Math.abs(((d - arm) % (s*0.42)) ) < t*0.8; }
+  }
+  return false;
+}
+function stampMonuments(x0, y0, x1, y1) {
+  for (const m of MONUMENTS) {
+    if (m.x + m.s < x0 || m.x - m.s >= x1 || m.y + m.s < y0 || m.y - m.s >= y1) continue;
+    const ax0 = Math.max(x0, m.x - m.s), ax1 = Math.min(x1, m.x + m.s + 1);
+    const ay0 = Math.max(y0, m.y - m.s), ay1 = Math.min(y1, m.y + m.s + 1);
+    for (let y = ay0; y < ay1; y++) for (let x = ax0; x < ax1; x++) {
+      if (x < 0 || y < 0 || x >= WORLD || y >= WORLD) continue;
+      if (Math.hypot(x - CX, y - CY) < 26) continue;      // never seal the spawn
+      if (inMonument(m, x, y)) tier[y*WORLD + x] = T_WALL;
+    }
+  }
+}
+
 //--------------------------------------------------------- chunked generation
 function genCell(x, y) {
   const dx = x - CX, dy = y - CY, d = Math.sqrt(dx*dx + dy*dy);
@@ -449,6 +512,7 @@ function ensureChunk(cx, cy) {
       if (isHazard(t)) hazCount++;      // counted here too, or HAZ_CAP is meaningless
     }
   stampObjects(x0, y0, x1, y1);
+  stampMonuments(x0, y0, x1, y1);
   if (GOLD_I >= 0) {                              // the golden pixel outranks terrain
     const gx = GOLD_I % WORLD, gy = (GOLD_I / WORLD) | 0;
     if (gx >= x0 && gx < x1 && gy >= y0 && gy < y1) tier[GOLD_I] = T_GOLD;
@@ -493,19 +557,26 @@ function cellVal(x, y, t) {
 // cap is the most that may be in flight AT ONCE for that ball. Prospector is
 // effectively uncapped; the special balls are strictly limited, because letting
 // auto-fire spam the strongest ball is not a strategy, it is an exploit.
+// spd is cells/sec. Deliberately slow: the point is a relaxed cavern you watch
+// erode, not a laser show. Rush is the one exception and is meant to read as a
+// streaking shooting star against everything else.
+//
+// cap is the most of that ball that may be in flight at once. These are FLAT.
+// An earlier version scaled the cap with cavern size and ended up at 2000+ balls,
+// which is chaos to look at and the opposite of relaxed.
 const BALLS = [
-  { k:0, name:"Prospector", hue:"Orange", col:"#ff9a3c", cost:8,  imp:40, spd:4.0,  cap:2500, unlock:0,
+  { k:0, name:"Prospector", hue:"Orange", col:"#ff9a3c", cost:8,  imp:40, spd:5.0,  cap:140, unlock:0,
     desc:"The ball you start with. A plain bounce that breaks the softest rock in one hit." },
-  { k:1, name:"Directional",hue:"Blue",   col:"#46b6ff", cost:19, imp:34, spd:7.0,  cap:60,  unlock:1,
+  { k:1, name:"Directional",hue:"Blue",   col:"#46b6ff", cost:19, imp:34, spd:8.8,  cap:30,  unlock:1,
     desc:"Only travels in a straight vertical or horizontal line, drifting sideways each bounce so it carves wide tunnels." },
-  { k:2, name:"Smash",      hue:"Red",    col:"#ff4a4a", cost:26, imp:26, spd:3.5,  cap:40,  unlock:2,
+  { k:2, name:"Smash",      hue:"Red",    col:"#ff4a4a", cost:26, imp:26, spd:4.4,  cap:22,  unlock:2,
     desc:"Detonates on impact, hitting every pixel in a surrounding area." },
-  { k:3, name:"Poison",     hue:"Green",  col:"#4cf05c", cost:34, imp:22, spd:4.0,  cap:35,  unlock:3,
+  { k:3, name:"Poison",     hue:"Green",  col:"#4cf05c", cost:34, imp:22, spd:5.0,  cap:20,  unlock:3,
     desc:"Poisons pixels on impact. Poison erodes them over time and spreads to nearby pixels on its own." },
-  { k:4, name:"Lightning",  hue:"Yellow", col:"#ffe14a", cost:44, imp:20, spd:6.0,  cap:30,  unlock:4,
-    desc:"Arcs from the point of impact, shocking pixels some distance away." },
-  { k:5, name:"Rush",       hue:"Purple", col:"#c060ff", cost:30, imp:30, spd:12.0, cap:18,  unlock:4,
-    desc:"Travels far faster than any other ball, spending its impacts in a fraction of the time." },
+  { k:4, name:"Lightning",  hue:"Yellow", col:"#ffe14a", cost:44, imp:20, spd:7.5,  cap:18,  unlock:4,
+    desc:"Crackles with static as it flies, arcing into nearby pixels before it ever touches them." },
+  { k:5, name:"Rush",       hue:"Purple", col:"#c060ff", cost:30, imp:30, spd:75.0, cap:10,  unlock:4,
+    desc:"Streaks across the cavern like a shooting star, spending its impacts in seconds." },
   { k:6, name:"Unknown",    hue:"—",      col:"#8a93a8", cost:0,  imp:0,  spd:0,    cap:0,   unlock:-1, desc:"" },
 ];
 const NBALL = BALLS.length;
@@ -663,17 +734,8 @@ const ballCost = k => BALLS[k].cost;
 // cell world clearable is to have a great many of them. Measured cost at 2500
 // live balls: 2.4ms simulation + 4.9ms draw, inside a 16.7ms frame budget.
 // Slow and numerous also looks right -- a dense working swarm, not a laser show.
-const MAXLIVE = 2500;                             // hard ceiling on live balls
-// ...but the LIVE cap scales with how much cavern you have opened, roughly one
-// ball per 100 cleared cells. A flat cap of 2500 looked catastrophic early on:
-// in a radius-58 cavern the arena was a solid mass of dots with no rock visible.
-// Reference footage shows a handful of balls in a viewport of that size, and the
-// swarm only reads as a swarm once there is somewhere for it to spread out.
-const BALL_DENSITY = 35;
-function liveCap() {
-  const area = Math.PI * S.maxDepth * S.maxDepth;
-  return Math.max(90, Math.min(MAXLIVE, Math.round(area / BALL_DENSITY)));
-}
+const MAXLIVE = 140;                              // flat ceiling on live balls
+function liveCap() { return MAXLIVE; }
 const START_PX = 160;                             // seed stock, or the first shot is unaffordable
 
 // A currency you spend to earn currency can strand you at zero. If nothing is in
@@ -719,7 +781,7 @@ function spawnClear(x, y) {
   }
   return null;
 }
-function fire(kind, ang, ox, oy) {
+function fire(kind, ang, ox, oy, power) {
   const B = BALLS[kind];
   if (!built(B) || !S.owned[kind]) return false;
   if (balls.length >= liveCap()) return false;
@@ -731,9 +793,12 @@ function fire(kind, ang, ox, oy) {
   S.px -= c; S.shots++;
   let a = ang;
   if (kind === 1) a = Math.round(ang / (Math.PI/2)) * (Math.PI/2);
-  const sp = B.spd;
+  // Power scales launch speed only, never damage or impacts — a soft lob and a
+  // hard throw cost the same and mine the same, they just travel differently.
+  const pw = Math.max(0.3, Math.min(1, power === undefined ? 1 : power));
+  const sp = B.spd * pw;
   balls.push({ x:at[0]+.5, y:at[1]+.5, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
-               kind, trail:[], left:ballImp(kind), stall:0, hits:0, boost:1 });
+               kind, trail:[], left:ballImp(kind), stall:0, hits:0, boost:1, pw });
   return true;
 }
 
@@ -863,33 +928,18 @@ function solid(x, y) {
   return tier[y*WORLD + x] !== 0;
 }
 
-// Slow balls must be kept ON the rock face. A ball drifting at a few cells a
-// second spends almost all its life in transit if it is allowed to wander: in a
-// cavern of radius 39 one crossing already takes ten seconds, and the old limit
-// let it travel 180 cells (three quarters of a minute) before re-aiming.
-//
-// So the limit is a small CONSTANT rather than a multiple of the cavern radius.
-// A ball that crosses this much open ground turns to face the nearest rock, which
-// keeps the whole swarm working the frontier instead of coasting through the void.
-const STALL_MIN = 14;
-function stallLimit() { return STALL_MIN; }
-function reseek(b) {
-  b.stall = 0;
-  let best = null, bestD = 1e9;
-  for (let r = 0; r < 16; r++) {
-    const a = r * (Math.PI*2/16), dx = Math.cos(a), dy = Math.sin(a);
-    for (let d = 2; d < 160; d += 2) {
-      const x = (b.x + dx*d)|0, y = (b.y + dy*d)|0;
-      if (x<0||y<0||x>=WORLD||y>=WORLD) break;
-      if (tier[y*WORLD+x]) { if (d < bestD) { bestD = d; best = a; } break; }
-    }
-  }
-  if (best === null) { b.left = 0; return; }      // nothing reachable: retire it
-  let a = best;
-  if (b.kind === 1) a = Math.round(a/(Math.PI/2))*(Math.PI/2);
-  const sp = BALLS[b.kind].spd * (b.boost || 1);
-  b.vx = Math.cos(a)*sp; b.vy = Math.sin(a)*sp;
-}
+// Balls NEVER steer themselves. A ball flies exactly where you sent it until it
+// bounces off rock, and if it crosses this much open ground without touching
+// anything it simply retires. The previous build re-aimed idle balls at the
+// nearest rock, which looked like they were flying themselves and quietly took
+// the aiming decision away from the player.
+// A ball that crosses this much open ground gives up and retires, and auto-fire
+// replaces it at the working face. This is how the swarm stays on the rock
+// without any ball ever steering itself: short-lived drifters, constantly
+// resupplied, rather than long-lived wanderers being nudged back on target.
+// At 260 the arena filled with balls coasting through the void and throughput
+// decayed as the cavern widened.
+const DRIFT_LIMIT = 55;
 
 function onImpact(b, hx, hy) {
   b.stall = 0; b.left--; b.hits = (b.hits || 0) + 1;
@@ -907,9 +957,10 @@ function onImpact(b, hx, hy) {
     if (perk(0,"frag") && !b.frag && b.left > 4 && balls.length < liveCap()) {
       b.frag = 1;                                           // Fragment: split once
       const half = b.left >> 1; b.left -= half;
-      const a = Math.random()*Math.PI*2, sp = BALLS[0].spd;
-      balls.push({ x:b.x, y:b.y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
-                   kind:0, trail:[], left:half, stall:0, frag:1, hits:0 });
+      // Perpendicular to the parent, not random: a split, not a teleport.
+      const sp = Math.hypot(b.vx, b.vy) || BALLS[0].spd;
+      balls.push({ x:b.x, y:b.y, vx:-b.vy/sp*BALLS[0].spd, vy:b.vx/sp*BALLS[0].spd,
+                   kind:0, trail:[], left:half, stall:0, frag:1, hits:0, boost:1 });
     }
   } else if (k === 1) {
     destroyed = hitCell(hx, hy, d);
@@ -923,7 +974,10 @@ function onImpact(b, hx, hy) {
     }
     if (perk(1,"free") && !destroyed) b.left++;              // Freewheel: refund
   } else if (k === 2) {
-    const r = 1.5 + (perk(2,"wider") ? 2 : 0);
+    // Crater grows with Refine. With a small swarm the only way throughput can
+    // climb is for each impact to clear more ground rather than for there to be
+    // more impacts -- and a widening crater is calm to watch, unlike more balls.
+    const r = 1.5 + (perk(2,"wider") ? 2 : 0) + Math.min(7, S.refine * 0.30);
     blast(hx, hy, r, d);
     if (perk(2,"after")) aftershocks.push({ x:hx, y:hy, r, d:d*0.7, t:0.45 });
     if (perk(2,"chain2") && Math.random() < 0.25) {
@@ -931,21 +985,24 @@ function onImpact(b, hx, hy) {
       blast(hx + Math.round(Math.cos(a)*off), hy + Math.round(Math.sin(a)*off), r, d*0.8);
     }
   } else if (k === 3) {
-    destroyed = hitCell(hx, hy, d);
-    const i = hy*WORLD + hx;
-    if (tier[i] && !isHazard(tier[i]) && poison.size < POISON_CAP)
-      poison.set(i, (poison.get(i)||0) + 1);
-  } else if (k === 4) {
-    destroyed = hitCell(hx, hy, d);
-    let n = 2 + (perk(4,"arc") ? 3 : 0);                    // Arc
-    if (perk(4,"fork")) n *= 2;                             // Fork
-    const reach = (perk(4,"over") ? 12 : 6);                // Overload
-    for (let i = 0; i < n; i++) {
-      const a = Math.random()*Math.PI*2, r = 2 + Math.random()*reach;
-      const tx = hx + Math.round(Math.cos(a)*r), ty = hy + Math.round(Math.sin(a)*r);
-      hitCell(tx, ty, d*0.8);
-      addBolt(hx, hy, tx, ty);                              // the visible zap
+    // Infect FIRST, then strike. Poisoning after the hit meant nothing was ever
+    // infected: the ball one-shots soft rock, so by the time poison was applied
+    // the cell was already destroyed and poison silently did nothing at all.
+    // Infecting a small patch also gives the rot somewhere to spread from.
+    for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
+      const px = hx+ox, py = hy+oy;
+      if (px < 0 || py < 0 || px >= WORLD || py >= WORLD) continue;
+      const j = py*WORLD + px, tj = tier[j];
+      if (!tj || isHazard(tj) || unbreakable(tj)) continue;
+      if (poison.size >= POISON_CAP) break;
+      poison.set(j, (poison.get(j)||0) + 1);
+      markDirty(px, py);
     }
+    destroyed = hitCell(hx, hy, d);
+  } else if (k === 4) {
+    // Lightning does its work in flight (see staticDischarge), so the impact
+    // itself is an ordinary strike.
+    destroyed = hitCell(hx, hy, d);
   } else if (k === 5) {
     if (perk(5,"blur")) d *= 2;                             // Blur: double strike
     destroyed = hitCell(hx, hy, d);
@@ -967,10 +1024,39 @@ function tickAftershocks(dt) {
   }
 }
 
+// Static electricity: a Lightning ball crackles into rock it is PASSING, before
+// it ever touches anything. Arcing on impact made it a worse Smash; arcing in
+// flight makes it the ball you send down a corridor.
+function staticDischarge(b, dt) {
+  b.zap = (b.zap || 0) + dt;
+  const every = perk(4,"fast") ? 0.06 : 0.10;
+  if (b.zap < every) return;
+  b.zap = 0;
+  const reach = perk(4,"over") ? 14 : 7;          // Overload
+  let n = 1 + (perk(4,"arc") ? 2 : 0);            // Arc
+  if (perk(4,"fork")) n *= 2;                     // Fork
+  const d = ballDmg(4) * 0.55;
+  const bx = Math.round(b.x), by = Math.round(b.y);
+  for (let i = 0; i < n; i++) {
+    // walk outward on a random heading until it finds rock to earth itself in
+    const a = Math.random()*Math.PI*2, cs = Math.cos(a), sn = Math.sin(a);
+    for (let r = 2; r <= reach; r++) {
+      const tx = bx + Math.round(cs*r), ty = by + Math.round(sn*r);
+      if (tx < 0 || ty < 0 || tx >= WORLD || ty >= WORLD) break;
+      if (!solid(tx, ty)) continue;
+      hitCell(tx, ty, d);
+      addBolt(bx, by, tx, ty);
+      break;
+    }
+  }
+}
+
 function stepBall(b, dt) {
   ensureAround(b.x, b.y);
+  if (b.kind === 4) staticDischarge(b, dt);
   b.trail.push(b.x, b.y);
-  if (b.trail.length > 10) b.trail.splice(0,2);
+  const tailMax = b.kind === 5 ? 34 : 10;         // Rush leaves a shooting-star streak
+  if (b.trail.length > tailMax) b.trail.splice(0,2);
 
   const mag = Math.hypot(b.vx, b.vy) || 1;
   const ux = b.vx/mag, uy = b.vy/mag;
@@ -998,7 +1084,7 @@ function stepBall(b, dt) {
         const tx = b.x + perp[0]*offs, ty = b.y + perp[1]*offs;
         if (!solid(Math.floor(tx), Math.floor(ty))) { b.x = tx; b.y = ty; }
       }
-      const sp = BALLS[b.kind].spd * (b.boost || 1);
+      const sp = BALLS[b.kind].spd * (b.boost || 1) * (b.pw || 1);
       const m = Math.hypot(b.vx, b.vy) || 1;
       b.vx = b.vx/m*sp; b.vy = b.vy/m*sp;
       return;
@@ -1012,53 +1098,33 @@ function stepBall(b, dt) {
       hitCell(Math.floor(nx), Math.floor(ny)-1, wd);
     }
   }
-  if (b.stall > stallLimit()) reseek(b);
+  if (b.stall > DRIFT_LIMIT) b.left = 0;   // wandered too long: retire, never re-aim
 }
 
 // Directional balls must stay axis-aligned after being knocked about.
-const buckets = new Map();
-function collide() {
-  buckets.clear();
+// Ball-to-ball collision is gone. Two thousand elastic collisions a frame read as
+// noise rather than physics, and bouncing balls off each other kept knocking them
+// off the headings the player chose. Balls now pass through one another.
+//
+// The one thing that pass survived for is keeping Directional balls axis-aligned.
+function alignDirectional() {
   for (const b of balls) {
-    const k = ((b.x/8)|0) + "," + ((b.y/8)|0);
-    let a = buckets.get(k); if (!a) buckets.set(k, a = []);
-    a.push(b);
-  }
-  const R = 1.1, R2 = R*R;
-  for (const entry of buckets) {
-    const parts = entry[0].split(","), arr = entry[1];
-    const bx = +parts[0], by = +parts[1];
-    for (let ox = 0; ox <= 1; ox++) for (let oy = (ox?-1:0); oy <= 1; oy++) {
-      const other = (ox||oy) ? buckets.get((bx+ox)+","+(by+oy)) : arr;
-      if (!other) continue;
-      for (const a of arr) for (const b of other) {
-        if (a === b) continue;
-        const dx = b.x-a.x, dy = b.y-a.y, d2 = dx*dx+dy*dy;
-        if (d2 > R2 || d2 < 1e-9) continue;
-        const d = Math.sqrt(d2), nx = dx/d, ny = dy/d;
-        const p = (a.vx-b.vx)*nx + (a.vy-b.vy)*ny;
-        if (p <= 0) continue;
-        a.vx -= p*nx; a.vy -= p*ny; b.vx += p*nx; b.vy += p*ny;
-        const sep = (R-d)/2 + .01;
-        a.x -= nx*sep; a.y -= ny*sep; b.x += nx*sep; b.y += ny*sep;
-        a.stall = b.stall = 0;
-      }
-    }
-  }
-  for (const b of balls) if (b.kind === 1) {
-    const sp = Math.hypot(b.vx,b.vy)||1;
+    if (b.kind !== 1) continue;
+    const sp = Math.hypot(b.vx, b.vy) || 1;
     if (Math.abs(b.vx) > Math.abs(b.vy)) { b.vx = Math.sign(b.vx)*sp; b.vy = 0; }
     else { b.vy = Math.sign(b.vy)*sp; b.vx = 0; }
   }
 }
 
 //=================================================================== poison
-let poisonAcc = 0;
+// Poison is the one damage source that keeps working with no ball present: it
+// ticks on a timer, erodes what it sits on, and creeps outward on its own.
 const POISON_CAP = 60000;
+let poisonAcc = 0;
 function tickPoison(dt) {
   if (!poison.size) return;
   poisonAcc += dt;
-  const interval = perk(3,"fast") ? 0.15 : 0.30;          // Fast Rot
+  const interval = perk(3,"fast") ? 0.15 : 0.30;           // Fast Rot
   if (poisonAcc < interval) return;
   poisonAcc = 0;
   const pot = ballDmg(3) * 0.45;
@@ -1071,15 +1137,16 @@ function tickPoison(dt) {
   for (const entry of poison) {
     const i = entry[0], st = entry[1];
     const x = i % WORLD, y = (i / WORLD) | 0;
-    if (!tier[i]) { poison.delete(i); continue; }
+    if (!tier[i] || unbreakable(tier[i])) { poison.delete(i); continue; }
     hitCell(x, y, Math.max(1, pot * st));
     if (!tier[i]) { poison.delete(i); continue; }
+    markDirty(x, y);                                       // keep the tint fresh
     if (Math.random() < spr) {
       const n = dirs[(Math.random()*dirs.length)|0];
       const nx = x+n[0], ny = y+n[1];
       if (nx>=0 && ny>=0 && nx<WORLD && ny<WORLD) {
         const j = ny*WORLD+nx;
-        if (tier[j] && !isHazard(tier[j])) adds.push(j);
+        if (tier[j] && !isHazard(tier[j]) && !unbreakable(tier[j])) adds.push(j);
       }
     }
   }
@@ -1166,9 +1233,15 @@ function cellColor(i, t) {
   const dv = dmg.get(i) || 0;
   let f = dv > 0 ? Math.max(.28, 1 - dv/hp*.72) : 1;
   f *= LITMUL[lit[i]];
-  const p = poison.has(i) ? 1 : 0;
-  const r = c[0]*f*(1-p*.55), g = c[1]*f + p*90, b = c[2]*f*(1-p*.55);
-  return "rgb("+(r|0)+","+(g|0)+","+(b|0)+")";
+  // Poisoned rock is washed toward a sickly green that deepens as stacks build,
+  // so infection is legible at a glance and you can watch it creep.
+  const st = poison.get(i) || 0;
+  if (st) {
+    const k = Math.min(1, 0.45 + st*0.18);
+    const r = c[0]*f*(1-k*0.75), g = Math.min(255, c[1]*f*(1-k*0.2) + 70 + k*90), b = c[2]*f*(1-k*0.8);
+    return "rgb("+(r|0)+","+(g|0)+","+(b|0)+")";
+  }
+  return "rgb("+((c[0]*f)|0)+","+((c[1]*f)|0)+","+((c[2]*f)|0)+")";
 }
 // Painting is per-chunk, never over the whole board.
 function paintChunk(cx, cy) {
@@ -1237,7 +1310,7 @@ function draw(dt) {
   const tailPts = balls.length > 120 ? 3 : balls.length > 40 ? 4 : 5;
   for (const b of balls) {
     const col = BALLS[b.kind].col;
-    const seg = Math.min(tailPts, b.trail.length>>1);
+    const seg = Math.min(b.kind === 5 ? 17 : tailPts, b.trail.length>>1);
     if (seg > 1) {
       ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, z*.22);
       ctx.globalAlpha = .38; ctx.beginPath();
@@ -1270,8 +1343,10 @@ function draw(dt) {
     ctx.moveTo(P[0],P[1]-r); ctx.lineTo(P[0],P[1]-3);
     ctx.moveTo(P[0],P[1]+3); ctx.lineTo(P[0],P[1]+r);
     ctx.stroke();
-    if (aimFrom) {                            // dragging: show where it will go
-      const a = launchAngle(), L = 150;
+    if (aimFrom) {                            // dragging: show heading AND power
+      const pw = launchPower();
+      const a = launchAngle(), L = 60 + pw*130;
+      ctx.lineWidth = 1 + pw*2.2;
       ctx.globalAlpha = .75; ctx.setLineDash([5,5]);
       ctx.beginPath(); ctx.moveTo(P[0],P[1]);
       ctx.lineTo(P[0]+Math.cos(a)*L, P[1]+Math.sin(a)*L);
@@ -1348,7 +1423,7 @@ function frame(now) {
   if (!paused) {
     const sub = 3;
     for (let s=0;s<sub;s++) for (const b of balls) if (b.left > 0) stepBall(b, dt/sub);
-    collide();
+    alignDirectional();
     for (let i=balls.length-1;i>=0;i--) if (balls[i].left <= 0) balls.splice(i,1);
     tickPoison(dt); tickAftershocks(dt); tickAuto(dt); tickRate(dt); salvage();
   }
@@ -1617,6 +1692,16 @@ function pinchSpan() {
   const a = [...ptrs.values()];
   return a.length < 2 ? 0 : Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y);
 }
+// Pull further back to throw harder. Ratio of the drag length to PULL_FULL,
+// clamped so you can never exceed the ball's own top speed.
+const PULL_MIN = 6, PULL_FULL = 90;               // world cells
+function launchPower() {
+  if (!aimFrom || !aim) return 1;
+  const d = Math.hypot(aim[0]-aimFrom[0], aim[1]-aimFrom[1]);
+  if (d < PULL_MIN) return 1;                     // a plain click fires at full speed
+  return Math.max(0.3, Math.min(1, d / PULL_FULL));
+}
+
 function launchAngle() {
   if (!aimFrom || !aim) return Math.random()*Math.PI*2;
   const dx = aim[0]-aimFrom[0], dy = aim[1]-aimFrom[1];
@@ -1667,7 +1752,7 @@ function endPointer(e) {
   if (paused) { aimFrom = null; return; }
   if (!panning && aimFrom && ptrs.size === 0) {
     const ang = launchAngle();
-    if (!fire(selKind, ang, aimFrom[0], aimFrom[1])) {
+    if (!fire(selKind, ang, aimFrom[0], aimFrom[1], launchPower())) {
       if (!S.owned[selKind]) toast("BALL LOCKED — FIND UPGRADE POINTS");
       else if (liveOf(selKind) >= BALLS[selKind].cap)
         toast(BALLS[selKind].name.toUpperCase() + " LIMIT — " + BALLS[selKind].cap + " AT ONCE");
