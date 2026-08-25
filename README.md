@@ -76,33 +76,51 @@ set of valid launch sites**, and it grows as you mine. Auto-fire picks spots on
 the working face, so idle play widens the frontier instead of re-grinding cleared
 ground.
 
-## A calm swarm
+## The price is the cap
 
-Balls drift at **4.4–8.8 cells per second**, and the live cap is a **flat 140**.
-Both numbers are chosen for the same reason: the game is something you watch
-erode, not something that demands attention. An earlier build scaled the cap
-with cavern size and reached 2000+ balls, which is chaos to look at.
+There is no ball limit. **Every ball of a colour already in flight makes the next
+one of that colour dearer**, so the swarm settles wherever your income sustains it
+and grows only as income grows.
 
-**Rush is the deliberate exception** at 75 cells/sec with a long tail — a
-shooting star crossing an otherwise slow arena.
+| Orange balls in flight | 0 | 10 | 25 | 50 |
+|---|---|---|---|---|
+| Price of the next one | 8 | 14 | 28 | 92 |
 
-Special balls are capped separately and hard: Rush 10, Lightning 18, Poison 20,
-Smash 22, Directional 30.
+Each ball has its own base price and its own growth rate, so the premium balls
+self-limit hard: Rush climbs at 1.12 per ball and is unaffordable past a dozen or
+so, while the starter climbs at 1.05 and can fill the arena.
 
-**Balls never steer themselves.** A ball flies exactly where you sent it until it
-bounces off rock, and if it crosses 55 cells of open ground it simply retires and
-auto-fire replaces it at the working face. An earlier build re-aimed idle balls
-at the nearest rock, which looked like they were flying themselves and quietly
-took the aiming decision away from the player.
+This is what the reference does. Its dock price for the ball being fired visibly
+inflates and then decays while the untouched colours sit at base price — which is
+why the same save shows yellow at 1266 in one screenshot and 914 in another.
 
-**Ball-to-ball collision is gone.** Hundreds of elastic collisions a frame read as
-noise rather than physics, and they kept knocking balls off the headings you
-chose. Balls pass through one another.
+**Unspent impacts are refunded.** You buy impacts; a ball that drifts off into
+open cavern and retires without landing them was never delivered what you paid
+for. Without the refund, measured 59–73% of every ticket price was silently
+burned, which stalled the opening outright.
 
-Because the swarm is small and fixed, throughput cannot come from more impacts —
-so it comes from each impact clearing more ground. **Smash craters widen with
-Refine**, up to +7 cells of radius, which is the late-game accelerator and is
-calm to watch.
+## Speeds, measured
+
+Every figure below was measured off reference footage frame by frame, converting
+pixels-per-frame to cells-per-second using the on-screen block pitch:
+
+| Ball | Measured | Ours |
+|---|---|---|
+| Green | 4.99 | 5.0 |
+| Blue | 4.58 | 4.6 |
+| Yellow | 4.44 | 4.4 |
+| Orange | 4.36 | 4.4 |
+| Red (Smash) | **2.74** — the slowest | 2.7 |
+| Purple (Rush) | **58.2 median, 70 max** — a railgun | 58 |
+
+An earlier pass recorded purple at 2.5 cells/sec and concluded there was no fast
+ball. That was wrong, and wrong for an instructive reason: the tracker only
+matched a ball to its next position within 90% of one block per frame, so the one
+ball that crosses several blocks per frame was **filtered out of its own
+measurement**. Removing the cap put it at 58.
+
+**Balls render at a quarter of a block.** Measured 0.19, 0.27 and 0.28 across
+three scenes; they had been drawn at 0.8, about three times too large.
 
 ## Aiming
 
@@ -115,7 +133,11 @@ same and mine the same.
 
 ## The tech tree
 
-Upgrades live in a sprawling node graph, not a list. Every node belongs to a ball
+Upgrades live in a tight node lattice. Ball unlocks run down a single spine;
+each ball's perks run along its own row to the right. **Every link is exactly one
+step, horizontal or vertical** — verified: 31 links, 25 horizontal, 6 vertical,
+zero diagonals. Nodes sit next to one another instead of trailing long wires
+across empty space. Every node belongs to a ball
 (which gives it its colour) and carries an icon for what it does; nodes unlock
 outward along dotted links, so spending points feels like exploring the tree the
 same way finding them feels like exploring the world. Selecting one raises a card
@@ -152,6 +174,10 @@ Two hazard pixels spread into ground you have **already cleared**:
 
 They are the counterweight that lets ball count go up without the game becoming
 trivial. Their growth is bounded *by construction*, not by tuning — see below.
+
+Digging out an upgrade pixel sets off a burst of violet shards — purely
+cosmetic, no damage, no game state, it just marks the best moment in the game as
+something better than four grey sparks.
 
 Also buried: **handcrafted relics**, hand-drawn bitmaps of much tougher pixels
 that emerge as silhouettes while the soft rock erodes around them.
@@ -196,7 +222,22 @@ headless with an auto-buying player, re-measured after every structural change:
 | After throughput rework | reach ≈ 76.3·t^0.620 | ~2.1 h |
 | Slower balls + frontier launch | reach ≈ 104.1·t^0.404 | ~13.2 h &nbsp;*(regression)* |
 | Economy-limited auto-fire | reach ≈ 174.5·t^0.561 | ~0.8 h |
-| Slow balls + scaled swarm | reach ≈ 28.7·t^0.828 | **~2.1 h** typical, 3.2 h worst case |
+| Slow balls + scaled swarm | reach ≈ 28.7·t^0.828 | ~2.1 h |
+| Flat 140 cap | reach ≈ 6.0·t^1.48 (flattening) | ~8 h |
+| **Priced swarm (current)** | reach ≈ 45.1·t^0.711 | **~2.4 h** |
+
+The priced swarm **converges** rather than running away, which is the property a
+hard cap was standing in for:
+
+| Elapsed | 2 min | 5 min | 10 min | 15 min | 20 min |
+|---|---|---|---|---|---|
+| Balls live | 90 | 182 | 199 | 206 | **210** |
+| Reach | 42 | 145 | 225 | 300 | 396 |
+
+At twenty minutes the mix is 76 orange, 35 blue, 34 poison, 32 smash, 20
+lightning and 13 Rush — every colour crowded to its own soft point, and Rush
+pinned at a dozen from the five minute mark onward. One ball per ~590 cells of
+open cavern, against the 1-per-4 that read as static.
 
 The third row is worth keeping. Slowing ball speeds and launching from the
 working face both looked like pure improvements, and together they cost a factor

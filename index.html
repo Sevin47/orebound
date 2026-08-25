@@ -349,7 +349,7 @@ const TIERS = [
 // became a flat 140: a smaller swarm clears far less ground, so points spread
 // over AREA arrive far too slowly to keep the tree moving.
 const UPG_A = 0.140;
-const upgDensity = d => UPG_A / Math.max(30, d);
+const upgDensity = d => UPG_A / Math.max(12, d);
 
 //--------------------------------------------------------------- world data
 let tier, lit, chunkReady;
@@ -480,7 +480,10 @@ function genCell(x, y) {
   const hz = hash2(x, y, RUNSEED + 777);
   if (d > 150 && hz < 0.0040) t = T_ORANGE;
   else if (d > 420 && hz > 0.9955) t = T_PURPLE;
-  if (d > 34 && hash2(x, y, RUNSEED + 4241) < upgDensity(d)) t = T_UPG;
+  // Upgrade pixels start close to spawn. Holding them back to d>34 meant a small
+  // swarm never dug far enough to find ANY -- measured 0 points in twelve minutes,
+  // which is a dead run: no points, no upgrades, no income, no reach.
+  if (d > 13 && hash2(x, y, RUNSEED + 4241) < upgDensity(d)) t = T_UPG;
   return t;
 }
 
@@ -564,20 +567,29 @@ function cellVal(x, y, t) {
 // cap is the most of that ball that may be in flight at once. These are FLAT.
 // An earlier version scaled the cap with cavern size and ended up at 2000+ balls,
 // which is chaos to look at and the opposite of relaxed.
+// spd measured off reference footage frame-by-frame (block pitch -> cells/sec):
+// orange 4.36, green 4.99, blue 4.58, yellow 4.44, red 2.74 -- and purple 58.2
+// median / 70 max, which is the railgun. An earlier measurement put purple at
+// 2.5 and was wrong: the tracker capped displacement at 90% of a block per frame,
+// so the one ball that crosses several blocks a frame was filtered out entirely.
+//
+// cost is the BASE price. What you actually pay rises with how many of that ball
+// are already in the air (see ballCost) -- there is no hard cap any more, the
+// price is the cap. grow is how steeply that climbs, per ball.
 const BALLS = [
-  { k:0, name:"Prospector", hue:"Orange", col:"#ff9a3c", cost:8,  imp:40, spd:5.0,  cap:140, unlock:0,
+  { k:0, name:"Prospector", hue:"Orange", col:"#ff9a3c", cost:8,  soft:52, imp:40, spd:4.4,  unlock:0,
     desc:"The ball you start with. A plain bounce that breaks the softest rock in one hit." },
-  { k:1, name:"Directional",hue:"Blue",   col:"#46b6ff", cost:19, imp:34, spd:8.8,  cap:30,  unlock:1,
+  { k:1, name:"Directional",hue:"Blue",   col:"#46b6ff", cost:26, soft:13, imp:34, spd:4.6,  unlock:1,
     desc:"Only travels in a straight vertical or horizontal line, drifting sideways each bounce so it carves wide tunnels." },
-  { k:2, name:"Smash",      hue:"Red",    col:"#ff4a4a", cost:26, imp:26, spd:4.4,  cap:22,  unlock:2,
-    desc:"Detonates on impact, hitting every pixel in a surrounding area." },
-  { k:3, name:"Poison",     hue:"Green",  col:"#4cf05c", cost:34, imp:22, spd:5.0,  cap:20,  unlock:3,
+  { k:2, name:"Smash",      hue:"Red",    col:"#ff4a4a", cost:21, soft:11, imp:26, spd:2.7,  unlock:2,
+    desc:"The slowest ball there is. Detonates on impact, hitting every pixel in a surrounding area." },
+  { k:3, name:"Poison",     hue:"Green",  col:"#4cf05c", cost:12, soft:11, imp:22, spd:5.0,  unlock:3,
     desc:"Poisons pixels on impact. Poison erodes them over time and spreads to nearby pixels on its own." },
-  { k:4, name:"Lightning",  hue:"Yellow", col:"#ffe14a", cost:44, imp:20, spd:7.5,  cap:18,  unlock:4,
+  { k:4, name:"Lightning",  hue:"Yellow", col:"#ffe14a", cost:56, soft:5, imp:20, spd:4.4,  unlock:4,
     desc:"Crackles with static as it flies, arcing into nearby pixels before it ever touches them." },
-  { k:5, name:"Rush",       hue:"Purple", col:"#c060ff", cost:30, imp:30, spd:75.0, cap:10,  unlock:4,
-    desc:"Streaks across the cavern like a shooting star, spending its impacts in seconds." },
-  { k:6, name:"Unknown",    hue:"—",      col:"#8a93a8", cost:0,  imp:0,  spd:0,    cap:0,   unlock:-1, desc:"" },
+  { k:5, name:"Rush",       hue:"Purple", col:"#c060ff", cost:40, soft:2, imp:30, spd:58.0, unlock:4,
+    desc:"A railgun. Crosses the cavern in a heartbeat, spending its impacts almost instantly." },
+  { k:6, name:"Unknown",    hue:"—",      col:"#8a93a8", cost:0,  soft:5, imp:0,  spd:0,    unlock:-1, desc:"" },
 ];
 const NBALL = BALLS.length;
 const built = b => b.unlock >= 0;                 // slots 5-6 are not specified yet
@@ -628,51 +640,57 @@ const perk = (k, id) => !!S.perks[k + ":" + id];
 // earlier layout gave nearly every ball req:["root"], so Rush -- the strongest
 // ball -- was purchasable in the first minute and the tree had no shape. Each
 // ball now gates the next, and its own perks gate off it.
+// Laid out on a tight integer lattice, not scattered. Ball unlocks run down a
+// single spine on x=0; each ball's perks run along its own row to the right. Every
+// link is therefore purely horizontal or vertical and exactly one step long, which
+// is what makes the reference tree readable -- nodes sit next to each other rather
+// than trailing long diagonal wires across empty space.
 const NODES = [
-  // ---- root: the ball you start with ----
-  { id:"root",    ball:0, kind:"ball",   icon:"ball",  x:0,    y:0,    cost:0,  req:[] },
-  { id:"o_ref1",  ball:0, kind:"refine", icon:"sword", x:-1.6, y:-0.9, cost:1,  req:["root"] },
-  { id:"0:frag",  ball:0, kind:"perk",   icon:"split", x:1.5,  y:-1.0, cost:2,  req:["root"] },
-  { id:"0:cross", ball:0, kind:"perk",   icon:"cross", x:2.7,  y:-1.9, cost:4,  req:["0:frag"] },
-  { id:"o_ref2",  ball:0, kind:"refine", icon:"sword", x:-3.0, y:-1.5, cost:1,  req:["o_ref1"] },
-  { id:"0:heavy", ball:0, kind:"perk",   icon:"hammer",x:-4.3, y:-0.8, cost:8,  req:["o_ref2"] },
+  // ---- spine: the balls, each gating the next ----
+  { id:"root",    ball:0, kind:"ball",   icon:"ball",  x:0, y:0, cost:0, req:[] },
+  { id:"b1",      ball:1, kind:"ball",   icon:"ball",  x:0, y:1, cost:1, req:["root"] },
+  { id:"b2",      ball:2, kind:"ball",   icon:"ball",  x:0, y:2, cost:2, req:["b1"] },
+  { id:"b3",      ball:3, kind:"ball",   icon:"ball",  x:0, y:3, cost:3, req:["b2"] },
+  { id:"b4",      ball:4, kind:"ball",   icon:"bolt",  x:0, y:4, cost:4, req:["b3"] },
+  { id:"b5",      ball:5, kind:"ball",   icon:"ball",  x:0, y:5, cost:4, req:["b4"] },
+  { id:"b6",      ball:6, kind:"ball",   icon:"lock",  x:0, y:6, cost:0, req:["b5"] },
 
-  // ---- blue / directional ----
-  { id:"b1",      ball:1, kind:"ball",   icon:"ball",  x:0.5,  y:2.0,  cost:1,  req:["root"] },
-  { id:"1:wide",  ball:1, kind:"perk",   icon:"tunnel",x:1.9,  y:2.9,  cost:2,  req:["b1"] },
-  { id:"1:pierce",ball:1, kind:"perk",   icon:"tunnel",x:2.9,  y:4.0,  cost:4,  req:["1:wide"] },
-  { id:"1:free",  ball:1, kind:"perk",   icon:"tunnel",x:1.7,  y:4.9,  cost:8,  req:["1:pierce"] },
-  { id:"b_ref",   ball:1, kind:"refine", icon:"sword", x:-0.9, y:2.9,  cost:1,  req:["b1"] },
+  // ---- orange row ----
+  { id:"o_ref1",  ball:0, kind:"refine", icon:"sword", x:1, y:0, cost:1, req:["root"] },
+  { id:"0:frag",  ball:0, kind:"perk",   icon:"split", x:2, y:0, cost:2, req:["o_ref1"] },
+  { id:"0:cross", ball:0, kind:"perk",   icon:"cross", x:3, y:0, cost:4, req:["0:frag"] },
+  { id:"o_ref2",  ball:0, kind:"refine", icon:"sword", x:4, y:0, cost:1, req:["0:cross"] },
+  { id:"0:heavy", ball:0, kind:"perk",   icon:"hammer",x:5, y:0, cost:8, req:["o_ref2"] },
 
-  // ---- red / smash ----
-  { id:"b2",      ball:2, kind:"ball",   icon:"ball",  x:-0.2, y:-2.6, cost:2,  req:["b1"] },
-  { id:"2:wider", ball:2, kind:"perk",   icon:"burst", x:-1.5, y:-3.5, cost:2,  req:["b2"] },
-  { id:"2:after", ball:2, kind:"perk",   icon:"burst", x:0.9,  y:-3.7, cost:4,  req:["b2"] },
-  { id:"2:chain2",ball:2, kind:"perk",   icon:"burst", x:2.1,  y:-4.6, cost:8,  req:["2:after"] },
-  { id:"r_ref",   ball:2, kind:"refine", icon:"sword", x:-2.7, y:-4.2, cost:1,  req:["2:wider"] },
+  // ---- blue row ----
+  { id:"1:wide",  ball:1, kind:"perk",   icon:"tunnel",x:1, y:1, cost:2, req:["b1"] },
+  { id:"b_ref",   ball:1, kind:"refine", icon:"sword", x:2, y:1, cost:1, req:["1:wide"] },
+  { id:"1:pierce",ball:1, kind:"perk",   icon:"tunnel",x:3, y:1, cost:4, req:["b_ref"] },
+  { id:"1:free",  ball:1, kind:"perk",   icon:"tunnel",x:4, y:1, cost:8, req:["1:pierce"] },
 
-  // ---- green / poison ----
-  { id:"b3",      ball:3, kind:"ball",   icon:"ball",  x:2.6,  y:0.5,  cost:3,  req:["b2"] },
-  { id:"3:diag",  ball:3, kind:"perk",   icon:"skull", x:4.1,  y:0.0,  cost:2,  req:["b3"] },
-  { id:"3:fast",  ball:3, kind:"perk",   icon:"skull", x:4.5,  y:1.5,  cost:4,  req:["b3"] },
-  { id:"3:conta", ball:3, kind:"perk",   icon:"skull", x:5.9,  y:0.8,  cost:8,  req:["3:diag","3:fast"] },
-  { id:"g_ref",   ball:3, kind:"refine", icon:"sword", x:3.5,  y:2.7,  cost:1,  req:["3:fast"] },
+  // ---- red row ----
+  { id:"2:wider", ball:2, kind:"perk",   icon:"burst", x:1, y:2, cost:2, req:["b2"] },
+  { id:"r_ref",   ball:2, kind:"refine", icon:"sword", x:2, y:2, cost:1, req:["2:wider"] },
+  { id:"2:after", ball:2, kind:"perk",   icon:"burst", x:3, y:2, cost:4, req:["r_ref"] },
+  { id:"2:chain2",ball:2, kind:"perk",   icon:"burst", x:4, y:2, cost:8, req:["2:after"] },
 
-  // ---- yellow / lightning ----
-  { id:"b4",      ball:4, kind:"ball",   icon:"bolt",  x:-2.4, y:-1.9, cost:4,  req:["b3"] },
-  { id:"4:arc",   ball:4, kind:"perk",   icon:"bolt",  x:-3.9, y:-2.6, cost:2,  req:["b4"] },
-  { id:"4:fork",  ball:4, kind:"perk",   icon:"bolt",  x:-5.2, y:-2.0, cost:4,  req:["4:arc"] },
-  { id:"4:over",  ball:4, kind:"perk",   icon:"bolt",  x:-5.6, y:-0.6, cost:8,  req:["4:fork"] },
+  // ---- green row ----
+  { id:"3:diag",  ball:3, kind:"perk",   icon:"skull", x:1, y:3, cost:2, req:["b3"] },
+  { id:"g_ref",   ball:3, kind:"refine", icon:"sword", x:2, y:3, cost:1, req:["3:diag"] },
+  { id:"3:fast",  ball:3, kind:"perk",   icon:"skull", x:3, y:3, cost:4, req:["g_ref"] },
+  { id:"3:conta", ball:3, kind:"perk",   icon:"skull", x:4, y:3, cost:8, req:["3:fast"] },
 
-  // ---- purple / rush : the last ball, not the first ----
-  { id:"b5",      ball:5, kind:"ball",   icon:"ball",  x:-2.5, y:1.2,  cost:4,  req:["b4"] },
-  { id:"5:burn",  ball:5, kind:"perk",   icon:"comet", x:-4.0, y:1.0,  cost:2,  req:["b5"] },
-  { id:"5:slip",  ball:5, kind:"perk",   icon:"comet", x:-3.8, y:2.5,  cost:4,  req:["b5"] },
-  { id:"5:blur",  ball:5, kind:"perk",   icon:"comet", x:-5.2, y:1.9,  cost:8,  req:["5:burn","5:slip"] },
-  { id:"p_ref",   ball:5, kind:"refine", icon:"sword", x:-2.0, y:2.6,  cost:1,  req:["b5"] },
+  // ---- yellow row ----
+  { id:"4:arc",   ball:4, kind:"perk",   icon:"bolt",  x:1, y:4, cost:2, req:["b4"] },
+  { id:"y_ref",   ball:4, kind:"refine", icon:"sword", x:2, y:4, cost:1, req:["4:arc"] },
+  { id:"4:fork",  ball:4, kind:"perk",   icon:"bolt",  x:3, y:4, cost:4, req:["y_ref"] },
+  { id:"4:over",  ball:4, kind:"perk",   icon:"bolt",  x:4, y:4, cost:8, req:["4:fork"] },
 
-  // ---- the reserved slot ----
-  { id:"b6",      ball:6, kind:"ball",   icon:"lock",  x:3.6,  y:-3.0, cost:0,  req:["2:chain2"] },
+  // ---- purple row ----
+  { id:"5:burn",  ball:5, kind:"perk",   icon:"comet", x:1, y:5, cost:2, req:["b5"] },
+  { id:"p_ref",   ball:5, kind:"refine", icon:"sword", x:2, y:5, cost:1, req:["5:burn"] },
+  { id:"5:slip",  ball:5, kind:"perk",   icon:"comet", x:3, y:5, cost:4, req:["p_ref"] },
+  { id:"5:blur",  ball:5, kind:"perk",   icon:"comet", x:4, y:5, cost:8, req:["5:slip"] },
 ];
 const NODEBY = {}; NODES.forEach(n => NODEBY[n.id] = n);
 
@@ -727,15 +745,39 @@ const REFINE_COST = lv => 1 + Math.floor(lv / 3);
 const BASE_DMG = 4;
 const ballDmg  = k => BASE_DMG * Math.pow(1.60, S.refine);
 const ballImp  = k => BALLS[k].imp;
-const ballCost = k => BALLS[k].cost;
+// Price grows with the SQUARE of how many of that colour are already in flight.
+//
+// A plain exponential cannot do this job. Gentle enough to let the swarm ignite
+// (1.07) and it never stops growing, because income compounds through Refine and
+// outruns any fixed rate -- measured, it ran to the 600 backstop. Steep enough to
+// cap (1.35) and the opening can never afford a second ball, so the run is dead
+// on arrival at four balls. There is no constant that does both; the two failures
+// are a few percent apart.
+//
+// Squaring the exponent separates them: nearly free for the first dozen, savage
+// past the soft point. `soft` is where each colour starts to bite, so the premium
+// balls crowd out far sooner than the starter.
+const CROWD = 1.06;
+const ballCost = k => {
+  const n = liveOf(k);
+  return Math.ceil(BALLS[k].cost * Math.pow(CROWD, (n*n) / BALLS[k].soft));
+};
 
 // Thousands, not hundreds. Impacts per second per ball is proportional to speed,
 // so once balls drift at a few cells a second the ONLY way to keep a ten-million
 // cell world clearable is to have a great many of them. Measured cost at 2500
 // live balls: 2.4ms simulation + 4.9ms draw, inside a 16.7ms frame budget.
 // Slow and numerous also looks right -- a dense working swarm, not a laser show.
-const MAXLIVE = 140;                              // flat ceiling on live balls
-function liveCap() { return MAXLIVE; }
+// There is no ball cap. The PRICE is the cap: every ball of a colour already in
+// flight makes the next one of that colour dearer, so the swarm settles wherever
+// your income can sustain it and grows only as income grows. This is what the
+// reference does -- its dock price for the ball being fired visibly inflates and
+// then decays, while the untouched colours sit at their base price.
+//
+// HARD_LIMIT is a performance backstop, not a design constraint; the economy
+// should settle far below it.
+const HARD_LIMIT = 600;
+function liveCap() { return HARD_LIMIT; }
 const START_PX = 160;                             // seed stock, or the first shot is unaffordable
 
 // A currency you spend to earn currency can strand you at zero. If nothing is in
@@ -785,7 +827,6 @@ function fire(kind, ang, ox, oy, power) {
   const B = BALLS[kind];
   if (!built(B) || !S.owned[kind]) return false;
   if (balls.length >= liveCap()) return false;
-  if (liveOf(kind) >= BALLS[kind].cap) return false;
   const c = ballCost(kind);
   if (S.px < c) return false;
   const at = spawnClear(ox === undefined ? CX : ox, oy === undefined ? CY : oy);
@@ -798,7 +839,8 @@ function fire(kind, ang, ox, oy, power) {
   const pw = Math.max(0.3, Math.min(1, power === undefined ? 1 : power));
   const sp = B.spd * pw;
   balls.push({ x:at[0]+.5, y:at[1]+.5, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
-               kind, trail:[], left:ballImp(kind), stall:0, hits:0, boost:1, pw });
+               kind, trail:[], left:ballImp(kind), stall:0, hits:0, boost:1, pw,
+               paid:c });                    // refund must price off THIS, not the market
   return true;
 }
 
@@ -825,7 +867,8 @@ function payout(x, y, t) {
   const d = Math.hypot(x-CX, y-CY);
   if (d > S.maxDepth) S.maxDepth = d;
 
-  if (t === T_UPG) { S.tokens++; S.tokensFound++; toast("UPGRADE PIXEL FOUND"); return; }
+  if (t === T_UPG) { S.tokens++; S.tokensFound++; spawnBurst(x, y);
+                     toast("UPGRADE PIXEL FOUND"); return; }
   if (t === T_GOLD) { S.goldFound = true; showGolden(); return; }
   if (t === T_OBJ && !S.objectsFound[(x>>6)+","+(y>>6)]) {
     S.objectsFound[(x>>6)+","+(y>>6)] = 1;
@@ -954,13 +997,20 @@ function onImpact(b, hx, hy) {
       hitCell(hx+1,hy,d); hitCell(hx-1,hy,d);
       hitCell(hx,hy+1,d); hitCell(hx,hy-1,d);
     }
-    if (perk(0,"frag") && !b.frag && b.left > 4 && balls.length < liveCap()) {
+    // Fragment costs half price. It used to conjure a ball out of nothing, which
+    // punched straight through the crowding economy: purchases correctly stopped
+    // around eighty orange, then free splits pushed it to two hundred and on to
+    // the backstop. Anything that adds a body has to pay something.
+    const fragFee = Math.ceil(ballCost(0) * 0.5);
+    if (perk(0,"frag") && !b.frag && b.left > 4 && balls.length < liveCap() && S.px >= fragFee) {
+      S.px -= fragFee;
       b.frag = 1;                                           // Fragment: split once
       const half = b.left >> 1; b.left -= half;
       // Perpendicular to the parent, not random: a split, not a teleport.
       const sp = Math.hypot(b.vx, b.vy) || BALLS[0].spd;
       balls.push({ x:b.x, y:b.y, vx:-b.vy/sp*BALLS[0].spd, vy:b.vx/sp*BALLS[0].spd,
-                   kind:0, trail:[], left:half, stall:0, frag:1, hits:0, boost:1 });
+                   kind:0, trail:[], left:half, stall:0, frag:1, hits:0, boost:1,
+                   paid:fragFee });
     }
   } else if (k === 1) {
     destroyed = hitCell(hx, hy, d);
@@ -1098,7 +1148,19 @@ function stepBall(b, dt) {
       hitCell(Math.floor(nx), Math.floor(ny)-1, wd);
     }
   }
-  if (b.stall > DRIFT_LIMIT) b.left = 0;   // wandered too long: retire, never re-aim
+  if (b.stall > DRIFT_LIMIT) {
+    // Retire it -- but hand back what it never used. You bought impacts; impacts
+    // that never landed were never delivered. Without this a ball that drifts off
+    // into open cavern silently burns the whole ticket price, which is most of the
+    // early economy and is what stalled the opening outright.
+    // Refund what THIS ball cost, not what one costs now. Pricing the refund at
+    // the current market rate is an arbitrage: a colour's price climbs while the
+    // ball is in the air, so it pays back more than it cost, balls go free, and
+    // the swarm runs straight to the backstop. Every colour was settling at the
+    // same marginal price -- the equilibrium was right, the refund was printing.
+    if (b.left > 0) S.px += (b.paid || 0) * (b.left / Math.max(1, ballImp(b.kind)));
+    b.left = 0;
+  }
 }
 
 // Directional balls must stay axis-aligned after being knocked about.
@@ -1170,8 +1232,22 @@ function addBolt(x0, y0, x1, y1) {
   bolts.push({ pts, t:0, life:0.16 + Math.random()*0.1 });
 }
 const sparks = [];
+// Purely visual. Finding an upgrade pixel is the best moment in the game and it
+// used to pass with the same four sparks as a lump of dust, so it gets its own
+// burst: a bright ring of violet shards that carry further and linger longer.
+// Cosmetic only -- it deals no damage and touches no game state.
+function spawnBurst(x, y) {
+  const N = 34;
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * 6.283 + Math.random()*0.2;
+    const sp = 9 + Math.random()*16;
+    sparks.push({ x:x+.5, y:y+.5, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+                  life:.55+Math.random()*.5, t:0,
+                  col: Math.random()<.45 ? [255,255,255] : [200,139,255] });
+  }
+}
 function spawnSpark(x,y,col,n) {
-  if (sparks.length > 340) return;
+  if (sparks.length > 460) return;
   for (let i=0;i<n;i++) {
     const a = Math.random()*6.283, s = 2+Math.random()*9;
     sparks.push({ x:x+.5, y:y+.5, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:.35+Math.random()*.5, t:0, col });
@@ -1321,7 +1397,8 @@ function draw(dt) {
       }
       ctx.stroke();
     }
-    const P = toS(b.x,b.y), sz = Math.max(2, z*.8), g = Math.max(8, sz*3.2);
+    // Measured against reference footage: a ball is about a quarter of a block.
+    const P = toS(b.x,b.y), sz = Math.max(2, z*.25), g = Math.max(7, sz*3.6);
     ctx.globalAlpha = 1;
     ctx.drawImage(glowFor(col), P[0]-g/2, P[1]-g/2, g, g);
     ctx.fillStyle = col;
@@ -1373,7 +1450,7 @@ let last = performance.now(), aim = null;
 let rateT = 0, rateMark = 0, pxMark = 0, pxRate = 0;
 let fps = 0, fpsAcc = 0, fpsFrames = 0;
 const canFire = k => built(BALLS[k]) && S.owned[k] && S.px >= ballCost(k)
-  && balls.length < liveCap() && liveOf(k) < BALLS[k].cap;
+  && balls.length < liveCap();
 
 function tickRate(dt) {
   rateT += dt; S.playtime += dt;
@@ -1401,17 +1478,28 @@ function tickAuto(dt) {
   autoT = 0;
   for (let i = 0; i < AUTO_BURST; i++) {
     if (balls.length >= liveCap()) return;
-    let k = canFire(selKind) ? selKind : -1;
-    if (k < 0) {                                  // fall back to anything affordable
-      let bestC = Infinity;
-      for (const B of BALLS) {
-        if (!canFire(B.k)) continue;
-        if (ballCost(B.k) < bestC) { bestC = ballCost(B.k); k = B.k; }
-      }
+    // Auto-fire buys the CHEAPEST ball it can afford, not the selected one.
+    //
+    // Preferring the selected colour made it crowd itself into the ground: the
+    // price of a colour climbs with the square of how many are already out, so
+    // spamming one drives its own cost to five hundred million and drains the
+    // bank to zero. Measured: seventy balls and 377/sec at five minutes, two
+    // balls and nothing at all by ten.
+    //
+    // Cheapest-first makes the colours balance themselves -- each crowds to its
+    // own soft point, then the next-cheapest takes over. The selected ball still
+    // governs what YOU fire by hand.
+    let k = -1, bestC = Infinity;
+    for (const B of BALLS) {
+      if (!canFire(B.k)) continue;
+      const c = ballCost(B.k);
+      if (c < bestC) { bestC = c; k = B.k; }
     }
     if (k < 0) return;
     const at = frontierSpawn();
-    if (!fire(k, Math.random()*Math.PI*2, at[0], at[1])) return;
+    const rad = Math.atan2(at[1]-CY, at[0]-CX);
+    const tan = rad + (Math.random() < .5 ? Math.PI/2 : -Math.PI/2) + (Math.random()-0.5)*0.7;
+    if (!fire(k, isFinite(tan) ? tan : Math.random()*Math.PI*2, at[0], at[1])) return;
   }
 }
 
@@ -1508,7 +1596,7 @@ function openPanel(name) {
 // SVG for the dotted links, absolutely positioned buttons for the nodes, so the
 // graph scales to any panel size while nodes stay crisp and clickable.
 let treeSel = null, hoverSel = null;
-const NODE_R = 26;
+const NODE_R = 25;
 function nodeLabel(n) {
   if (n.kind === "ball")   return built(BALLS[n.ball]) ? BALLS[n.ball].name + " ball" : "?????";
   if (n.kind === "refine") return "Refine";
@@ -1533,9 +1621,9 @@ function nodeState(n) {
 function refreshUpg() {
   const host = $("balls");
   const xs = NODES.map(n=>n.x), ys = NODES.map(n=>n.y);
-  const minX = Math.min(...xs)-1, maxX = Math.max(...xs)+1;
-  const minY = Math.min(...ys)-1, maxY = Math.max(...ys)+1;
-  const SCALE = 74;
+  const minX = Math.min(...xs)-0.6, maxX = Math.max(...xs)+0.6;
+  const minY = Math.min(...ys)-0.6, maxY = Math.max(...ys)+0.6;
+  const SCALE = 66;
   const w = (maxX-minX)*SCALE, h = (maxY-minY)*SCALE;
   const px = n => (n.x-minX)*SCALE, py = n => (n.y-minY)*SCALE;
 
@@ -1545,7 +1633,7 @@ function refreshUpg() {
     const on = nodeTaken(n) || nodeState(n) !== "locked";
     links += '<line x1="'+px(pnt)+'" y1="'+py(pnt)+'" x2="'+px(n)+'" y2="'+py(n)
           +  '" stroke="'+(on ? BALLS[n.ball].col : "#26303f")+'" stroke-width="2"'
-          +  ' stroke-dasharray="3 6" opacity="'+(on?.7:.35)+'"/>';
+          +  ' stroke-dasharray="2 5" opacity="'+(on?.75:.3)+'"/>';
   }
   let nodes = "";
   for (const n of NODES) {
@@ -1754,8 +1842,6 @@ function endPointer(e) {
     const ang = launchAngle();
     if (!fire(selKind, ang, aimFrom[0], aimFrom[1], launchPower())) {
       if (!S.owned[selKind]) toast("BALL LOCKED — FIND UPGRADE POINTS");
-      else if (liveOf(selKind) >= BALLS[selKind].cap)
-        toast(BALLS[selKind].name.toUpperCase() + " LIMIT — " + BALLS[selKind].cap + " AT ONCE");
       else if (balls.length >= liveCap()) toast("ARENA FULL — DIG OUT MORE ROOM");
       else if (S.px < ballCost(selKind)) toast("NEED " + fmt(ballCost(selKind)) + " PX");
       else toast("SOLID ROCK — LAUNCH INSIDE GROUND YOU HAVE OPENED");
