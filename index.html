@@ -65,7 +65,7 @@
 
   /* ---------- tech tree ---------- */
   #balls { display:flex; justify-content:center; align-items:flex-start;
-    overflow:auto; padding:10px 0 }
+    overflow:auto; padding:10px 330px 10px 40px }
   #treewrap { position:relative; flex:0 0 auto }
   #treewrap svg { position:absolute; inset:0; overflow:visible }
   .tnode { position:absolute; background:#080d16; border:2.5px solid currentColor;
@@ -83,9 +83,11 @@
     background:#080d16; border:1.5px solid currentColor; border-radius:9px; padding:0 4px; color:#fff }
   @keyframes tpulse { 0%,100%{box-shadow:0 0 10px -3px currentColor} 50%{box-shadow:0 0 20px 0 currentColor} }
 
-  #tcard { display:none; position:fixed; top:44px; left:50%; transform:translateX(-50%);
-    z-index:44; border:2px solid; background:#05080e; padding:12px 22px 13px; text-align:center;
-    min-width:240px; max-width:min(92vw,420px); box-shadow:0 0 34px -8px currentColor }
+  /* Parked against the right edge, clear of the tree. Centred at the top it sat
+     directly over the upper rows, so reading a node covered the ones above it. */
+  #tcard { display:none; position:fixed; top:50%; right:26px; transform:translateY(-50%);
+    z-index:44; border:2px solid; background:#05080e; padding:13px 20px 14px; text-align:center;
+    width:270px; max-width:32vw; box-shadow:0 0 34px -8px currentColor }
   #tcard.on { display:block }
   #tcard .th { font-size:10.5px; letter-spacing:2px; opacity:.85 }
   #tcard .tn { font-size:20px; color:#fff; margin-top:3px; letter-spacing:.5px }
@@ -1618,7 +1620,16 @@ function nodeState(n) {
   return S.tokens >= nodeCost(n) ? "ready" : "short";
 }
 
-function refreshUpg() {
+// The tree DOM is built ONCE. refreshUpg then only edits classes and text in
+// place.
+//
+// It used to rebuild every node with innerHTML on each call, and updateHUD calls
+// it several times a second while the panel is open -- so the CSS pulse on an
+// affordable node restarted from frame zero constantly and the whole tree
+// flickered erratically. Replacing the nodes is also why hover felt unstable:
+// the element under the cursor was a different element moment to moment.
+let treeBuilt = false;
+function buildTree() {
   const host = $("balls");
   const xs = NODES.map(n=>n.x), ys = NODES.map(n=>n.y);
   const minX = Math.min(...xs)-0.6, maxX = Math.max(...xs)+0.6;
@@ -1628,38 +1639,67 @@ function refreshUpg() {
   const px = n => (n.x-minX)*SCALE, py = n => (n.y-minY)*SCALE;
 
   let links = "";
-  for (const n of NODES) for (const r of n.req) {
-    const pnt = NODEBY[r]; if (!pnt) continue;
-    const on = nodeTaken(n) || nodeState(n) !== "locked";
-    links += '<line x1="'+px(pnt)+'" y1="'+py(pnt)+'" x2="'+px(n)+'" y2="'+py(n)
-          +  '" stroke="'+(on ? BALLS[n.ball].col : "#26303f")+'" stroke-width="2"'
-          +  ' stroke-dasharray="2 5" opacity="'+(on?.75:.3)+'"/>';
-  }
+  NODES.forEach((n, ni) => n.req.forEach((r, ri) => {
+    const pnt = NODEBY[r]; if (!pnt) return;
+    links += '<line data-l="'+ni+'_'+ri+'" x1="'+px(pnt)+'" y1="'+py(pnt)
+          +  '" x2="'+px(n)+'" y2="'+py(n)+'" stroke="#26303f" stroke-width="2"'
+          +  ' stroke-dasharray="2 5" opacity=".3"/>';
+  }));
   let nodes = "";
   for (const n of NODES) {
-    const st = nodeState(n), col = BALLS[n.ball].col;
+    const col = BALLS[n.ball].col;
     const round = n.kind === "ball" ? "50%" : "8px";
-    nodes += '<button class="tnode '+st+(treeSel===n.id?" sel":"")+'" data-id="'+n.id+'"'
+    nodes += '<button class="tnode locked" data-id="'+n.id+'"'
       + ' style="left:'+(px(n)-NODE_R)+'px;top:'+(py(n)-NODE_R)+'px;'
       + 'width:'+(NODE_R*2)+'px;height:'+(NODE_R*2)+'px;border-radius:'+round+';color:'+col+'">'
       + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"'
       + ' stroke-linecap="round" stroke-linejoin="round">'+ICONS[n.icon]+'</svg>'
-      + (isRefine(n) && S.nodes[n.id] ? '<i class="lv">'+S.refine+'</i>' : '')
-      + '</button>';
+      + '<i class="lv" style="display:none"></i></button>';
   }
   host.innerHTML = '<div id="treewrap" style="width:'+w+'px;height:'+h+'px">'
     + '<svg width="'+w+'" height="'+h+'">'+links+'</svg>' + nodes + '</div>';
 
-  // Hover previews, click selects, and only the card's button spends anything.
-  // Click-to-buy meant a stray click silently spent points you had dug for.
   for (const b of host.querySelectorAll(".tnode")) {
     b.onmouseenter = () => { hoverSel = b.dataset.id; renderCard(); };
     b.onmouseleave = () => { hoverSel = null; renderCard(); };
     b.onclick = () => { treeSel = b.dataset.id; hoverSel = null; refreshUpg(); };
   }
+  treeBuilt = true;
+}
+
+function refreshUpg() {
+  if (!treeBuilt) buildTree();
+  const host = $("balls");
+  for (const el of host.querySelectorAll(".tnode")) {
+    const n = NODEBY[el.dataset.id];
+    if (!n) continue;
+    const want = "tnode " + nodeState(n) + (treeSel === n.id ? " sel" : "");
+    if (el.className !== want) el.className = want;      // only touch it if it changed
+    if (isRefine(n)) {
+      const badge = el.querySelector(".lv");
+      if (badge) {
+        const show = !!S.nodes[n.id];
+        const txt = show ? String(S.refine) : "";
+        if (badge.textContent !== txt) badge.textContent = txt;
+        const disp = show ? "" : "none";
+        if (badge.style.display !== disp) badge.style.display = disp;
+      }
+    }
+  }
+  NODES.forEach((n, ni) => n.req.forEach((r, ri) => {
+    const line = host.querySelector('[data-l="'+ni+'_'+ri+'"]');
+    if (!line) return;
+    const on = nodeState(n) !== "locked" || !!S.nodes[n.id];
+    const col = on ? BALLS[n.ball].col : "#26303f";
+    if (line.getAttribute("stroke") !== col) {
+      line.setAttribute("stroke", col);
+      line.setAttribute("opacity", on ? ".75" : ".3");
+    }
+  }));
   renderCard();
-  $("upgsub").innerHTML = "Points available &nbsp; <b>&#10022; " + S.tokens + "</b>"
+  const sub = "Points available &nbsp; <b>&#10022; " + S.tokens + "</b>"
     + '<br><span style="opacity:.65">Found by digging &mdash; ' + S.tokensFound + " in total</span>";
+  if ($("upgsub").innerHTML !== sub) $("upgsub").innerHTML = sub;
 }
 
 function renderCard() {
@@ -2073,6 +2113,7 @@ function resetGame() {
   fitCamera(); cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz;
   rateT = 0; rateMark = 0; pxMark = 0; pxRate = 0; autoT = 0;
   aim = null; hudAcc = 0;
+  treeBuilt = false;
   try { refreshUpg(); } catch (err) { console.warn("panel refresh failed", err); }
   finally { saveLocked = false; save(); }
 }

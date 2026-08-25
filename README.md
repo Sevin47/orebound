@@ -133,6 +133,17 @@ same and mine the same.
 
 ## The tech tree
 
+The tree DOM is built **once** and thereafter only its classes and text are
+edited in place. It used to rebuild every node with `innerHTML` on each refresh,
+and the HUD refreshes several times a second while the panel is open — so the CSS
+pulse on an affordable node restarted from frame zero constantly and the whole
+tree flickered. Replacing the nodes also made hovering unstable, because the
+element under the cursor was a different element moment to moment.
+
+The detail card is parked against the right edge, clear of the lattice; centred
+at the top it covered the very rows you were reading. On a phone there is no room
+beside the tree, so it drops underneath instead.
+
 Upgrades live in a tight node lattice. Ball unlocks run down a single spine;
 each ball's perks run along its own row to the right. **Every link is exactly one
 step, horizontal or vertical** — verified: 31 links, 25 horizontal, 6 vertical,
