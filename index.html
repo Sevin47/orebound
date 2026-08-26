@@ -591,7 +591,11 @@ const BALLS = [
     desc:"Crackles with static as it flies, arcing into nearby pixels before it ever touches them." },
   { k:5, name:"Rush",       hue:"Purple", col:"#c060ff", cost:40, soft:2, imp:70, spd:58.0, unlock:4,
     desc:"A railgun. Crosses the cavern in a heartbeat, and carries a deep magazine to spend on the way." },
-  { k:6, name:"Unknown",    hue:"—",      col:"#8a93a8", cost:0,  soft:5, imp:0,  spd:0,    unlock:-1, desc:"" },
+  // The oversized one. r is its radius in CELLS -- every other ball is a point,
+  // this one has a body, so it collides across its whole width and crushes what
+  // it touches. Massive, slow, expensive, and only a handful can be out at once.
+  { k:6, name:"Boulder",    hue:"Slate",  col:"#cfd8e6", cost:90, soft:3, imp:18, spd:2.0,  unlock:5, r:3.5,
+    desc:"An enormous ball with an actual body. It crushes everything its width touches instead of chipping single pixels, and it is the slowest thing in the cavern." },
 ];
 const NBALL = BALLS.length;
 const built = b => b.unlock >= 0;                 // slots 5-6 are not specified yet
@@ -623,6 +627,9 @@ const PERKS = {
   3:[ {id:"diag",  n:"Virulence",    c:2,  d:"Poison spreads diagonally as well as orthogonally."},
       {id:"fast",  n:"Fast Rot",     c:4,  d:"Poison ticks twice as often."},
       {id:"conta", n:"Contagion",    c:8, d:"Poison spreads on every tick instead of by chance, and never dies out on its own."} ],
+  6:[ {id:"heft",   n:"Heft",       c:2,  d:"The Boulder grows another cell and a half across, crushing a wider path with every touch."},
+      {id:"plough",  n:"Unstoppable",c:4,  d:"Nothing deflects it. It holds its heading and grinds straight on through whatever it breaks."},
+      {id:"shatter", n:"Shatter",    c:8,  d:"Its final impact goes off like a quarry charge, three times its own width."} ],
   5:[ {id:"burn",  n:"Afterburner",  c:2,  d:"Accelerates with every bounce, ending far faster than it started."},
       {id:"slip",  n:"Slipstream",   c:4,  d:"Drags a wake behind it that damages pixels it passes close to."},
       {id:"blur",  n:"Blur",         c:8,  d:"Moving fast enough that every impact lands twice."} ],
@@ -637,6 +644,13 @@ const perk = (k, id) => !!S.perks[k + ":" + id];
 // feel change rather than a damage upgrade -- a shot buys a fixed number of
 // impacts, so going faster spends them sooner, it never mines more per shot.
 const SPEED_PERKS = { 0: [["swift", 1.25], ["fleet", 1.25], ["bolt", 1.30]] };
+// Radius in cells. Zero means a point, which is what every other ball is.
+function ballRadius(k) {
+  const base = BALLS[k].r || 0;
+  if (!base) return 0;
+  return base + (perk(k, "heft") ? 1.5 : 0);
+}
+
 function ballSpeed(k) {
   let m = 1;
   for (const sp of (SPEED_PERKS[k] || [])) if (perk(k, sp[0])) m *= sp[1];
@@ -669,7 +683,13 @@ const NODES = [
   { id:"b3",      ball:3, kind:"ball",   icon:"ball",  x:0, y:3, cost:3, req:["b2"] },
   { id:"b4",      ball:4, kind:"ball",   icon:"bolt",  x:0, y:4, cost:4, req:["b3"] },
   { id:"b5",      ball:5, kind:"ball",   icon:"ball",  x:0, y:5, cost:4, req:["b4"] },
-  { id:"b6",      ball:6, kind:"ball",   icon:"lock",  x:0, y:6, cost:0, req:["b5"] },
+  { id:"b6",      ball:6, kind:"ball",   icon:"boulder",x:0, y:6, cost:5, req:["b5"] },
+
+  // ---- slate row ----
+  { id:"6:heft",   ball:6, kind:"perk",   icon:"boulder",x:1, y:6, cost:2, req:["b6"] },
+  { id:"w_ref",    ball:6, kind:"refine", icon:"sword",  x:2, y:6, cost:1, req:["6:heft"] },
+  { id:"6:plough", ball:6, kind:"perk",   icon:"tunnel", x:3, y:6, cost:4, req:["w_ref"] },
+  { id:"6:shatter",ball:6, kind:"perk",   icon:"burst",  x:4, y:6, cost:8, req:["6:plough"] },
 
   // ---- orange speed row, one step above the spine ----
   { id:"0:swift", ball:0, kind:"perk",   icon:"comet", x:0, y:-1, cost:2, req:["root"] },
@@ -736,6 +756,7 @@ const ICONS = {
   bolt:   '<path d="M13 3 L6 13 H11 L10 21 L18 10 H13 Z"/>',
   comet:  '<circle cx="15" cy="9" r="4"/><path d="M4 20 L10 14 M4 14 L8 12 M9 20 L12 17"/>',
   lock:   '<path d="M8 11 V8 a4 4 0 0 1 8 0 V11 M6 11 H18 V20 H6 Z"/>',
+  boulder:'<circle cx="12" cy="12" r="8.5"/><circle cx="9" cy="9.5" r="1.8"/><circle cx="15" cy="14" r="2.4"/>',
 };
 
 
@@ -985,6 +1006,21 @@ function stampLight(x, y, mark) {
 // of what happened to be generated, not rock. Generating on demand here is the
 // fix, and it is cheap: the ready flag is one array read, and a chunk is only
 // ever built once.
+// Does this ball's BODY overlap rock at (cx,cy)? A point ball is just solid().
+// A Boulder samples its rim, so it stops when any part of it meets stone rather
+// than only when its centre does -- otherwise a seven-cell ball sinks halfway
+// into a wall before noticing it has arrived.
+function bodyHits(b, cx, cy) {
+  const r = ballRadius(b.kind);
+  if (r <= 0) return solid(cx, cy);
+  if (solid(cx, cy)) return true;
+  for (let a = 0; a < 8; a++) {
+    const th = a * (Math.PI/4);
+    if (solid(Math.round(cx + Math.cos(th)*r), Math.round(cy + Math.sin(th)*r))) return true;
+  }
+  return false;
+}
+
 function solid(x, y) {
   if (x < 0 || y < 0 || x >= WORLD || y >= WORLD) return true;
   const cx = x >> CHUNK_SHIFT, cy = y >> CHUNK_SHIFT;
@@ -1005,6 +1041,15 @@ const DRIFT_SECONDS = 12;
 const driftLimit = k => DRIFT_SECONDS * ballSpeed(k);
 
 function onImpact(b, hx, hy) {
+  // A ploughing Boulder never stops touching rock, so without this it re-triggers
+  // on every 0.35-cell substep and spends its whole magazine inside the one
+  // crater it already cleared -- measured at 2 pixels mined against 26 for a
+  // plain shot. One impact per NEW cell crushed, so it carves a tunnel instead.
+  if (plough(b)) {
+    const key = hx + "," + hy;
+    if (b.lastHit === key) return;
+    b.lastHit = key;
+  }
   b.stall = 0; b.left--; b.hits = (b.hits || 0) + 1;
   const k = b.kind;
   let d = ballDmg(k);
@@ -1077,6 +1122,17 @@ function onImpact(b, hx, hy) {
     if (perk(5,"blur")) d *= 2;                             // Blur: double strike
     destroyed = hitCell(hx, hy, d);
     if (perk(5,"burn")) b.boost = Math.min(3, (b.boost || 1) * 1.05);   // Afterburner
+  } else if (k === 6) {
+    // It does not chip a pixel, it crushes its own footprint.
+    const r = ballRadius(6);
+    // A ploughing Boulder bores NARROWER than its own body. Blasting its full
+    // width clears the rock its rim needs to stay in contact with, so it shot
+    // straight out through its own tunnel and never struck anything again --
+    // measured at one impact and zero pixels for a whole shot.
+    blast(hx, hy, plough(b) ? r * 0.55 : r, d);
+    destroyed = true;
+    // Shatter: the last impact of its magazine goes off like a quarry charge.
+    if (perk(6,"shatter") && b.left <= 0) blast(hx, hy, r * 3.2, d * 2.2);
   } else {
     destroyed = hitCell(hx, hy, d);
   }
@@ -1121,6 +1177,10 @@ function staticDischarge(b, dt) {
   }
 }
 
+// Unstoppable: the Boulder is not deflected by what it breaks. It keeps its
+// heading and grinds onward until its magazine is gone.
+const plough = b => b.kind === 6 && perk(6, "plough");
+
 function stepBall(b, dt) {
   ensureAround(b.x, b.y);
   if (b.kind === 4) staticDischarge(b, dt);
@@ -1139,11 +1199,44 @@ function stepBall(b, dt) {
     const cxi = Math.floor(b.x), cyi = Math.floor(b.y);
     const gxi = Math.floor(nx),  gyi = Math.floor(ny);
 
+    // A ball with a BODY collides on its rim, not on its centre crossing a cell
+    // boundary. Sharing the point-ball path meant a seven-cell Boulder could
+    // grind along a wall registering nothing at all, because its middle had not
+    // yet stepped into a new cell -- one impact spent per twenty-five seconds.
+    const bodyR = ballRadius(b.kind);
+    if (bodyR > 0) {
+      const bx = Math.floor(nx), by = Math.floor(ny);
+      if (bodyHits(b, bx, by)) {
+        const key = bx + "," + by;
+        if (b.lastHit !== key) { onImpact(b, bx, by); b.lastHit = key; }
+        if (!plough(b)) {
+          b.vx = -b.vx; b.vy = -b.vy;
+          const sp2 = ballSpeed(b.kind) * (b.boost || 1) * (b.pw || 1);
+          const m2 = Math.hypot(b.vx, b.vy) || 1;
+          b.vx = b.vx/m2*sp2; b.vy = b.vy/m2*sp2;
+          // Back it off the surface. A body this wide stays buried in the wall
+          // after a bounce, and the once-per-cell guard then suppresses every
+          // further impact -- it wedged there having spent a single hit.
+          const off = Math.max(1, bodyR * 0.7);
+          b.x += (b.vx/sp2) * off;
+          b.y += (b.vy/sp2) * off;
+          b.lastHit = null;
+          b.stall = 0;
+          return;
+        }
+        b.stall = 0;
+      }
+      b.x = nx; b.y = ny; b.stall += s;
+      continue;
+    }
+
     let bounced = false;
-    if (gxi !== cxi && solid(gxi, cyi)) { onImpact(b, gxi, cyi); b.vx = -b.vx; bounced = true; }
-    if (gyi !== cyi && solid(cxi, gyi)) { onImpact(b, cxi, gyi); b.vy = -b.vy; bounced = true; }
-    if (!bounced && (gxi !== cxi || gyi !== cyi) && solid(gxi, gyi)) {
-      onImpact(b, gxi, gyi); b.vx = -b.vx; b.vy = -b.vy; bounced = true;
+    if (gxi !== cxi && bodyHits(b, gxi, cyi)) { onImpact(b, gxi, cyi); if (!plough(b)) b.vx = -b.vx; bounced = true; }
+    if (gyi !== cyi && bodyHits(b, cxi, gyi)) { onImpact(b, cxi, gyi); if (!plough(b)) b.vy = -b.vy; bounced = true; }
+    if (!bounced && (gxi !== cxi || gyi !== cyi) && bodyHits(b, gxi, gyi)) {
+      onImpact(b, gxi, gyi);
+      if (!plough(b)) { b.vx = -b.vx; b.vy = -b.vy; }
+      bounced = true;
     }
 
     if (bounced) {
@@ -1418,7 +1511,10 @@ function draw(dt) {
       ctx.stroke();
     }
     // Measured against reference footage: a ball is about a quarter of a block.
-    const P = toS(b.x,b.y), sz = Math.max(2, z*.25), g = Math.max(7, sz*3.6);
+    const br = ballRadius(b.kind);
+    const P = toS(b.x,b.y);
+    const sz = br > 0 ? Math.max(4, z*br*2) : Math.max(2, z*.25);
+    const g = Math.max(7, sz*(br > 0 ? 1.5 : 3.6));
     ctx.globalAlpha = 1;
     ctx.drawImage(glowFor(col), P[0]-g/2, P[1]-g/2, g, g);
     ctx.fillStyle = col;

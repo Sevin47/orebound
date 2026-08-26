@@ -48,8 +48,13 @@ whole way out.
 
 ## The balls
 
-Seven slots, six built, one reserved. Colour is identity — the tech tree, the
-dock and the ball itself all share it.
+All seven built. Colour is identity — the tech tree, the dock and the ball itself
+all share it.
+
+Six of them are points. **The Boulder is the only one with a body**, and that is
+its whole character: it collides when its *rim* meets stone rather than when its
+centre crosses a cell, so it stops short of walls, crushes a disc rather than
+chipping a pixel, and cannot squeeze through gaps the others slip past.
 
 | | Colour | Behaviour |
 |---|---|---|
@@ -59,7 +64,7 @@ dock and the ball itself all share it.
 | **Poison** | green | Poisons pixels; poison erodes and spreads on its own. |
 | **Lightning** | yellow | Crackles with static *as it flies*, arcing into nearby pixels before it ever touches them. |
 | **Rush** | purple | A railgun. Crosses the cavern in a heartbeat and carries a deep magazine (70 impacts) to spend on the way. |
-| **?????** | — | Not specified yet. Slot reserved. |
+| **Boulder** | slate | Oversized — seven cells across, ten with Heft. It has an actual body, so it collides on its rim and crushes everything its width touches. The slowest thing in the cavern. |
 
 Ball choice is not cosmetic. Measured on the same save, switching from Rush
 (single target) to Smash (area clear) moved throughput from **601 to 1664
@@ -178,6 +183,7 @@ Every perk alters something you can see on screen:
 - **Poison** — Virulence (spreads diagonally) · Fast Rot (ticks twice as often) · Contagion (spreads every tick and never dies out)
 - **Lightning** — Arc (jumps to three more pixels) · Fork (every arc splits) · Overload (arcs reach twice as far)
 - **Rush** — Afterburner (accelerates with every bounce) · Slipstream (drags a damaging wake) · Blur (every impact lands twice)
+- **Boulder** — Heft (another cell and a half across) · Unstoppable (never deflected; holds its heading and bores a tunnel) · Shatter (its final impact goes off at three times its own width)
 
 The rule is that an upgrade must modify ball behaviour directly rather than
 nudge a percentage. Upgrades that move a number without changing how the game
@@ -252,20 +258,21 @@ headless with an auto-buying player, re-measured after every structural change:
 | Slow balls + scaled swarm | reach ≈ 28.7·t^0.828 | ~2.1 h |
 | Flat 140 cap | reach ≈ 6.0·t^1.48 (flattening) | ~8 h |
 | Priced swarm | reach ≈ 45.1·t^0.711 | ~2.4 h |
-| **Drift by duration (current)** | reach ≈ 31.4·t^0.826 | **~1.9 h** |
+| Drift by duration | reach ≈ 31.4·t^0.826 | ~1.9 h |
+| **Seven balls, Boulder built (current)** | reach ≈ 37.7·t^0.817 | **~1.6 h** |
 
 The priced swarm **converges** rather than running away, which is the property a
 hard cap was standing in for:
 
 | Elapsed | 2 min | 5 min | 10 min | 15 min | 20 min |
 |---|---|---|---|---|---|
-| Balls live | 93 | 168 | 196 | 195 | **217** |
-| Rush live | — | 10 | 12 | 12 | 14 |
-| Reach | 38 | 117 | 226 | 266 | 390 |
+| Balls live | 105 | 173 | 211 | 224 | **235** |
+| Boulders | — | 10 | 14 | 15 | 16 |
+| Reach | 46 | 136 | 270 | 328 | 435 |
 
-At twenty minutes the mix is 79 orange, 36 blue, 35 poison, 33 smash, 20
-lightning and 14 Rush — every colour crowded to its own soft point, and Rush
-pinned around a dozen from the five minute mark onward. One ball per ~590 cells of
+At twenty minutes the mix is 78 orange, 36 blue, 36 poison, 34 smash, 21
+lightning, 16 Boulder and 14 Rush — every colour crowded to its own soft point,
+with the two premium balls pinned in the low teens from five minutes onward. One ball per ~590 cells of
 open cavern, against the 1-per-4 that read as static.
 
 The third row is worth keeping. Slowing ball speeds and launching from the
@@ -328,7 +335,6 @@ no-op.
 
 ## Known limitations
 
-- One of seven ball abilities is unspecified and shows as `?????`.
 - Save embeds a run-length mask of every cell plus every partially
   damaged cell (~25 KB at 8% cleared; grows with a heavily chewed board).
 - Board corners sit at depth ~2236 and are effectively impenetrable; that is the
