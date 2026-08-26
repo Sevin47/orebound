@@ -589,8 +589,8 @@ const BALLS = [
     desc:"Poisons pixels on impact. Poison erodes them over time and spreads to nearby pixels on its own." },
   { k:4, name:"Lightning",  hue:"Yellow", col:"#ffe14a", cost:56, soft:5, imp:20, spd:4.4,  unlock:4,
     desc:"Crackles with static as it flies, arcing into nearby pixels before it ever touches them." },
-  { k:5, name:"Rush",       hue:"Purple", col:"#c060ff", cost:40, soft:2, imp:30, spd:58.0, unlock:4,
-    desc:"A railgun. Crosses the cavern in a heartbeat, spending its impacts almost instantly." },
+  { k:5, name:"Rush",       hue:"Purple", col:"#c060ff", cost:40, soft:2, imp:70, spd:58.0, unlock:4,
+    desc:"A railgun. Crosses the cavern in a heartbeat, and carries a deep magazine to spend on the way." },
   { k:6, name:"Unknown",    hue:"—",      col:"#8a93a8", cost:0,  soft:5, imp:0,  spd:0,    unlock:-1, desc:"" },
 ];
 const NBALL = BALLS.length;
@@ -608,7 +608,10 @@ const built = b => b.unlock >= 0;                 // slots 5-6 are not specified
 // multiplier that exists purely to absorb surplus upgrade pixels and to let
 // damage keep pace with the depth curve. Flavour is behavioural; scaling is not.
 const PERKS = {
-  0:[ {id:"frag",  n:"Fragment",     c:2,  d:"The first impact splits the ball in two, each keeping half the remaining impacts."},
+  0:[ {id:"swift", n:"Swift",        c:2,  d:"The Prospector travels a quarter faster, so it works the face sooner after every launch."},
+      {id:"fleet", n:"Fleet",        c:4,  d:"Another quarter of travel speed on top."},
+      {id:"bolt",  n:"Bolt",         c:8,  d:"A third of a turn faster again. Stacks with the two before it."},
+      {id:"frag",  n:"Fragment",     c:2,  d:"The first impact splits the ball in two, each keeping half the remaining impacts."},
       {id:"cross", n:"Crossbreak",   c:4,  d:"Every impact also strikes the four pixels orthogonally around it."},
       {id:"heavy", n:"Heavy Strike", c:8, d:"Every eighth impact lands five times as hard."} ],
   1:[ {id:"wide",  n:"Widebore",     c:2,  d:"Carves a three-wide tunnel instead of a single line."},
@@ -628,6 +631,17 @@ const PERKS = {
       {id:"over",  n:"Overload",     c:8, d:"Arcs reach twice as far."} ],
 };
 const perk = (k, id) => !!S.perks[k + ":" + id];
+
+// Speed is upgradeable per ball, in small steps, and the reference tree carries
+// exactly this (its comet icon). Kept multiplicative and modest so it stays a
+// feel change rather than a damage upgrade -- a shot buys a fixed number of
+// impacts, so going faster spends them sooner, it never mines more per shot.
+const SPEED_PERKS = { 0: [["swift", 1.25], ["fleet", 1.25], ["bolt", 1.30]] };
+function ballSpeed(k) {
+  let m = 1;
+  for (const sp of (SPEED_PERKS[k] || [])) if (perk(k, sp[0])) m *= sp[1];
+  return BALLS[k].spd * m;
+}
 
 //================================================================= tech tree
 // A sprawling node graph rather than a list of cards. Every node belongs to a
@@ -656,6 +670,11 @@ const NODES = [
   { id:"b4",      ball:4, kind:"ball",   icon:"bolt",  x:0, y:4, cost:4, req:["b3"] },
   { id:"b5",      ball:5, kind:"ball",   icon:"ball",  x:0, y:5, cost:4, req:["b4"] },
   { id:"b6",      ball:6, kind:"ball",   icon:"lock",  x:0, y:6, cost:0, req:["b5"] },
+
+  // ---- orange speed row, one step above the spine ----
+  { id:"0:swift", ball:0, kind:"perk",   icon:"comet", x:0, y:-1, cost:2, req:["root"] },
+  { id:"0:fleet", ball:0, kind:"perk",   icon:"comet", x:1, y:-1, cost:4, req:["0:swift"] },
+  { id:"0:bolt",  ball:0, kind:"perk",   icon:"comet", x:2, y:-1, cost:8, req:["0:fleet"] },
 
   // ---- orange row ----
   { id:"o_ref1",  ball:0, kind:"refine", icon:"sword", x:1, y:0, cost:1, req:["root"] },
@@ -839,7 +858,7 @@ function fire(kind, ang, ox, oy, power) {
   // Power scales launch speed only, never damage or impacts — a soft lob and a
   // hard throw cost the same and mine the same, they just travel differently.
   const pw = Math.max(0.3, Math.min(1, power === undefined ? 1 : power));
-  const sp = B.spd * pw;
+  const sp = ballSpeed(kind) * pw;
   balls.push({ x:at[0]+.5, y:at[1]+.5, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
                kind, trail:[], left:ballImp(kind), stall:0, hits:0, boost:1, pw,
                paid:c });                    // refund must price off THIS, not the market
@@ -975,16 +994,15 @@ function solid(x, y) {
 
 // Balls NEVER steer themselves. A ball flies exactly where you sent it until it
 // bounces off rock, and if it crosses this much open ground without touching
-// anything it simply retires. The previous build re-aimed idle balls at the
-// nearest rock, which looked like they were flying themselves and quietly took
-// the aiming decision away from the player.
-// A ball that crosses this much open ground gives up and retires, and auto-fire
-// replaces it at the working face. This is how the swarm stays on the rock
-// without any ball ever steering itself: short-lived drifters, constantly
-// resupplied, rather than long-lived wanderers being nudged back on target.
-// At 260 the arena filled with balls coasting through the void and throughput
-// decayed as the cavern widened.
-const DRIFT_LIMIT = 55;
+// anything it simply retires.
+//
+// The allowance is a DURATION, not a distance. A fixed distance punishes a ball
+// for being fast: at 55 cells, a Prospector drifting at 4.4 cells/sec got twelve
+// and a half seconds to find rock while Rush at 58 got under one, so the railgun
+// expired mid-flight across a wide cavern without ever reaching the face.
+// Every ball now gets the same number of seconds, whatever its speed.
+const DRIFT_SECONDS = 12;
+const driftLimit = k => DRIFT_SECONDS * ballSpeed(k);
 
 function onImpact(b, hx, hy) {
   b.stall = 0; b.left--; b.hits = (b.hits || 0) + 1;
@@ -1009,8 +1027,8 @@ function onImpact(b, hx, hy) {
       b.frag = 1;                                           // Fragment: split once
       const half = b.left >> 1; b.left -= half;
       // Perpendicular to the parent, not random: a split, not a teleport.
-      const sp = Math.hypot(b.vx, b.vy) || BALLS[0].spd;
-      balls.push({ x:b.x, y:b.y, vx:-b.vy/sp*BALLS[0].spd, vy:b.vx/sp*BALLS[0].spd,
+      const sp = Math.hypot(b.vx, b.vy) || ballSpeed(0);
+      balls.push({ x:b.x, y:b.y, vx:-b.vy/sp*ballSpeed(0), vy:b.vx/sp*ballSpeed(0),
                    kind:0, trail:[], left:half, stall:0, frag:1, hits:0, boost:1,
                    paid:fragFee });
     }
@@ -1136,7 +1154,7 @@ function stepBall(b, dt) {
         const tx = b.x + perp[0]*offs, ty = b.y + perp[1]*offs;
         if (!solid(Math.floor(tx), Math.floor(ty))) { b.x = tx; b.y = ty; }
       }
-      const sp = BALLS[b.kind].spd * (b.boost || 1) * (b.pw || 1);
+      const sp = ballSpeed(b.kind) * (b.boost || 1) * (b.pw || 1);
       const m = Math.hypot(b.vx, b.vy) || 1;
       b.vx = b.vx/m*sp; b.vy = b.vy/m*sp;
       return;
@@ -1150,7 +1168,7 @@ function stepBall(b, dt) {
       hitCell(Math.floor(nx), Math.floor(ny)-1, wd);
     }
   }
-  if (b.stall > DRIFT_LIMIT) {
+  if (b.stall > driftLimit(b.kind)) {
     // Retire it -- but hand back what it never used. You bought impacts; impacts
     // that never landed were never delivered. Without this a ball that drifts off
     // into open cavern silently burns the whole ticket price, which is most of the

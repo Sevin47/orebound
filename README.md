@@ -58,7 +58,7 @@ dock and the ball itself all share it.
 | **Smash** | red | Detonates on impact, hitting every pixel in a surrounding area. |
 | **Poison** | green | Poisons pixels; poison erodes and spreads on its own. |
 | **Lightning** | yellow | Crackles with static *as it flies*, arcing into nearby pixels before it ever touches them. |
-| **Rush** | purple | Streaks across the cavern like a shooting star, spending its impacts in seconds. |
+| **Rush** | purple | A railgun. Crosses the cavern in a heartbeat and carries a deep magazine (70 impacts) to spend on the way. |
 | **?????** | — | Not specified yet. Slot reserved. |
 
 Ball choice is not cosmetic. Measured on the same save, switching from Rush
@@ -109,7 +109,7 @@ pixels-per-frame to cells-per-second using the on-screen block pitch:
 | Green | 4.99 | 5.0 |
 | Blue | 4.58 | 4.6 |
 | Yellow | 4.44 | 4.4 |
-| Orange | 4.36 | 4.4 |
+| Orange | 4.36 | 4.4 base, up to 8.9 with speed perks |
 | Red (Smash) | **2.74** — the slowest | 2.7 |
 | Purple (Rush) | **58.2 median, 70 max** — a railgun | 58 |
 
@@ -172,7 +172,7 @@ naming it, its colour, and its cost.
 
 Every perk alters something you can see on screen:
 
-- **Prospector** — Fragment (first impact splits the ball in two) · Crossbreak (each impact also strikes four neighbours) · Heavy Strike (every 8th impact lands 5×)
+- **Prospector** — Swift / Fleet / Bolt (travel speed, +25% / +25% / +30%, stacking to 4.4 → 8.9 cells/sec) · Fragment (first impact splits the ball in two) · Crossbreak (each impact also strikes four neighbours) · Heavy Strike (every 8th impact lands 5×)
 - **Directional** — Widebore (three-wide tunnel) · Pierce (punches through four pixels behind the impact) · Freewheel (only impacts that actually *break* a pixel cost budget)
 - **Smash** — Wider Blast · Aftershock (craters strike again a moment later) · Chain Blast (1-in-4 chance of a second blast)
 - **Poison** — Virulence (spreads diagonally) · Fast Rot (ticks twice as often) · Contagion (spreads every tick and never dies out)
@@ -251,19 +251,21 @@ headless with an auto-buying player, re-measured after every structural change:
 | Economy-limited auto-fire | reach ≈ 174.5·t^0.561 | ~0.8 h |
 | Slow balls + scaled swarm | reach ≈ 28.7·t^0.828 | ~2.1 h |
 | Flat 140 cap | reach ≈ 6.0·t^1.48 (flattening) | ~8 h |
-| **Priced swarm (current)** | reach ≈ 45.1·t^0.711 | **~2.4 h** |
+| Priced swarm | reach ≈ 45.1·t^0.711 | ~2.4 h |
+| **Drift by duration (current)** | reach ≈ 31.4·t^0.826 | **~1.9 h** |
 
 The priced swarm **converges** rather than running away, which is the property a
 hard cap was standing in for:
 
 | Elapsed | 2 min | 5 min | 10 min | 15 min | 20 min |
 |---|---|---|---|---|---|
-| Balls live | 90 | 182 | 199 | 206 | **210** |
-| Reach | 42 | 145 | 225 | 300 | 396 |
+| Balls live | 93 | 168 | 196 | 195 | **217** |
+| Rush live | — | 10 | 12 | 12 | 14 |
+| Reach | 38 | 117 | 226 | 266 | 390 |
 
-At twenty minutes the mix is 76 orange, 35 blue, 34 poison, 32 smash, 20
-lightning and 13 Rush — every colour crowded to its own soft point, and Rush
-pinned at a dozen from the five minute mark onward. One ball per ~590 cells of
+At twenty minutes the mix is 79 orange, 36 blue, 35 poison, 33 smash, 20
+lightning and 14 Rush — every colour crowded to its own soft point, and Rush
+pinned around a dozen from the five minute mark onward. One ball per ~590 cells of
 open cavern, against the 1-per-4 that read as static.
 
 The third row is worth keeping. Slowing ball speeds and launching from the
