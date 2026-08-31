@@ -81,6 +81,31 @@ set of valid launch sites**, and it grows as you mine. Auto-fire picks spots on
 the working face, so idle play widens the frontier instead of re-grinding cleared
 ground.
 
+That last sentence used to be a description of the intent rather than of the
+code. Auto-fire chose a radius uniformly between 0.55 and 1.0 of the reach, which
+sounds like the frontier and is not: **measured, the average launch sat at 0.63 of
+the reach**, several hundred cells inside open cavern. A ball gets twelve seconds
+to find rock — 53 cells for a Prospector — so it could not possibly cross that
+gap, and it retired with its magazine nearly untouched. Across a thirty-minute
+run, **87–93% of every impact the player paid for was never landed.** The refund
+hid the loss in the wallet; the throughput was simply gone.
+
+It now picks a bearing, walks it end to end, and launches from one of the **faces**
+along it — an open cell with rock against it, chosen at random from all of them.
+Worth **4.4× the pixels mined**, with no number anywhere made bigger.
+
+Stopping at the *first* open cell was a second bug wearing the first one's
+clothes, and it took a run played all the way to the golden pixel to see it. The
+outermost open cell on a bearing is the outer rim and nothing else, so once the
+dig punched past a patch of stubborn rock the frontier moved beyond it and that
+pocket was never worked again. Measured mid-run: **0 of 300 launches** landed
+inside a ring the cavern had already passed, and the golden pixel sat in one of
+those pockets with the frontier 300 cells beyond it and receding.
+
+The tell is in ring coverage. Working only the rim, rings saturated at **82%** —
+the missing fifth was abandoned pockets, not bedrock. Working every face, inner
+rings finish at **96–99%**.
+
 ## The price is the cap
 
 There is no ball limit. **Every ball of a colour already in flight makes the next
@@ -126,6 +151,12 @@ measurement**. Removing the cap put it at 58.
 
 **Balls render at a quarter of a block.** Measured 0.19, 0.27 and 0.28 across
 three scenes; they had been drawn at 0.8, about three times too large.
+
+**And they are drawn as discs.** They used to be filled rectangles, which was the
+one part of the picture disagreeing with everything around it: the Boulder
+collides on a circular rim, and every ball carries a radial glow. The rock stays
+square — it is a grid of pixels and should read as one — but nothing that moves is
+a square any more, and the trails have round caps to match.
 
 ## Aiming is a slingshot
 
@@ -259,7 +290,9 @@ headless with an auto-buying player, re-measured after every structural change:
 | Flat 140 cap | reach ≈ 6.0·t^1.48 (flattening) | ~8 h |
 | Priced swarm | reach ≈ 45.1·t^0.711 | ~2.4 h |
 | Drift by duration | reach ≈ 31.4·t^0.826 | ~1.9 h |
-| **Seven balls, Boulder built (current)** | reach ≈ 37.7·t^0.817 | **~1.6 h** |
+| Seven balls, Boulder built | reach ≈ 37.7·t^0.817 | ~1.6 h |
+| Rim-only launch + prize at 820–1020 | reach ≈ 75.4·t^0.699 | 51.6 min *(measured, missed)* |
+| **Every face worked + prize at 600–730 (current)** | reach ≈ 52.9·t^0.824 | **30.3 min** *(measured)* |
 
 The priced swarm **converges** rather than running away, which is the property a
 hard cap was standing in for:
@@ -283,7 +316,40 @@ ten shots a second, so total output pinned at shots/sec × impacts/shot no matte
 how rich the player got. Auto-fire now tops the swarm up until the *pixels* run
 out. Your wallet is the limit, not a timer.
 
-Those figures assume near-optimal play. A casual run lands nearer 2–3 hours.
+Those figures assume near-optimal play. A casual run runs somewhat longer.
+
+### Where the thirty minutes comes from
+
+Two changes, and only one of them touches throughput.
+
+Launching on the working face rather than inside the cavern recovered the 87–93%
+of impacts that were being thrown away. The rest is the prize itself.
+
+**The first calibration was wrong, and only a completed run caught it.** Sampling
+720 cells on each ring gives the fraction cleared at each minute, which *is* the
+chance the run has ended if the pixel sits at that radius; read off a rim-only run
+that put the band at 820–1020 and predicted a median a shade under half an hour.
+But that run was abandoning every pocket it passed, so it drove *reach* outward
+much faster than it actually cleared ground — ring coverage stalling at 82% was
+the warning, and it read as bedrock. Playing it out: **51.6 minutes**, not 30.
+
+Aggregate coverage is a seductive proxy. Reach passing a radius is not the same as
+that radius being dug out, and the gap between them is exactly where the bug was
+hiding. The only honest measurement of how long a run takes is a run.
+
+With every face worked, one completed run gives `reach ≈ 52.9·t^0.824`, and the
+prize turns up at roughly **50% ring coverage** — which lands when reach reaches
+about **1.23×** its radius. Checked against the finished board: 50% coverage sat
+at r=960 with reach at 1203, against 978 predicted. Half an hour puts reach at
+812, so the median radius wants to be `812 / 1.23 ≈ 660`.
+
+Hence the band **600–730**, which spans about 26–35 minutes. Verified by playing
+it: golden pixel at radius 649, **found at 30.3 minutes**.
+
+Both figures are single runs. The first ten minutes vary a good deal — 27k to 165k
+cells mined by minute 5 across three runs — and that variance carries forward, so
+treat 30 minutes as the centre of a fairly broad distribution rather than a
+promise.
 
 ### What simulation caught that reading the code would not
 
@@ -296,6 +362,26 @@ Those figures assume near-optimal play. A casual run lands nearer 2–3 hours.
   900 base HP against surrounding rock at 5 — 250–500× tougher — so they were
   uncovered and then sat there unbreakable forever. A reward you cannot collect
   is worse than no reward.
+- **The frontier abandoned its own pockets.** Fixing the wasted impacts by
+  launching on the working face introduced this: it took the *outermost* open cell
+  on a bearing, so ground the dig had already flowed past was never revisited.
+  Aggregate coverage looked fine and reach climbed faster than ever. It surfaced
+  only by playing a run to the end and finding the prize sealed in a pocket with
+  0 of 300 launches able to reach it.
+- **Nine in ten impacts were never landed.** Auto-fire launched balls a long way
+  inside the open cavern, further than a ball can travel before its drift timer
+  retires it, so most shots expired without touching rock. Nothing looked wrong:
+  balls flew, the wallet refilled from refunds, the cavern grew. Only counting
+  impacts landed against impacts bought showed 87–93% going nowhere.
+- **The world was rebuilt differently on every reload.** The seed was written into
+  the save on every write and never once read back, so each page load rolled a new
+  one: terrain regenerated under the saved mined-mask, relics and monuments moved,
+  the damage map pointed at cells that were now different rock, and the golden
+  pixel hid somewhere else. A run was only ever coherent within one page load.
+- **The offline pass ate the monuments.** It cleared whatever cell it landed on
+  without any of the checks a live impact makes, so a long enough absence
+  dissolved the one thing in the world that is meant to be permanent — and it
+  could dig out the golden pixel and end the run while the tab was shut.
 - **Hazards grew exponentially.** Spreading was per-*hit*, and a Bloom deep in
   the world takes 160+ hits to break, so each produced ~36 offspring. Measured
   3k → 12k → 23k cells in sixteen minutes. Now each Bloom gets a single chance
@@ -308,18 +394,60 @@ interesting-looking thing first, and the design has to survive that.
 
 ## Golden pixel & seeds
 
-One cell, uniformly placed, **no hint system** — a true needle in a haystack. It
-is kept out of the opening hollow so it cannot be won in the first ten seconds.
+One cell, on a bearing you cannot guess, **no hint system**. What is bounded is
+its *depth*: the radius is drawn from **600–730**, the band the dig actually
+reaches in about half an hour. Measured end to end: a pixel at radius 649 was dug
+out at **30.3 minutes**.
+
+It used to be placed uniformly over all ten million cells, which made the length
+of a run a lottery rather than a design decision. The median sat near an hour, but
+the spread was unbounded at both ends — and **21.5% of runs** (everything outside
+the inscribed circle) put the prize in the corners, where depth runs past 2200 and
+hardness is `e^(0.0035·d^1.1)`. Those runs were not long, they were unwinnable,
+and the player had no way to tell which kind they were in.
+
+It is still a needle. You do not know the bearing, the cavern is not a solid disc,
+and finding it means clearing most of a ring three-quarters of a mile round. The
+world is still 3163 cells across and you can keep digging as long as you like —
+**what is bounded is the win, not the map**.
 
 The world seed is **rolled per run and saved**, so the golden pixel hides
-somewhere new every playthrough.
+somewhere new every playthrough — and, since the seed is now actually read back on
+load, it stays where it was hidden.
 
 ## Offline
 
 Away time is credited by eroding the cavern frontier through the same `payout()`
 path a live pixel uses, so offline income can never diverge from online income.
-Requires auto-fire; pays 40% of your observed rate, capped at 12 hours and
-400,000 pixels per return.
+Requires auto-fire; pays 40% of your observed rate, capped at 4 hours and
+**150,000 cells** per return.
+
+The cell cap is the real control, and it is the only one that can be: it is the
+only term scaled to the run rather than to the player. Mid-run the observed rate
+is ~1000 cells/sec, so 40% of it reaches any plausible ceiling within minutes —
+the old 400,000 was spent six minutes into a twelve-hour absence, which made every
+absence past six minutes pay exactly the same, and the hours were decoration. A
+full run mines ~2.4M cells, so 400k was a sixth of the game handed over for
+closing a tab, along with 206 upgrade points against the ~726 a whole run yields.
+At half an hour a run, away time should be a top-up: 150k is about 6% of a run.
+This is the one number here picked by judgement rather than measured.
+
+The pass itself was rewritten to be honest and to stop hitching:
+
+- It **cannot break bedrock** and **cannot dig out the golden pixel** — the run is
+  not something to come back and find already spent.
+- It keeps the hazard tally, the poison map and the lighting consistent, where it
+  used to leave all three wrong.
+- Lighting is a **Chebyshev distance transform in two linear sweeps** rather than
+  a 9×9 stamp per cleared cell. Erosion clears contiguous blobs, so the old stamp
+  rewrote the same neighbourhood eighty times over — and the return-to-tab handler
+  ran it across *every* cleared cell on the board. Measured in the browser: a full
+  150k-cell credit now costs well under a tenth of a second.
+
+Hazard cells are also written into the save explicitly. The mined mask cannot
+describe them — a hazard that spread is sitting on ground you had cleared, so the
+mask calls that cell solid and the generator refilled it with the original rock.
+Cavern you had dug out healed over while you were away.
 
 ## Local development
 
@@ -335,7 +463,12 @@ no-op.
 
 ## Known limitations
 
-- Save embeds a run-length mask of every cell plus every partially
-  damaged cell (~25 KB at 8% cleared; grows with a heavily chewed board).
+- Save embeds a run-length mask of every cell, every partially damaged cell and
+  every live hazard. Measured **628 KB at thirty minutes** (2.28M cells cleared),
+  written every 15 seconds; `rleMined` walks all ten million cells to build it.
+- A cold load regenerates every chunk the save touched — 851 of them at thirty
+  minutes — because terrain is derived from the seed and only the mask is stored.
+  That is a real load screen on a mature save.
 - Board corners sit at depth ~2236 and are effectively impenetrable; that is the
-  intended wall, there is no bedrock shell.
+  intended wall, there is no bedrock shell. The golden pixel is no longer placed
+  out there, so this can no longer make a run unwinnable.

@@ -307,7 +307,17 @@ const isHazard = t => t === T_ORANGE || t === T_PURPLE;
 // Hard ceiling on live hazard cells. Without it a bad roll can cascade and
 // swallow the whole cavern, which is a lost save rather than a challenge.
 const HAZ_CAP = 45000;
-let hazCount = 0;
+// The live hazard cells, by index. A plain counter could not survive a reload:
+// terrain is rebuilt from the seed and the mined mask laid over it, so
+// ensureChunk counted every hazard the generator produced INCLUDING the ones the
+// player had already destroyed, and the tally came back permanently inflated --
+// silently throttling hazard spread against a cap that was never really reached.
+//
+// A set also lets the save record hazards that SPREAD, which the mask cannot: a
+// spread hazard sits on ground you had already cleared, so the mask calls that
+// cell solid, and on reload the generator filled it back in with original rock.
+// Cavern you had dug out healed over while you were away.
+const hazCells = new Set();
 // Which hazard cells have already had their one chance to spread. See below for
 // why spreading must be once-per-pixel rather than once-per-hit.
 const hazSpread = new Set();
@@ -511,17 +521,23 @@ function ensureChunk(cx, cy) {
   const x0 = cx*CHUNK, y0 = cy*CHUNK;
   const x1 = Math.min(WORLD, x0+CHUNK), y1 = Math.min(WORLD, y0+CHUNK);
   for (let y = y0; y < y1; y++)
-    for (let x = x0; x < x1; x++) {
-      const t = genCell(x, y);
-      tier[y*WORLD + x] = t;
-      if (isHazard(t)) hazCount++;      // counted here too, or HAZ_CAP is meaningless
-    }
+    for (let x = x0; x < x1; x++) tier[y*WORLD + x] = genCell(x, y);
   stampObjects(x0, y0, x1, y1);
   stampMonuments(x0, y0, x1, y1);
   if (GOLD_I >= 0) {                              // the golden pixel outranks terrain
     const gx = GOLD_I % WORLD, gy = (GOLD_I / WORLD) | 0;
     if (gx >= x0 && gx < x1 && gy >= y0 && gy < y1) tier[GOLD_I] = T_GOLD;
   }
+  // Register hazards AFTER the stamps, not from the generator loop. A relic, a
+  // monument or the golden pixel can land on a cell the generator made a hazard,
+  // and registering during generation logged a cell that the very next line
+  // overwrote with bedrock -- a phantom hazard, counted against HAZ_CAP forever
+  // and written into the save as a cell that is not a hazard at all. Measured as
+  // exactly one cell lost across a reload; it is small, but it is drift, and it
+  // only ever accumulates.
+  for (let y = y0; y < y1; y++)
+    for (let x = x0; x < x1; x++)
+      if (isHazard(tier[y*WORLD + x])) hazCells.add(y*WORLD + x);
   paintChunk(cx, cy);
 }
 // Keep everything within one chunk of a point generated, so a ball can never
@@ -531,15 +547,43 @@ function ensureAround(x, y) {
   for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) ensureChunk(cx+ox, cy+oy);
 }
 
-// The golden pixel: one cell, uniformly placed, no hint system. Kept out of the
-// opening hollow so it cannot be won in the first ten seconds.
+// The golden pixel: one cell, on a bearing you cannot guess, at a depth drawn
+// from the band the dig actually reaches in about half an hour. No hint system.
+//
+// It used to be placed uniformly over all ten million cells, which made the
+// LENGTH OF A RUN a lottery rather than a design decision: the median sat near an
+// hour, but the spread was unbounded at both ends -- some runs ended in minutes,
+// and 21.5% of them (everything outside the inscribed circle) put the prize in
+// the corners, where depth runs past 2200 and hardness is e^(0.0035*d^1.1). Those
+// runs were not long, they were unwinnable, and the player had no way to know
+// which kind they were in.
+//
+// The band is measured, and it was measured twice, because the first answer was
+// wrong in an instructive way.
+//
+// Sampling 720 cells on each ring gives the fraction of that ring cleared at each
+// minute, which IS the chance the run has ended if the pixel sits there. Read off
+// a run whose auto-fire only ever worked the outer rim, that put the band at
+// 820-1020. But that run was abandoning every pocket it passed, so it drove reach
+// outward far faster than it actually cleared ground -- ring coverage saturated at
+// 82%. Reading a completion time off it over-predicted badly: the first run to
+// actually reach the golden pixel took 51.6 minutes, not 30.
+//
+// With auto-fire working every face (see frontierSpawn), inner rings saturate at
+// 96-99% instead, and a completed run gives reach ~= 75.4*t^0.699 with the prize
+// turning up at roughly 50% ring coverage -- which lands when reach reaches about
+// 1.23x its radius. Checked against the finished board: 50% coverage sat at r=960
+// with reach at 1203, against 978 predicted. Half an hour puts reach at 812, so
+// the median radius wants to be 812/1.23 ~= 660, and the band spans 26-35 minutes.
+//
+// The world is still 3163 cells across and you can still dig for as long as you
+// like. What is bounded is the WIN, not the map.
+const GOLD_R0 = 600, GOLD_R1 = 730;
 function placeGolden() {
-  let gx, gy, n = 0;
-  do {
-    gx = Math.floor(hash2(n, 77, RUNSEED+9001) * WORLD);
-    gy = Math.floor(hash2(n, 178, RUNSEED+9001) * WORLD);
-    n++;
-  } while (n < 64 && Math.hypot(gx-CX, gy-CY) < 120);
+  const a = hash2(3, 77, RUNSEED+9001) * Math.PI * 2;
+  const r = GOLD_R0 + hash2(11, 178, RUNSEED+9001) * (GOLD_R1 - GOLD_R0);
+  const gx = Math.min(WORLD-2, Math.max(1, Math.round(CX + Math.cos(a)*r)));
+  const gy = Math.min(WORLD-2, Math.max(1, Math.round(CY + Math.sin(a)*r)));
   GOLD_I = gy*WORLD + gx;
 }
 
@@ -886,16 +930,51 @@ function fire(kind, ang, ox, oy, power) {
   return true;
 }
 
-// Auto-fire picks a spot on the working face rather than the middle, so idle
-// play keeps widening the frontier instead of re-grinding cleared ground.
+// Auto-fire launches ON THE WORKING FACE: pick a bearing, then walk INWARD from
+// beyond the reach until the first open cell. That cell touches rock by
+// construction, so the ball starts work immediately.
+//
+// It used to pick a radius uniformly in 0.55-1.0 of the reach, which sounds like
+// the frontier and is not: measured, the average launch sat at 0.63 of the reach,
+// several hundred cells inside open cavern. A ball only gets DRIFT_SECONDS to
+// find rock -- 53 cells for a Prospector -- so it could not possibly cross that
+// gap, and it retired with its magazine almost untouched. Measured across a
+// thirty-minute run, 87-93% of every impact the player PAID FOR was never landed.
+// The refund hid the cost in the wallet, but the throughput was simply gone.
+// Walking in to the face instead is worth 4.4x the pixels mined, with no number
+// anywhere made bigger.
 function frontierSpawn() {
-  for (let t = 0; t < 24; t++) {
+  const faces = [];
+  for (let t = 0; t < 6; t++) {
     const a = Math.random()*Math.PI*2;
-    const r = Math.max(6, S.maxDepth * (0.55 + Math.random()*0.45));
-    const x = Math.round(CX + Math.cos(a)*r), y = Math.round(CY + Math.sin(a)*r);
-    if (x<1||y<1||x>=WORLD-1||y>=WORLD-1) continue;
-    ensureAround(x, y);
-    if (!solid(x, y)) return [x, y];
+    const ca = Math.cos(a), sa = Math.sin(a);
+    faces.length = 0;
+    // Walk the whole bearing and record EVERY face on it -- each open cell with
+    // rock against it, on either side -- rather than stopping at the first.
+    //
+    // Stopping at the first was a second bug wearing the first one's clothes. The
+    // outermost open cell is the outer rim and nothing else, so once the dig
+    // punched past a patch of stubborn rock the frontier moved beyond it and that
+    // pocket was never worked again: measured mid-run, 0 of 300 launches landed
+    // inside a ring the cavern had already passed, and a pocket sitting there sat
+    // there for good. Which is fatal when the thing you are hunting is one cell:
+    // a golden pixel in an abandoned pocket makes the run unwinnable in exactly
+    // the way the corners used to.
+    let prevOpen = false, px = 0, py = 0;
+    for (let r = S.maxDepth + 3; r >= 5; r--) {
+      const x = Math.round(CX + ca*r), y = Math.round(CY + sa*r);
+      const open = x>=1 && y>=1 && x<WORLD-1 && y<WORLD-1 && !solid(x, y);
+      if (open !== prevOpen) {
+        if (open) faces.push(x, y);                  // stepping off rock into cavern
+        else if (prevOpen) faces.push(px, py);       // last open cell before rock
+      }
+      prevOpen = open; px = x; py = y;
+    }
+    if (faces.length) {
+      const k = ((Math.random()*(faces.length>>1))|0) << 1;
+      ensureAround(faces[k], faces[k+1]);
+      return [faces[k], faces[k+1]];
+    }
   }
   return [CX, CY];
 }
@@ -909,12 +988,16 @@ function payout(x, y, t) {
   const d = Math.hypot(x-CX, y-CY);
   if (d > S.maxDepth) S.maxDepth = d;
 
-  if (t === T_UPG) { S.tokens++; S.tokensFound++; spawnBurst(x, y);
-                     toast("UPGRADE PIXEL FOUND"); return; }
+  if (t === T_UPG) { S.tokens++; S.tokensFound++;
+                     // The offline pass runs this same path thousands of times in
+                     // one go, before there is a frame to draw into. Its bursts
+                     // and toasts belong to the welcome-back panel, not here.
+                     if (!offlinePass) { spawnBurst(x, y); toast("UPGRADE PIXEL FOUND"); }
+                     return; }
   if (t === T_GOLD) { S.goldFound = true; showGolden(); return; }
   if (t === T_OBJ && !S.objectsFound[(x>>6)+","+(y>>6)]) {
     S.objectsFound[(x>>6)+","+(y>>6)] = 1;
-    toast("YOU UNCOVERED SOMETHING BURIED");
+    if (!offlinePass) toast("YOU UNCOVERED SOMETHING BURIED");
   }
   S.px += cellVal(x, y, t);
 }
@@ -926,7 +1009,7 @@ function hitCell(x, y, amount) {
   const cur = (dmg.get(i) || 0) + amount;
   if (cur >= cellHP(x, y, t)) {
     tier[i] = 0; dmg.delete(i); poison.delete(i);
-    if (isHazard(t)) hazCount--;
+    if (isHazard(t)) hazCells.delete(i);
     payout(x, y, t);
     spawnSpark(x, y, TIERS[t].col, t >= 4 ? 5 : 1);
     stampLight(x, y, true);
@@ -961,7 +1044,7 @@ function hitCell(x, y, amount) {
 // Hazards only grow into ground you have ALREADY cleared, never into fresh rock.
 // That keeps them a threat to your progress rather than a wall against it.
 function spreadHazard(x, y, t, n) {
-  if (hazCount >= HAZ_CAP) return;
+  if (hazCells.size >= HAZ_CAP) return;
   const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
   for (let k = 0; k < n; k++) {
     const d = dirs[(Math.random()*4)|0];
@@ -969,7 +1052,7 @@ function spreadHazard(x, y, t, n) {
     if (nx < 0 || ny < 0 || nx >= WORLD || ny >= WORLD) continue;
     const j = ny*WORLD + nx;
     if (tier[j] !== 0 || !lit[j]) continue;          // cleared, lit ground only
-    tier[j] = t; dmg.delete(j); hazCount++;
+    tier[j] = t; dmg.delete(j); hazCells.add(j);
     markDirty(nx, ny);
   }
 }
@@ -982,6 +1065,80 @@ function blast(cx0, cy0, radius, amount) {
       if (dd > radius) continue;
       hitCell(cx0+ox, cy0+oy, Math.max(1, amount * (1 - dd/(radius+1))));
     }
+}
+
+// Bulk lighting. `lit` is a max-filter: a cell's level is set by its Chebyshev
+// distance to the nearest CLEARED cell -- 3 within one, 2 within two, 1 within
+// four, dark beyond. stampLight writes that outwards from one cell, which is
+// right for a single pixel breaking during play.
+//
+// It is badly wrong for bulk work. The offline pass and relight() clear cells in
+// contiguous blobs, so stamping a 9x9 per cell rewrote the same neighbourhood
+// eighty times over: measured at 3.1 seconds per 100k cells, and the old
+// visibility handler ran that over EVERY cleared cell on the board on every
+// return to the tab.
+//
+// Read the other way round it is a distance transform, and a Chebyshev distance
+// transform is two linear sweeps -- one forward taking the min of the four
+// already-visited neighbours, one backward taking the other four. Cost is
+// proportional to the box, not to the box times eighty-one.
+const LIT_R = 4, LIT_FAR = 9;
+let dtBuf = null;
+function relightBox(bx0, by0, bx1, by1) {
+  bx0 = Math.max(0, bx0); by0 = Math.max(0, by0);
+  bx1 = Math.min(WORLD-1, bx1); by1 = Math.min(WORLD-1, by1);
+  if (bx1 < bx0 || by1 < by0) return;
+  // Scan a margin around the box: a cleared cell just outside it still lights
+  // cells inside, and cropping to the box exactly would leave a dark seam.
+  const x0 = Math.max(0, bx0-LIT_R), y0 = Math.max(0, by0-LIT_R);
+  const x1 = Math.min(WORLD-1, bx1+LIT_R), y1 = Math.min(WORLD-1, by1+LIT_R);
+  const w = x1-x0+1, h = y1-y0+1, n = w*h;
+  if (!dtBuf || dtBuf.length < n) dtBuf = new Uint8Array(n);
+  const d = dtBuf;
+  // Seed: distance 0 at every OPEN cell. Ungenerated counts as solid, exactly as
+  // solid() has it -- an ungenerated cell holds tier 0, the same value a mined-out
+  // cell holds, so reading tier alone would light the untouched corners of the box
+  // as though they were cavern and paint fresh rock bright when it generated.
+  for (let y = 0; y < h; y++) {
+    const wy = y0+y, src = wy*WORLD + x0, o = y*w, crow = (wy >> CHUNK_SHIFT)*CW;
+    for (let x = 0; x < w; x++)
+      d[o+x] = (!tier[src+x] && chunkReady[crow + ((x0+x) >> CHUNK_SHIFT)]) ? 0 : LIT_FAR;
+  }
+  for (let y = 0; y < h; y++) {
+    const o = y*w, p = o-w;
+    for (let x = 0; x < w; x++) {
+      let v = d[o+x];
+      if (!v) continue;
+      if (y > 0) {
+        if (d[p+x]+1 < v) v = d[p+x]+1;
+        if (x > 0   && d[p+x-1]+1 < v) v = d[p+x-1]+1;
+        if (x < w-1 && d[p+x+1]+1 < v) v = d[p+x+1]+1;
+      }
+      if (x > 0 && d[o+x-1]+1 < v) v = d[o+x-1]+1;
+      d[o+x] = v > LIT_FAR ? LIT_FAR : v;      // capped: anything past 4 is dark
+    }
+  }
+  for (let y = h-1; y >= 0; y--) {
+    const o = y*w, p = o+w;
+    for (let x = w-1; x >= 0; x--) {
+      let v = d[o+x];
+      if (!v) continue;
+      if (y < h-1) {
+        if (d[p+x]+1 < v) v = d[p+x]+1;
+        if (x > 0   && d[p+x-1]+1 < v) v = d[p+x-1]+1;
+        if (x < w-1 && d[p+x+1]+1 < v) v = d[p+x+1]+1;
+      }
+      if (x < w-1 && d[o+x+1]+1 < v) v = d[o+x+1]+1;
+      d[o+x] = v > LIT_FAR ? LIT_FAR : v;
+    }
+  }
+  for (let y = by0; y <= by1; y++) {
+    const o = (y-y0)*w - x0, row = y*WORLD;
+    for (let x = bx0; x <= bx1; x++) {
+      const dd = d[o+x];
+      lit[row+x] = dd <= 1 ? 3 : dd <= 2 ? 2 : dd <= LIT_R ? 1 : 0;
+    }
+  }
 }
 
 function stampLight(x, y, mark) {
@@ -1502,6 +1659,9 @@ function draw(dt) {
     const seg = Math.min(b.kind === 5 ? 17 : tailPts, b.trail.length>>1);
     if (seg > 1) {
       ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, z*.22);
+      // Round caps and joins, so the wake of a round ball is a round-ended
+      // streak rather than a chain of mitred rectangles.
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
       ctx.globalAlpha = .38; ctx.beginPath();
       const start = b.trail.length - seg*2;
       for (let k=start;k<b.trail.length;k+=2) {
@@ -1511,6 +1671,10 @@ function draw(dt) {
       ctx.stroke();
     }
     // Measured against reference footage: a ball is about a quarter of a block.
+    // Drawn as a disc, not a square. Every ball is a ball -- the Boulder collides
+    // on a circular rim (see bodyHits) and the point balls carry a radial glow,
+    // so a square body was the one part of the picture disagreeing with both the
+    // physics and the lighting.
     const br = ballRadius(b.kind);
     const P = toS(b.x,b.y);
     const sz = br > 0 ? Math.max(4, z*br*2) : Math.max(2, z*.25);
@@ -1518,8 +1682,9 @@ function draw(dt) {
     ctx.globalAlpha = 1;
     ctx.drawImage(glowFor(col), P[0]-g/2, P[1]-g/2, g, g);
     ctx.fillStyle = col;
-    ctx.fillRect(P[0]-sz/2, P[1]-sz/2, sz, sz);
+    ctx.beginPath(); ctx.arc(P[0], P[1], sz/2, 0, 6.2832); ctx.fill();
   }
+  ctx.lineCap = "butt"; ctx.lineJoin = "miter";
   ctx.globalCompositeOperation = "source-over";
 
   if (aim !== null && canFire(selKind)) {
@@ -1904,7 +2069,7 @@ function refreshStats() {
       ["Of the world", (S.minedCount/TOTAL*100).toFixed(4)+"%"],
       ["Buried objects found", objs + " / " + OBJECTS.length],
       ["Upgrade pixels found", S.tokensFound],
-      ["Hazard pixels live", fmt(hazCount)],
+      ["Hazard pixels live", fmt(hazCells.size)],
       ["Furthest reach", Math.round(S.maxDepth)],
     ]) +
     statBox("SELECTED BALL — " + B.name.toUpperCase(), [
@@ -2081,9 +2246,25 @@ addEventListener("keydown", e => {
 });
 
 //=================================================================== offline
-const OFFLINE_CAP_S = 12*3600, OFFLINE_MAX = 400000;
 // Credits away-time by eroding the cavern frontier through the same payout path
 // a live pixel uses, so offline income can never diverge from online income.
+//
+// The CELL CAP is the real control, and it is the only one that can be, because
+// it is the only term scaled to the run rather than to the player. Away pay is
+// 40% of the observed rate, and the observed rate mid-run is ~1000 cells/sec, so
+// 40% of it reaches any plausible ceiling within minutes: measured, the old
+// 400,000 was already spent six minutes into a twelve-hour absence, which made
+// every absence past six minutes pay exactly the same. The hours in OFFLINE_CAP_S
+// were decoration.
+//
+// So the ceiling is set as a fraction of a RUN. A full run mines ~2.4M cells, and
+// 400k of that is a sixth of the game handed over for closing a tab -- along with
+// 206 upgrade points against the ~726 a whole run yields. At half an hour a run,
+// away time should be a top-up, not a sixth of the game: 150k is about 6% of a
+// run, two or three minutes of mid-run mining. This is the one number here picked
+// by judgement rather than measured, and it is a one-line dial.
+const OFFLINE_CAP_S = 4*3600, OFFLINE_MAX = 150000;
+let offlinePass = false;
 function erodeFrontier(n) {
   if (n <= 0) return 0;
   const seen = new Set(), front = [];
@@ -2098,19 +2279,39 @@ function erodeFrontier(n) {
     if (!tier[i] || seen.has(i)) continue;
     if (!tier[i-1]||!tier[i+1]||!tier[i-WORLD]||!tier[i+WORLD]) { seen.add(i); front.push(i); }
   }
-  let done = 0;
+  let done = 0, ex0 = WORLD, ey0 = WORLD, ex1 = 0, ey1 = 0;
+  offlinePass = true;
   while (done < n && front.length) {
     const p = (Math.random()*front.length)|0, i = front[p];
     front[p] = front[front.length-1]; front.pop();
     const t = tier[i];
     if (!t) continue;
     const x = i%WORLD, y = (i/WORLD)|0;
-    tier[i] = 0; dmg.delete(i);
+    // Bedrock is unbreakable, and this pass was quietly eating it. It wrote
+    // tier[i] = 0 for whatever it landed on, with none of the checks hitCell
+    // makes, so a long enough absence dissolved the monuments -- the one thing in
+    // the world that is supposed to be permanent -- and the cavern came back a
+    // featureless disc.
+    if (unbreakable(t)) continue;
+    // And it could win the game for you while the tab was shut. The golden pixel
+    // is the whole run; it is not something to come back and find already spent.
+    if (t === T_GOLD) continue;
+    tier[i] = 0; dmg.delete(i); poison.delete(i); hazSpread.delete(i);
+    if (isHazard(t)) hazCells.delete(i);// or the live tally drifts up and HAZ_CAP jams
     payout(x,y,t); growBounds(x,y); done++;
-    ensureAround(x, y);                 // so erosion can push into fresh terrain
+    if (x < ex0) ex0 = x; if (x > ex1) ex1 = x;
+    if (y < ey0) ey0 = y; if (y > ey1) ey1 = y;
+    // Only near a chunk seam can a 4-neighbour live in a chunk that does not
+    // exist yet; inside a chunk the raw tier read below is already valid. Calling
+    // this on every cell cost 2.75s per 100k for nine array reads apiece.
+    if ((x & 63) < 2 || (x & 63) > 61 || (y & 63) < 2 || (y & 63) > 61) ensureAround(x, y);
     for (const j of [i-1,i+1,i-WORLD,i+WORLD])
       if (j>=0 && j<tier.length && tier[j] && !seen.has(j)) { seen.add(j); front.push(j); }
   }
+  offlinePass = false;
+  // Light what was cleared in one sweep rather than 81 writes per cell. Without
+  // any lighting at all, everything mined while away came back solid black.
+  if (done) relightBox(ex0-LIT_R, ey0-LIT_R, ex1+LIT_R, ey1+LIT_R);
   return done;
 }
 function runOffline(awaySec) {
@@ -2134,31 +2335,55 @@ function showWelcome(r) {
   $("welcome").style.display = "flex";
 }
 
+let pendingOffline = null;
 let hiddenAt = 0;
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) { hiddenAt = Date.now(); save(); return; }
   const sec = hiddenAt ? (Date.now()-hiddenAt)/1000 : 0;
   hiddenAt = 0;
-  last = performance.now();
-  if (sec < 15) return;
+  if (sec < 15) { last = performance.now(); return; }
   const r = runOffline(sec);
+  last = performance.now();                 // after the pass, which is not free
   if (!r) return;
-  relight(); repaintReady();
-  if (!paused) toast("WHILE AWAY — " + fmt(r.pixels) + " PIXELS");
+  // erodeFrontier lights what it clears now, so this no longer needs the full
+  // relight() rescan of every generated chunk -- just a repaint.
+  repaintReady();
+  if (paused) {
+    // Still sitting on the start menu. Hold the result for the welcome panel
+    // instead of firing a toast at a screen the player cannot see it on, and
+    // fold it into anything already waiting there rather than dropping one.
+    pendingOffline = pendingOffline ? mergeOffline(pendingOffline, r) : r;
+  } else {
+    toast("WHILE AWAY — " + fmt(r.pixels) + " PIXELS");
+  }
   save();
 });
+function mergeOffline(a, b) {
+  return { pixels:a.pixels+b.pixels, px:a.px+b.px, tokens:a.tokens+b.tokens,
+           secs:a.secs+b.secs, capped:a.capped||b.capped };
+}
 
+// One pass to find what is open (which is also how `bb` is rebuilt), then one
+// distance transform over the box that holds it -- instead of a 9x9 stamp per
+// cleared cell, which is what made returning to the tab hitch.
 function relight() {
   lit = new Uint8Array(TOTAL);
+  let x0 = WORLD, y0 = WORLD, x1 = -1, y1 = -1;
   for (let cy = 0; cy < CW; cy++) for (let cx = 0; cx < CW; cx++) {
     if (!chunkReady[cy*CW+cx]) continue;
-    const x0 = cx*CHUNK, y0 = cy*CHUNK;
-    const x1 = Math.min(WORLD, x0+CHUNK), y1 = Math.min(WORLD, y0+CHUNK);
-    for (let y=y0;y<y1;y++) for (let x=x0;x<x1;x++) {
-      const i = y*WORLD+x;
-      if (!tier[i]) { stampLight(x, y, false); growBounds(x, y); }
+    const bx0 = cx*CHUNK, by0 = cy*CHUNK;
+    const bx1 = Math.min(WORLD, bx0+CHUNK), by1 = Math.min(WORLD, by0+CHUNK);
+    for (let y=by0;y<by1;y++) {
+      const row = y*WORLD;
+      for (let x=bx0;x<bx1;x++) {
+        if (tier[row+x]) continue;
+        growBounds(x, y);
+        if (x < x0) x0 = x; if (x > x1) x1 = x;
+        if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
     }
   }
+  if (x1 >= 0) relightBox(x0-LIT_R, y0-LIT_R, x1+LIT_R, y1+LIT_R);
 }
 
 //====================================================================== save
@@ -2183,12 +2408,17 @@ function save() {
     for (const e of dmg) { dm.push(e[0], Math.round(e[1])); }
     const cr = [];
     for (let i=0;i<chunkReady.length;i++) if (chunkReady[i]) cr.push(i);
+    // Hazards go in explicitly. The mined mask cannot describe them: one that
+    // spread is sitting on ground you cleared, so the mask calls that cell solid
+    // and the generator refills it with the rock that was there originally.
+    const hz = [];
+    for (const i of hazCells) hz.push(i, tier[i]);
     localStorage.setItem(SAVEKEY, JSON.stringify({
       v:1, px:S.px, tokens:S.tokens, tokensFound:S.tokensFound,
       owned:S.owned, perks:S.perks, nodes:S.nodes, refine:S.refine, seed:RUNSEED,
       mc:S.minedCount, md:S.maxDepth, rate:S.rate, br:S.bestRate, pt:S.playtime,
       shots:S.shots, auto:S.auto, gold:S.goldFound, objs:S.objectsFound,
-      t:Date.now(), cr, mined:rleMined(), dm
+      t:Date.now(), cr, mined:rleMined(), dm, hz
     }));
   } catch (err) { console.warn("save failed", err); }
 }
@@ -2202,18 +2432,24 @@ function readSave() {
   } catch (err) {}
   return null;
 }
+// Parsed once. The seed has to be read BEFORE the world is built and the rest of
+// the save after it, and re-reading localStorage for each of those invited them to
+// disagree about which save they were looking at.
+let SAVED = null;
+function loadSaveData() {
+  const raw = readSave();
+  if (!raw) return null;
+  try { SAVED = JSON.parse(raw); } catch (err) { console.warn("save unreadable", err); SAVED = null; }
+  return SAVED;
+}
 function savedAway() {
-  try {
-    const r = readSave(); if (!r) return 0;
-    const d = JSON.parse(r);
-    return Math.max(0, (Date.now()-(d.t||Date.now()))/1000);
-  } catch (err) { return 0; }
+  if (!SAVED) return 0;
+  return Math.max(0, (Date.now()-(SAVED.t||Date.now()))/1000);
 }
 function load() {
-  const raw = readSave();
-  if (!raw) return;
+  const d = SAVED;
+  if (!d) return;
   try {
-    const d = JSON.parse(raw);
     S.px = d.px||0; S.tokens = d.tokens||0; S.tokensFound = d.tokensFound||0;
     if (d.owned) S.owned = d.owned;
     if (d.perks) S.perks = d.perks;
@@ -2232,6 +2468,14 @@ function load() {
     }
     dmg.clear();
     for (let k=0;k<(d.dm||[]).length;k+=2) dmg.set(d.dm[k], d.dm[k+1]);
+    // Hazards, in this order and no other. ensureChunk above logged every hazard
+    // the GENERATOR makes, mask or no mask, so drop the ones the mask has just
+    // mined out before laying the saved list back down.
+    for (const i of hazCells) if (!tier[i]) hazCells.delete(i);
+    for (let k=0;k<(d.hz||[]).length;k+=2) {
+      const i = d.hz[k], t = d.hz[k+1];
+      if (i >= 0 && i < TOTAL && isHazard(t)) { tier[i] = t; hazCells.add(i); }
+    }
   } catch (err) { console.warn("load failed", err); }
 }
 
@@ -2240,7 +2484,7 @@ function freshWorld() {
   tier = new Uint8Array(TOTAL);
   lit  = new Uint8Array(TOTAL);
   chunkReady = new Uint8Array(CW*CW);
-  dmg.clear(); poison.clear(); hazSpread.clear(); hazCount = 0;
+  dmg.clear(); poison.clear(); hazSpread.clear(); hazCells.clear();
   placeGolden();
   ensureAround(CX, CY);
   for (let r = 0; r < 3; r++) ensureChunk((CX/CHUNK|0)+r, CY/CHUNK|0);
@@ -2320,11 +2564,25 @@ $("mnew").onclick = () => {
 };
 
 //====================================================================== boot
+// Order matters, and it did not used to.
+//
+// 1. Read the save first, and take the SEED off it before a single chunk is
+//    generated. The seed was written on every save and never once read back, so
+//    every reload re-rolled the world: terrain regenerated differently under the
+//    saved mined-mask, relics and monuments moved, the damage map pointed at
+//    cells that were now a different kind of rock, and the golden pixel hid
+//    somewhere else. A run was only ever coherent within one page load.
+// 2. Build the world, then apply the save over it.
+// 3. Credit the away time LAST, so offline erosion lights and paints the cells
+//    it clears. Running it before relight() left every cell mined while you were
+//    gone reading as unlit black.
+loadSaveData();
+if (SAVED && typeof SAVED.seed === "number") RUNSEED = SAVED.seed | 0;
 freshWorld();
 const away = savedAway();
 load();
 relight();
-let pendingOffline = runOffline(away);
+pendingOffline = runOffline(away);
 repaintReady();
 resize();
 drawDock();
