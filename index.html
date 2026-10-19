@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="theme-color" content="#070a12">
-<meta name="description" content="OREBOUND — dig through a vast pixel world to find the one golden pixel.">
+<meta name="theme-color" content="#000803">
+<meta name="description" content="OREBOUND — dig through a ten-million-pixel world to find the one golden pixel.">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>OREBOUND</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  html,body { width:100%; height:100%; overflow:hidden; background:#070a12;
+  html,body { width:100%; height:100%; overflow:hidden; background:#000803;
     font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; color:#dfe8f4;
     overscroll-behavior:none; -webkit-tap-highlight-color:transparent;
     -webkit-user-select:none; user-select:none; touch-action:none; }
@@ -23,79 +23,74 @@
   #px { font-size:23px; color:#fff; letter-spacing:.5px; }
   #px i { font-style:normal; color:#7ce8ff; font-size:15px }
   #rate2 { font-size:12px; opacity:.6; margin-top:2px }
-  /* the two currencies sit in opposite corners: pixels left, upgrade points right */
-  #tok { font-size:19px; color:#c88bff; text-shadow:0 0 12px #c88bff77; margin-bottom:3px }
+  #tok { font-size:19px; color:#b37bff; text-shadow:0 0 12px #9742ff77; margin-bottom:3px }
   #tok b { color:#fff; font-weight:normal }
   #tok.none { opacity:.35; text-shadow:none }
+  #gbl { font-size:15px; color:#ffd75e; text-shadow:0 0 10px #ffd75e66; margin-bottom:4px }
+  #gbl.none { display:none }
 
-  #topright { top:10px; right:12px; text-align:right; font-size:11px; line-height:1.6; opacity:.75 }
+  #topright { top:10px; right:12px; text-align:right; font-size:11px; line-height:1.6; opacity:.8 }
   #topright b { color:#7ce8ff; font-weight:normal }
   #fps.bad { color:#f77 } #fps.ok { color:#7ce8ff }
 
-  #prompt { bottom:104px; left:50%; transform:translateX(-50%); font-size:14px;
+  #prompt { bottom:112px; left:50%; transform:translateX(-50%); font-size:14px;
     letter-spacing:2px; color:#9fe; opacity:0; transition:opacity .3s; text-align:center }
   #prompt.on { opacity:1; animation:pulse 1.6s infinite }
   @keyframes pulse { 0%,100%{opacity:.45} 50%{opacity:1} }
 
-  #hint { bottom:12px; left:50%; transform:translateX(-50%); font-size:10.5px; opacity:.32; letter-spacing:1px }
+  #hint { bottom:12px; left:50%; transform:translateX(-50%); font-size:10.5px; opacity:.32; letter-spacing:1px; white-space:nowrap }
 
-  /* ---------- ball dock ---------- */
+  /* ---------- ball dock (the bench) ---------- */
   #dock { position:absolute; bottom:34px; left:50%; transform:translateX(-50%);
     display:flex; gap:8px; user-select:none; z-index:20 }
-  .slot { border:2px solid; background:rgba(0,0,0,.55); padding:6px 10px 7px; cursor:pointer;
+  .slot { position:relative; border:2px solid; background:rgba(0,0,0,.6); padding:6px 10px 7px; cursor:pointer;
     text-align:center; min-width:78px; opacity:.42; transition:opacity .12s, box-shadow .12s }
   .slot.sel { opacity:1; box-shadow:0 0 16px -3px currentColor }
   .slot.can { opacity:.92 }
-  .slot.locked { opacity:.22; border-style:dashed; cursor:not-allowed }
   .slot .kn { font-size:10px; letter-spacing:1px }
   .slot .kc { font-size:14px; margin-top:2px; color:#fff }
+  .slot .kc.free { color:#8dff55 }
   .slot .kk { font-size:9px; opacity:.45; margin-top:1px }
-
-  #autobtn { position:absolute; bottom:34px; left:calc(50% + 0px); margin-left:8px;
-    transform:translateX(0); display:none }
+  .slot .rc { position:absolute; top:-9px; right:-9px; font-size:10px; min-width:18px; height:18px;
+    line-height:15px; border:1.5px solid currentColor; border-radius:9px; background:#000803; padding:0 3px }
+  .slot .rc.cd { opacity:.55 }
 
   /* ---------- overlay panels ---------- */
-  .panel { position:absolute; inset:0; display:none; background:rgba(7,10,18,.82);
+  .panel { position:absolute; inset:0; display:none; background:rgba(0,8,3,.86);
     backdrop-filter:blur(2px); overflow:auto; padding:52px 24px 40px; z-index:40 }
   .panel.on { display:block }
   .ptitle { position:fixed; top:14px; left:50%; transform:translateX(-50%); text-align:center;
     font-size:12px; letter-spacing:3px; opacity:.6; z-index:41 }
-  .psub { text-align:center; font-size:11px; opacity:.5; margin-bottom:18px; line-height:1.6 }
-  .psub b { color:#ffd75e; font-weight:normal }
 
-  /* ---------- tech tree ---------- */
+  /* ---------- skill tree ---------- */
   #balls { display:flex; justify-content:center; align-items:flex-start;
-    overflow:auto; padding:10px 330px 10px 40px }
+    overflow:auto; padding:10px 330px 60px 40px }
   #treewrap { position:relative; flex:0 0 auto }
   #treewrap svg { position:absolute; inset:0; overflow:visible }
-  .tnode { position:absolute; background:#080d16; border:2.5px solid currentColor;
+  .tnode { position:absolute; background:#020a05; border:2.5px solid currentColor;
     display:flex; align-items:center; justify-content:center; cursor:pointer;
-    padding:0; transition:transform .1s, box-shadow .12s, opacity .12s }
+    padding:0; transition:transform .1s, box-shadow .12s, opacity .12s; border-radius:7px }
   .tnode svg { width:60%; height:60%; display:block }
   .tnode:hover { transform:scale(1.12) }
   .tnode.taken  { background:currentColor; opacity:.95 }
-  .tnode.taken svg { color:#080d16 }
+  .tnode.taken svg { color:#020a05 }
   .tnode.ready  { box-shadow:0 0 16px -2px currentColor; animation:tpulse 1.9s infinite }
-  .tnode.short  { opacity:.6 }
-  .tnode.locked { opacity:.22; border-style:dashed; cursor:not-allowed }
+  .tnode.short  { opacity:.55 }
+  .tnode.hidden { display:none }
   .tnode.sel    { box-shadow:0 0 0 3px #fff8, 0 0 20px -2px currentColor }
-  .tnode .lv { position:absolute; right:-5px; bottom:-5px; font-style:normal; font-size:10px;
-    background:#080d16; border:1.5px solid currentColor; border-radius:9px; padding:0 4px; color:#fff }
+  .tspot { position:absolute; border-radius:7px; opacity:.15; pointer-events:none }
   @keyframes tpulse { 0%,100%{box-shadow:0 0 10px -3px currentColor} 50%{box-shadow:0 0 20px 0 currentColor} }
 
-  /* Parked against the right edge, clear of the tree. Centred at the top it sat
-     directly over the upper rows, so reading a node covered the ones above it. */
   #tcard { display:none; position:fixed; top:50%; right:26px; transform:translateY(-50%);
-    z-index:44; border:2px solid; background:#05080e; padding:13px 20px 14px; text-align:center;
+    z-index:44; border:2px solid; background:#020a05; padding:13px 20px 14px; text-align:center;
     width:270px; max-width:32vw; box-shadow:0 0 34px -8px currentColor }
   #tcard.on { display:block }
   #tcard .th { font-size:10.5px; letter-spacing:2px; opacity:.85 }
-  #tcard .tn { font-size:20px; color:#fff; margin-top:3px; letter-spacing:.5px }
-  #tcard .tb { font-size:10.5px; opacity:.6; margin-top:1px; letter-spacing:1px }
+  #tcard .tn { font-size:18px; color:#fff; margin-top:5px; letter-spacing:.5px; line-height:1.3 }
+  #tcard .tb { font-size:12px; opacity:.85; margin-top:4px; letter-spacing:1px; color:#8dff55 }
   #tcard .td { font-size:10.5px; color:#dfe8f4; opacity:.62; line-height:1.45; margin-top:8px }
   #tcard .tc { font-size:16px; color:#fff; margin-top:9px; letter-spacing:1px }
   #tcard .tc.short { color:#e66 }
-  #tcard .tc.lk { font-size:11px; color:#8b95a8; letter-spacing:1px }
   #tcard .tt { font-size:9.5px; opacity:.45; letter-spacing:1.5px; margin-top:7px }
   #tcard button { margin-top:9px; width:100%; background:none; border:1px solid currentColor;
     color:inherit; padding:7px; font-family:inherit; font-size:10.5px; letter-spacing:2px; cursor:pointer }
@@ -104,43 +99,41 @@
 
   #upgsub { position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
     text-align:center; font-size:11px; opacity:.75; z-index:44; margin:0; line-height:1.7 }
-  #upgsub b { color:#c88bff; font-weight:normal; font-size:15px }
+  #upgsub b { color:#b37bff; font-weight:normal; font-size:15px }
   #statgrid { display:flex; gap:14px; justify-content:center; flex-wrap:wrap;
     max-width:1000px; margin:0 auto; align-items:flex-start }
-  .cxbox { width:300px; border:1px solid #24405c; background:rgba(0,0,0,.5); padding:12px 14px }
+  .cxbox { width:300px; border:1px solid #1f4a2c; background:rgba(0,0,0,.5); padding:12px 14px }
   .cxbox h4 { font-size:11px; font-weight:normal; letter-spacing:2px; color:#7ce8ff; margin-bottom:9px }
   .cxrow { display:flex; justify-content:space-between; font-size:11px; padding:3px 0; gap:14px }
   .cxrow span { opacity:.55 } .cxrow b { font-weight:normal; color:#fff }
-  .cxrow.dim b { opacity:.3 }
   .cxrow.gold b { color:#ffd75e }
 
-  #toast { position:absolute; bottom:92px; left:50%; transform:translateX(-50%);
+  #toast { position:absolute; bottom:100px; left:50%; transform:translateX(-50%);
     font-size:12px; color:#fff; opacity:0; transition:opacity .4s; pointer-events:none;
     letter-spacing:1px; text-shadow:0 0 10px #000; z-index:50; text-align:center }
   #toast.on { opacity:1 }
 
-  #welcome, #gold { position:absolute; inset:0; display:none; align-items:center;
-    justify-content:center; background:rgba(7,10,18,.88); z-index:60 }
-  .wcard { border:2px solid #2ed; background:#08131b; padding:22px 26px; min-width:290px;
+  #gold { position:absolute; inset:0; display:none; align-items:center;
+    justify-content:center; background:rgba(0,8,3,.88); z-index:60 }
+  .wcard { border:2px solid #2ed; background:#04120a; padding:22px 26px; min-width:290px;
     box-shadow:0 0 40px -8px #2ed8 }
   .wtitle { color:#2ed; font-size:12px; letter-spacing:3px; text-align:center; margin-bottom:16px }
   .wrow { display:flex; justify-content:space-between; gap:26px; font-size:13px; padding:5px 0 }
   .wrow span { opacity:.6 } .wrow b { color:#fff; font-weight:normal }
-  .wnote { font-size:10.5px; opacity:.5; margin-top:10px; max-width:260px; line-height:1.4 }
-  #wok, #gok { margin-top:18px; width:100%; background:none; border:1px solid #2ed; color:#2ed;
+  .wnote { font-size:11px; opacity:.6; margin-top:12px; max-width:280px; line-height:1.5; text-align:center }
+  #gok { margin-top:18px; width:100%; background:none; border:1px solid #2ed; color:#2ed;
     padding:8px; font-family:inherit; font-size:11px; letter-spacing:2px; cursor:pointer }
-  #wok:hover, #gok:hover { background:#2ed2 }
   #gold .wcard { border-color:#ffd75e; box-shadow:0 0 70px -6px #ffd75e; background:#141005 }
   #gold .wtitle { color:#ffd75e; font-size:19px; letter-spacing:6px }
   #gok { border-color:#ffd75e; color:#ffd75e } #gok:hover { background:#ffd75e2a }
 
   #boot { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    background:#070a12; z-index:99; font-size:13px; letter-spacing:3px; color:#7ce8ff }
+    background:#000803; z-index:99; font-size:13px; letter-spacing:3px; color:#7ce8ff }
 
   #menu { position:absolute; inset:0; display:none; align-items:center; justify-content:center;
-    background:rgba(7,10,18,.94); z-index:80 }
+    background:rgba(0,8,3,.94); z-index:80 }
   #menu.on { display:flex }
-  .mcard { border:2px solid #2ed; background:#08131b; padding:30px 34px; min-width:340px;
+  .mcard { border:2px solid #2ed; background:#04120a; padding:30px 34px; min-width:340px;
     box-shadow:0 0 60px -10px #2ed9; text-align:center }
   .mtitle { font-size:22px; letter-spacing:7px; color:#8ff; text-shadow:0 0 18px #2ed8 }
   .msub { font-size:10px; letter-spacing:3px; opacity:.4; margin-top:7px; margin-bottom:20px }
@@ -160,7 +153,7 @@
   /* ---------- touch controls ---------- */
   #mobibar { position:absolute; bottom:8px; left:0; right:0; display:none;
     justify-content:center; gap:6px; padding:0 8px; z-index:30 }
-  #mobibar button { flex:1 1 66px; max-width:120px; background:rgba(0,0,0,.6); border:1px solid #24405c;
+  #mobibar button { flex:1 1 66px; max-width:120px; background:rgba(0,0,0,.6); border:1px solid #1f4a2c;
     color:#7ce8ff; font-family:inherit; font-size:10px; letter-spacing:1px; padding:11px 4px;
     cursor:pointer; border-radius:2px }
   #mobibar button:active { background:#2ed3; color:#fff }
@@ -170,14 +163,16 @@
     font-size:15px; width:40px; height:40px; cursor:pointer; border-radius:2px }
   #pclose.on { display:block }
 
+  @media (max-width: 1150px) { #hint { display:none } }
   @media (max-width: 820px) {
-    #hint { display:none }
     #mobibar { display:flex }
-    .panel { backdrop-filter:none; background:rgba(7,10,18,.96); padding:58px 10px 30px }
+    .panel { backdrop-filter:none; background:rgba(0,8,3,.96); padding:58px 10px 30px }
+    #balls { padding:10px 16px 200px }
+    #tcard { top:auto; bottom:64px; right:50%; transform:translateX(50%); max-width:none; width:calc(100vw - 32px) }
     #topleft { top:calc(8px + env(safe-area-inset-top)); left:8px; font-size:11px }
     #px { font-size:19px }
     #topright { top:calc(8px + env(safe-area-inset-top)); right:8px; font-size:9.5px; line-height:1.5 }
-    #dock { bottom:98px; gap:5px; flex-wrap:wrap; max-width:100%; padding:0 6px }
+    #dock { bottom:98px; gap:5px; flex-wrap:wrap; max-width:100%; padding:0 6px; justify-content:center }
     .slot { min-width:0; flex:1 1 60px; max-width:84px; padding:6px 3px }
     .slot .kk { display:none }
     #prompt { bottom:176px; font-size:12px; letter-spacing:1px; padding:0 16px }
@@ -198,34 +193,33 @@
 
 <div class="hud" id="topleft">
   <div id="px">0 <i>px</i></div>
-  <div id="rate2">+0 /s</div>
+  <div id="rate2">0 / s</div>
 </div>
 
 <div class="hud" id="topright">
-  <div id="tok" class="none">&#10022; <b id="tokn">0</b></div>
+  <div id="tok" class="none">&#9670; <b id="tokn">0</b></div>
+  <div id="gbl" class="none">&#9679; <b id="gbln">0</b> golden</div>
   <div>fps <b id="fps">&ndash;</b></div>
   <div>mined <b id="mined">0</b></div>
-  <div>cleared <b id="pct">0%</b></div>
-  <div>reach <b id="depth">0</b></div>
-  <div>px/sec <b id="rate">0</b></div>
+  <div>of the world <b id="pct">0%</b></div>
   <div>balls <b id="ballct">0</b></div>
 </div>
 
-<div class="hud" id="prompt">CLICK TO LAUNCH &middot; DRAG BACK TO SLING</div>
+<div class="hud" id="prompt">PRESS IN OPEN GROUND &middot; DRAG BACK &middot; RELEASE</div>
 <div id="dock"></div>
 <div class="hud" id="toast"></div>
-<div class="hud" id="hint">[click] launch &middot; [drag back] sling &middot; [right-drag] pan &middot; [1-7] ball &middot; [A] auto &middot; [wheel] zoom &middot; [F] refit &middot; [U] upgrades &middot; [S] stats &middot; [Esc] menu</div>
+<div class="hud" id="hint">[press+drag back] shoot &middot; [right-drag] pan &middot; [right-click a ball] recycle &middot; [1-7] ball &middot; [G] golden &middot; [wheel] zoom &middot; [F] refit &middot; [U / Tab] skill tree &middot; [S] stats &middot; [Esc] menu</div>
 
 <div id="mobibar">
-  <button data-a="upg">BALLS</button>
+  <button data-a="upg">TREE</button>
   <button data-a="stats">STATS</button>
-  <button data-a="auto">AUTO</button>
+  <button data-a="recall">RECYCLE</button>
   <button data-a="menu">MENU</button>
 </div>
 <button id="pclose">&#10005;</button>
 
 <div class="panel" id="upg">
-  <div class="ptitle">UPGRADES &mdash; [U] TO CLOSE</div>
+  <div class="ptitle">SKILL TREE &mdash; [U] TO CLOSE</div>
   <div id="tcard"></div>
   <div id="balls"></div>
   <div class="psub" id="upgsub"></div>
@@ -234,16 +228,11 @@
 
 <div id="menu"><div class="mcard">
   <div class="mtitle">OREBOUND</div>
-  <div class="msub">dig deep &middot; find the golden pixel</div>
+  <div class="msub">ten million pixels &middot; one is golden</div>
   <div id="msave"></div>
   <button id="mcont">CONTINUE</button>
   <button id="mnew" class="danger">NEW GAME</button>
   <div class="mnote" id="mnote"></div>
-</div></div>
-
-<div id="welcome"><div class="wcard">
-  <div class="wtitle">WHILE YOU WERE AWAY</div><div id="wbody"></div>
-  <button id="wok">CONTINUE</button>
 </div></div>
 
 <div id="gold"><div class="wcard">
@@ -258,118 +247,62 @@
 //===========================================================================
 // OREBOUND
 //
-// Dig through a vast pixel world to find the one golden pixel.
+// Dig through a ten-million-pixel world to find the one golden pixel.
 //
-// Two currencies and nothing else:
-//   PIXELS         — what you mine, and what you spend to fire balls.
-//   UPGRADE PIXELS — rare, found only by digging. Unlock and upgrade balls.
+// Every rule below is taken from the shipped 10 Million Pixels demo (Unity
+// 6000.0.23f1, Assembly-CSharp decompiled; scene values read out of level0 and
+// sharedassets0; terrain calibrated against a real generated demo world). Where
+// this file has to depart from the demo it says so, and says why. The main
+// departure: the demo is a 50k-pixel slice. This keeps the demo's opening
+// picture, rules and numbers, and extends the world to the full ten million.
 //
-// The economy is deliberately curve-free. A shot costs a FLAT price and buys a
-// FIXED number of impacts. Rock gets harder the further out you erode, so the
-// pixels returned per shot decay on their own until a found upgrade raises your
-// damage again. Nothing here needs a hand-tuned cost curve, because the board
-// is the cost curve.
-//
-// Note on travel speed: it is a per-ball flavour stat and is NOT upgradeable.
-// In an earlier build speed multiplied bounce rate, bounce rate multiplied
-// damage, and damage drove income — so speed was secretly the strongest damage
-// upgrade in the game. Paying for impacts rather than for time severs that link
-// permanently.
+// The loop, as the demo has it:
+//   * Every broken pixel is worth exactly one pixel of currency.
+//   * Balls are IMMORTAL. They bounce forever at a fixed speed; you pay once.
+//   * Every ball you buy raises that colour's price by a fixed step, forever.
+//   * Rock is 1-7 HP from flat noise bands. Hardness does NOT grow with depth.
+//   * Upgrade pixels (one skill point each) sit on a widening spiral and light
+//     up as beacons once the dig gets within 15 cells of them.
+//   * The golden pixel can only be broken by a GOLDEN ball. Golden balls come
+//     from cyan golden-ball pixels, and from any ball bouncing off the golden
+//     pixel itself.
 //===========================================================================
 
-const WORLD = 3163;                       // 3163^2 = 10,004,569 mineable pixels
+const WORLD = 3163;                       // 3163^2 = 10,004,569 cells
 const TOTAL = WORLD * WORLD;
 const CX = WORLD >> 1, CY = WORLD >> 1;
-// The golden pixel's location must change every playthrough, so the world seed
-// is rolled per run and saved. A fixed seed hid it in the same cell every time.
+// The demo spawns three cells below world centre (startPosition (0,-3), Unity's
+// y is up; this canvas's y is down).
+const SX = CX, SY = CY + 3;
 let RUNSEED = (Math.random() * 0x7ffffff) | 0;
-const SAVEKEY = "orebound.10m.v1";
-const RETIRED = ["orebound.10m.v0", "orebound.basics.v1", "orebound.v2", "orebound.v1", "pixelbouncer.v3"];
+const SAVEKEY = "orebound.10m.v2";
+const RETIRED = ["orebound.10m.v1", "orebound.10m.v0", "orebound.basics.v1", "orebound.v2", "orebound.v1", "pixelbouncer.v3"];
 
-// Ten thousand-odd chunks of cells cannot be generated at boot — it is a
-// multi-second freeze.
-// The world is generated one 64x64 chunk at a time, on demand, as balls and
-// light approach it. 2500 chunks, ~4k cells each, a fraction of a millisecond.
-const CHUNK = 64, CHUNK_SHIFT = 6, CW = Math.ceil(WORLD / CHUNK);   // CHUNK === 1<<CHUNK_SHIFT
+const CHUNK = 64, CHUNK_SHIFT = 6, CW = Math.ceil(WORLD / CHUNK);
 
-//--------------------------------------------------------------- the curve
-// Hardness and value both derive from one depth term, so difficulty and income
-// can never drift apart. Value climbs at only VAL_POW of hardness's rate, which
-// is what makes each shot's profit decay as the cavern widens.
-const DEPTH_K = 0.0035, DEPTH_E = 1.10;
-const depthMul = d => Math.exp(DEPTH_K * Math.pow(d, DEPTH_E));
-const VAL_POW = 0.32;
+// The demo is 360 cells across where this world is 3163. Distances that place
+// things relative to the world size are scaled by this; distances that are
+// about a ball (lightning reach, beacon range, homing range) are not.
+const DEMO_HALF = 180, HALF = WORLD / 2, GEO = HALF / DEMO_HALF;
 
-//--------------------------------------------------------------- tier table
-const T_UPG = 9, T_GOLD = 10, T_OBJ = 11, T_ORANGE = 12, T_PURPLE = 13, T_WALL = 14;
-const unbreakable = t => t === T_WALL;
-const isHazard = t => t === T_ORANGE || t === T_PURPLE;
-// Hard ceiling on live hazard cells. Without it a bad roll can cascade and
-// swallow the whole cavern, which is a lost save rather than a challenge.
-const HAZ_CAP = 45000;
-// The live hazard cells, by index. A plain counter could not survive a reload:
-// terrain is rebuilt from the seed and the mined mask laid over it, so
-// ensureChunk counted every hazard the generator produced INCLUDING the ones the
-// player had already destroyed, and the tally came back permanently inflated --
-// silently throttling hazard spread against a cap that was never really reached.
-//
-// A set also lets the save record hazards that SPREAD, which the mask cannot: a
-// spread hazard sits on ground you had already cleared, so the mask calls that
-// cell solid, and on reload the generator filled it back in with original rock.
-// Cavern you had dug out healed over while you were away.
-const hazCells = new Set();
-// Which hazard cells have already had their one chance to spread. See below for
-// why spreading must be once-per-pixel rather than once-per-hit.
-const hazSpread = new Set();
-const TIERS = [
-  null,
-  { name:"Dust",    hp:1,    val:1,    col:[ 62, 74, 96] },
-  { name:"Slate",   hp:2,    val:3,    col:[ 96,116,148] },
-  { name:"Quartz",  hp:4,    val:9,    col:[214,230,246] },
-  { name:"Amber",   hp:10,   val:26,   col:[248,150, 46] },
-  { name:"Cinnabar",hp:25,   val:74,   col:[240, 70, 78] },
-  { name:"Azurite", hp:60,   val:210,  col:[ 66,182,248] },
-  { name:"Verdite", hp:140,  val:600,  col:[ 76,232,110] },
-  { name:"Voidgem", hp:340,  val:1700, col:[212, 96,248] },
-  // Rewards must be SOFT. An earlier pass gave these 900-2600 base HP, which put
-  // them 250-500x above the rock around them: they were uncovered on schedule and
-  // then sat there permanently unbreakable, so progression never started at all.
-  // A reward you cannot collect is worse than no reward.
-  { name:"Upgrade", hp:6,    val:0,    col:[200,139,255] },   // T_UPG
-  { name:"Golden",  hp:30,   val:0,    col:[255,236,140] },   // T_GOLD
-  // Relics are the exception and are meant to be tough: they survive as
-  // silhouettes while the soft rock erodes around them. Still breakable.
-  { name:"Relic",   hp:60,   val:900,  col:[176,196,222] },   // T_OBJ (handcrafted)
-  // The world fights back. These two spread into ground you have already cleared
-  // when you strike them, so throughput alone is not enough -- you have to deal
-  // with them or they eat the cavern behind you. They are the counterweight that
-  // lets ball count go up without the game becoming trivial.
-  { name:"Bloom",   hp:10,   val:34,   col:[255,142, 36] },   // T_ORANGE
-  { name:"Creep",   hp:70,   val:120,  col:[188, 72,236] },   // T_PURPLE
-  // Unbreakable. Never takes damage, never drops anything, and exists purely to
-  // give the cavern a shape. Without it erosion converges on a featureless disc.
-  { name:"Bedrock", hp:Infinity, val:0, col:[120,132,152] },  // T_WALL
-];
+//--------------------------------------------------------------- cell kinds
+// 1-7 are rock, and the number IS its starting HP (the demo stores currentHealth
+// = type at generation). The rest are the demo's special tiles.
+const K_UPG = 8, K_GBALL = 9, K_GOLD = 10, K_WALL = 11;
+const isRock = t => t >= 1 && t <= 7;
 
-// Upgrade pixel density falls off as 1/d. That is not arbitrary: a uniform
-// density scales with AREA, so the count inside radius r grows as r-squared and
-// upgrades either flood the late game or never arrive at all in the early one.
-// At 1/d the count inside radius r grows LINEARLY with r, so upgrades arrive at
-// a steady pace the whole way out no matter how wide the cavern gets.
-// UPG_A is calibrated so ~2*PI*A*r upgrades exist inside radius r: about 19 by
-// radius 100 and rising steadily from there. Raised threefold when the ball cap
-// became a flat 140: a smaller swarm clears far less ground, so points spread
-// over AREA arrive far too slowly to keep the tree moving.
-const UPG_A = 0.140;
-const upgDensity = d => UPG_A / Math.max(12, d);
-
-//--------------------------------------------------------------- world data
-let tier, lit, chunkReady;
-const dmg = new Map();        // sparse: only cells that have been hit and survived
-const poison = new Map();
-let GOLD_I = -1;              // the one golden pixel, index into tier
-
-const LITMUL = [0.10, 0.34, 0.66, 1.0];
+//--------------------------------------------------------------- palette
+// ComputeTextureUpdater, levelColor 3. A rock's colour is indexed by its CURRENT
+// HP and how lit it is, so a damaged pixel visibly steps down to softer rock.
+const TILE_COL = ["#1f1f1f","#595959","#808080", "#121f0b","#32591f","#47802b",
+                  "#1d1f0b","#52591f","#76802b", "#1f1a0b","#594b1f","#806b2b",
+                  "#1f140b","#59381f","#80542b", "#1f110b","#59301f","#80452b",
+                  "#1f0b0b","#591f1f","#802b2b"];
+const WALL_COL = ["#474747","#919191","#e6e6e6"];
+const UPG_COL = "#9742ff", GBALL_COL = "#86f1ff", GOLD_COL = "#ffd27a";
+const OPEN_COL = "#0a1a0f", HIDDEN_COL = "#000803";
+// Bright variant used for the hit flash (BounceSquare), by HP left.
+const FLASH_COL = ["#ffffff","#bdbdbd","#7fd65a","#d6d65a","#e0bc5c","#e0965c","#e07a5c","#e05c5c"];
 
 //--------------------------------------------------------------- rng / noise
 function hash2(x, y, s) {
@@ -377,141 +310,212 @@ function hash2(x, y, s) {
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
-const smooth = t => t * t * (3 - 2 * t);
-function vnoise(x, y, s) {
-  const xi = Math.floor(x), yi = Math.floor(y);
-  const xf = smooth(x - xi), yf = smooth(y - yi);
-  const a = hash2(xi, yi, s), b = hash2(xi + 1, yi, s);
-  const c = hash2(xi, yi + 1, s), d = hash2(xi + 1, yi + 1, s);
-  return (a + (b - a) * xf) * (1 - yf) + (c + (d - c) * xf) * yf;
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
 }
-const fbm = (x, y, s) => vnoise(x,y,s)*.55 + vnoise(x*2.1,y*2.1,s+7)*.3 + vnoise(x*4.3,y*4.3,s+19)*.15;
-
-//---------------------------------------------------------- handcrafted objects
-// "Hidden inside the world you will find solid objects that have been carefully
-// handcrafted." Small hand-drawn bitmaps stamped into the procedural rock at
-// fixed spots, made of much tougher Relic pixels so they survive as silhouettes
-// while the soft rock around them erodes away.
-const ART = {
-  skull: ["..#####..",".#######.",
-          "#.##.##.#","#.##.##.#","#########","#..###..#",
-          "#########",".#.#.#.#.","..#.#.#..","...###..."],
-  key:   ["..####....",".#....#...","#..##..#..","#.#..#.#..","#..##..#..",
-          ".#....#...","..####....","....#.....","....###...","....#.#..."],
-  heart: [".##...##.","#####.###","#########","#########",".#######.",
-          "..#####..","...###...","....#...."],
-  arrow: ["....#....","...###...","..#####..",".#######.","....#....",
-          "....#....","....#....","....#....","....#...."],
-};
-// Placed on a widening spiral so every distance band has something buried in it.
-const OBJECTS = (function () {
-  const names = Object.keys(ART), out = [];
-  for (let i = 0; i < 26; i++) {
-    const a = i * 2.399963;                       // golden angle, no clustering
-    const r = 190 + i * 52;
-    out.push({ art: ART[names[i % names.length]],
-               x: Math.round(CX + Math.cos(a) * r),
-               y: Math.round(CY + Math.sin(a) * r) });
-  }
-  return out;
+// Improved Perlin noise, standing in for Unity's Mathf.PerlinNoise. Amplitude
+// 0.5 around 0.5 was chosen by matching the rock mix of a real demo world:
+//   demo   HP1 40.0  HP2 11.5  HP3 10.9  HP4 3.7  HP5 3.1  HP6 3.6  HP7 27.0 (%)
+//   here   HP1 40.0  HP2 12.0  HP3 10.8  HP4 3.2  HP5 3.7  HP6 5.0  HP7 25.3
+const PERM = new Uint8Array(512);
+(function () {
+  const p = [151,160,137,91,90,15,131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,190,6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,88,237,149,56,87,174,20,125,136,171,168,68,175,74,165,71,134,139,48,27,166,77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,102,143,54,65,25,63,161,1,216,80,73,209,76,132,187,208,89,18,169,200,196,135,130,116,188,159,86,164,100,109,198,173,186,3,64,52,217,226,250,124,123,5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,223,183,170,213,119,248,152,2,44,154,163,70,221,153,101,155,167,43,172,9,129,22,39,253,19,98,108,110,79,113,224,232,178,185,112,104,218,246,97,228,251,34,242,193,238,210,144,12,191,179,162,241,81,51,145,235,249,14,239,107,49,192,214,31,181,199,106,157,184,84,204,176,115,121,50,45,127,4,150,254,138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180];
+  for (let i = 0; i < 512; i++) PERM[i] = p[i & 255];
 })();
+const fade = t => t*t*t*(t*(t*6-15)+10);
+function grad(h, x, y) { switch (h & 3) { case 0: return x+y; case 1: return -x+y; case 2: return x-y; default: return -x-y; } }
+function perlin(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y), X = xi & 255, Y = yi & 255;
+  const xf = x - xi, yf = y - yi, u = fade(xf), v = fade(yf);
+  const aa = PERM[PERM[X]+Y], ab = PERM[PERM[X]+Y+1], ba = PERM[PERM[X+1]+Y], bb = PERM[PERM[X+1]+Y+1];
+  const x1 = grad(aa,xf,yf) + (grad(ba,xf-1,yf) - grad(aa,xf,yf)) * u;
+  const x2 = grad(ab,xf,yf-1) + (grad(bb,xf-1,yf-1) - grad(ab,xf,yf-1)) * u;
+  return 0.5 + 0.5 * (x1 + (x2 - x1) * v);
+}
+
+//--------------------------------------------------------------- the picture
+// The demo's whole world is one hand-drawn 360x360 mask ("50k New"): two head
+// silhouettes, a halo, a balloon on a fishing line, and a fish skeleton in the
+// spawn chamber, all unbreakable. Its outer border (which seals the demo's 50k
+// disc) is dropped here so the picture opens into the full world; the 11,118
+// interior cells are stamped at world centre exactly as the demo places them.
+// Run-length encoded, base 36, alternating empty/wall, row-major from the top.
+const PICTURE = "h2w.7.9r.b.9n.f.9k.h.9i.j.9g.l.9f.l.9e.n.9d.n.9c.p.9b.p.9b.p.9b.p.9b.p.9b.p.9b.p.9c.n.9d.n.9d.n.9e.l.9f.l.9g.j.9h.j.9i.h.9k.f.9l.f.9m.d.9o.b.9p.b.9q.9.9s.7.9t.7.9u.5.9w.3.9x.3.9y.1.9z.1.84.n.17.3.7s.1a.u.5.7n.1i.8g.1m.8d.1o.8d.1m.q.1.7t.1a.uw.1.13z.1.13z.1.j6.3.1i.3.1n.1.6n.5.1g.5.1m.1.6n.5.p.1.q.5.1m.1.5n.m.e.5.1g.5.1l.2.5h.y.8.5.1g.5.1l.2.5h.1b.1g.6.1j.3.5e.1e.p.1.q.8.1g.4.5e.1e.1g.a.1d.4.5b.1h.1i.a.1c.4.5b.1f.1m.a.19.5.59.1f.u.1.v.l.v.6.59.1d.1u.p.o.6.5a.1b.1y.s.i.7.5a.1a.20.u.e.7.59.1a.11.1.12.u.b.8.59.19.26.w.6.a.59.18.28.x.2.b.5a.16.2c.18.5a.15.16.1.17.16.5b.14.2g.15.5b.13.2i.13.5d.11.2k.12.5e.z.1a.1.1b.10.5f.y.2o.y.5g.x.2q.w.5h.w.2s.v.5h.v.1e.1.1f.v.5g.u.2w.u.5g.t.2y.t.5f.u.2y.v.5c.u.1h.1.1i.u.5c.t.1h.3.1i.u.5a.t.1i.3.1j.t.5a.t.1j.1.1k.t.59.t.1k.1.1l.s.58.t.1l.1.1m.t.56.t.1m.1.1l.t.55.t.1o.1.1l.t.54.t.1p.1.1k.t.53.t.1k.1.5.1.1l.t.51.u.1k.1.5.1.1l.u.50.t.1m.1.3.1.1n.t.50.t.1n.3.1o.t.4z.t.3g.t.4y.t.3g.t.4x.u.3g.u.4w.t.3i.t.4w.t.3i.t.4w.s.3k.s.4v.t.3k.t.4u.t.3k.t.4u.t.3k.t.4u.s.3m.s.4u.s.3m.s.4t.t.3m.t.4r.u.3m.u.4q.t.3o.t.4q.t.3o.t.4q.t.3o.t.4r.s.3o.s.4t.r.3o.r.4u.r.3o.r.4u.q.3q.q.4t.r.3q.r.4s.r.3q.r.4r.s.1z.1.1q.s.4p.t.1q.2.6.2.8.1.1h.t.4n.u.1j.1.5.3.5.3.7.2.1h.u.4l.v.1i.2.5.3.5.3.6.3.6.2.19.v.4k.v.1i.2.5.3.4.4.6.2.6.5.17.v.4j.w.1i.2.5.3.4.4.5.3.5.8.15.w.4i.w.1i.2.5.3.4.3.6.3.5.9.14.w.4h.x.1h.3.5.2.5.3.5.3.5.b.13.x.4f.y.1h.3.5.2.5.3.5.3.5.c.12.y.4e.y.1b.1.5.3.5.2.5.3.5.3.4.e.11.y.4d.z.s.3.f.2.5.3.5.2.5.3.5.3.4.f.10.z.4b.10.u.4.c.2.5.3.4.3.5.3.5.3.4.g.z.10.49.11.v.5.a.2.5.3.4.3.5.2.6.3.4.h.y.11.47.13.v.5.8.3.5.3.4.3.5.2.6.3.4.i.w.13.45.14.w.5.7.3.5.3.4.3.5.2.5.4.4.i.w.14.43.15.x.5.6.3.5.3.4.3.4.3.5.4.4.j.v.15.41.16.x.6.5.3.5.3.4.3.4.3.5.4.4.k.u.16.40.16.y.6.4.3.5.3.4.3.4.3.5.4.4.k.u.16.40.16.z.6.3.3.5.3.4.3.4.10.u.16.41.16.y.1t.v.16.43.15.z.1q.x.15.45.14.z.1p.y.14.48.12.y.7.2.3.4.s.3.d.6.2.s.12.4c.11.x.6.3.3.5.3.4.3.4.3.6.3.4.d.5.3.r.11.4f.10.w.6.4.3.5.3.4.3.4.3.6.3.5.c.3.4.s.10.4i.y.v.6.5.3.5.3.4.3.4.3.6.3.5.i.t.y.4k.y.u.6.6.3.5.3.4.3.5.3.5.4.4.g.v.y.4k.z.s.5.9.2.5.3.5.2.5.3.5.4.4.f.v.z.4k.z.s.4.a.2.5.3.5.2.5.3.6.3.5.d.w.z.4k.10.p.4.c.3.5.2.5.2.5.3.6.3.5.c.w.10.4k.10.o.3.f.2.5.2.5.2.5.4.5.3.5.b.x.10.4k.10.16.2.5.2.5.3.4.4.5.3.6.9.y.10.4k.11.16.1.5.3.4.3.5.3.6.2.6.7.z.11.4k.11.1d.2.4.3.5.4.5.3.6.4.11.11.4l.11.1c.2.4.4.4.4.5.3.1a.11.4n.10.1c.2.5.3.5.3.6.2.1a.10.4m.13.1c.1.5.3.5.4.5.3.18.13.4j.14.1j.1.7.3.6.1.19.14.4i.15.1r.2.1f.15.4i.15.38.15.4i.16.36.16.4j.16.34.16.4m.14.34.14.4o.15.32.15.4p.15.30.15.4q.16.2y.16.4q.16.2y.16.4q.17.2w.17.4q.18.2u.18.4q.19.2s.19.4p.1b.2q.1b.4o.1c.2o.1c.4n.1e.2m.1e.4m.1f.2k.1f.4m.1g.2i.1g.4m.1h.2g.1h.4m.1i.2e.1i.4n.19.2.7.2c.7.2.19.4o.15.7.8.28.8.7.15.4p.z.d.8.26.8.d.z.4s.q.l.8.24.8.l.q.66.9.20.9.7k.a.1w.8.7n.e.1l.d.7p.f.1i.d.7s.e.1f.d.7w.c.1e.c.7z.b.1e.b.82.9.1e.9.86.7.1e.7.89.6.1e.6.8a.6.1e.6.8a.6.1e.6.8a.6.1e.6.8b.3.1.1.1e.1.1.3.8g.1.1e.1.8k.1.1e.1.8k.1.1e.1.12k.1.1e.1.8k.1.be.1.8k.1.tz.1.1e.1.9z.1.9z.1.1ck.1.le.1.1wk.1.kpp";
+const PIC = 360, PIC_X0 = CX - 180, PIC_Y0 = CY - 179;
+const picMask = (function () {
+  const m = new Uint8Array(PIC*PIC); let i = 0, cur = 0;
+  for (const tok of PICTURE.split(".")) { const n = parseInt(tok, 36); if (cur) m.fill(1, i, i+n); i += n; cur ^= 1; }
+  return m;
+})();
+function inPicture(x, y) {
+  const px = x - PIC_X0, py = y - PIC_Y0;
+  return px >= 0 && py >= 0 && px < PIC && py < PIC && picMask[py*PIC + px] === 1;
+}
 
 //--------------------------------------------------------- monuments
-// Large unbreakable structures scattered through the world. These are what stop
-// a run from eroding into a perfect circle: the cavern has to grow AROUND them,
-// so its outline is dictated by what is buried rather than by the radius.
-//
-// Each is a signed-distance test in world space, so they can be any size without
-// storing a bitmap, and a chunk only tests the handful that overlap it.
+// The demo's only unbreakable structures are its picture; its trailer masks show
+// the full game burying more silhouettes further out. These stand in for those:
+// unbreakable shapes beyond the picture so the dig grows around something.
 const MONUMENTS = (function () {
-  const out = [];
-  const kinds = ["ring", "cross", "bars", "spiral", "lens"];
+  const out = [], kinds = ["ring", "cross", "bars", "spiral", "lens"];
   for (let i = 0; i < 90; i++) {
-    const a = i * 2.399963;                        // golden angle: no clustering
-    const r = 150 + i * 78;
-    out.push({
-      kind: kinds[i % kinds.length],
-      x: Math.round(CX + Math.cos(a) * r),
-      y: Math.round(CY + Math.sin(a) * r),
-      s: 26 + (i % 5) * 13,                        // half-size in cells
-      rot: (i * 0.7) % Math.PI,
-    });
+    const a = i * 2.399963, r = 290 + i * 78;
+    out.push({ kind: kinds[i % kinds.length], x: Math.round(CX + Math.cos(a)*r), y: Math.round(CY + Math.sin(a)*r),
+               s: 26 + (i % 5) * 13, rot: (i * 0.7) % Math.PI });
   }
   return out;
 })();
-
 function inMonument(m, x, y) {
   const dx = x - m.x, dy = y - m.y;
   const c = Math.cos(m.rot), sn = Math.sin(m.rot);
-  const px = dx*c + dy*sn, py = -dx*sn + dy*c;     // rotate into the shape's frame
-  const s = m.s, t = Math.max(3, s * 0.16);        // stroke thickness
+  const px = dx*c + dy*sn, py = -dx*sn + dy*c;
+  const s = m.s, t = Math.max(3, s * 0.16);
   switch (m.kind) {
     case "ring":   { const d = Math.hypot(px, py); return Math.abs(d - s) < t; }
-    case "cross":  return (Math.abs(px) < t && Math.abs(py) < s)
-                       || (Math.abs(py) < t && Math.abs(px) < s);
+    case "cross":  return (Math.abs(px) < t && Math.abs(py) < s) || (Math.abs(py) < t && Math.abs(px) < s);
     case "bars":   return Math.abs(py) < s && (Math.abs(px % (t*3)) < t) && Math.abs(px) < s;
     case "lens":   { const d1 = Math.hypot(px - s*0.5, py), d2 = Math.hypot(px + s*0.5, py);
                      return d1 < s && d2 < s && (d1 > s - t || d2 > s - t); }
     case "spiral": { const d = Math.hypot(px, py);
                      if (d > s || d < t) return false;
-                     const ang = Math.atan2(py, px);
-                     const arm = ((ang + Math.PI) / (Math.PI*2)) * s;
-                     return Math.abs(((d - arm) % (s*0.42)) ) < t*0.8; }
+                     const arm = ((Math.atan2(py, px) + Math.PI) / (Math.PI*2)) * s;
+                     return Math.abs((d - arm) % (s*0.42)) < t*0.8; }
   }
   return false;
 }
-function stampMonuments(x0, y0, x1, y1) {
+function inAnyMonument(x, y) {
   for (const m of MONUMENTS) {
-    if (m.x + m.s < x0 || m.x - m.s >= x1 || m.y + m.s < y0 || m.y - m.s >= y1) continue;
-    const ax0 = Math.max(x0, m.x - m.s), ax1 = Math.min(x1, m.x + m.s + 1);
-    const ay0 = Math.max(y0, m.y - m.s), ay1 = Math.min(y1, m.y + m.s + 1);
-    for (let y = ay0; y < ay1; y++) for (let x = ax0; x < ax1; x++) {
-      if (x < 0 || y < 0 || x >= WORLD || y >= WORLD) continue;
-      if (Math.hypot(x - CX, y - CY) < 26) continue;      // never seal the spawn
-      if (inMonument(m, x, y)) tier[y*WORLD + x] = T_WALL;
+    if (Math.abs(x - m.x) > m.s || Math.abs(y - m.y) > m.s) continue;
+    if (inMonument(m, x, y)) return true;
+  }
+  return false;
+}
+
+//--------------------------------------------------------- terrain
+// WorldManager.GetTypeFromNoise. perlinScale is 60 across a 640-cell world, so one
+// noise unit spans ~10.7 cells; that scale is kept per CELL here, not per world.
+// The distance term in the original is computed and then overwritten with zero:
+// hardness never grows with depth. The band order is the demo's: past 0.18 the
+// hardest rock comes FIRST (7) and softens back down to 4 before reverting to 1.
+const NOISE_S = 60 / 640;
+let NOFF = 0, NOFF2 = 0;
+function noiseType(x, y) {
+  const a = perlin(x*NOISE_S + NOFF, y*NOISE_S + NOFF);
+  const b = perlin(x*NOISE_S*5 + NOFF2, y*NOISE_S*5 + NOFF2);
+  const q = Math.abs(a - 0.5) + b * 0.1;
+  if (q <= 0.12) return 1;
+  if (q < 0.15) return 2;
+  if (q < 0.18) return 3;
+  if (q < 0.28) return 7;
+  if (q < 0.30) return 6;
+  if (q < 0.32) return 5;
+  if (q < 0.35) return 4;
+  return 1;
+}
+// Terrain before any special tile is placed. Pure: depends only on the seed.
+function baseType(x, y) {
+  if (x < 2 || y < 2 || x >= WORLD-2 || y >= WORLD-2) return K_WALL;
+  if (inPicture(x, y)) return K_WALL;
+  if (Math.hypot(x - CX, y - CY) > 250 && inAnyMonument(x, y)) return K_WALL;
+  return noiseType(x, y);
+}
+
+//--------------------------------------------------------- special tiles
+// Upgrade pixels: WorldManager.SetSpecialTiles, verbatim for the demo's 38, then
+// extended for the 40 points of tree the demo ships disabled (Red and Gray
+// branches and a handful of others). Every one sits on HP-1 rock and has 1 HP,
+// so it breaks on the first touch. The first two go 12-13 cells from spawn; the
+// rest walk outward on a blend of linear and geometric radius growth. Found in a
+// real demo world at radii 55-130 with the picture's walls in the way.
+//
+// Golden-ball pixels: the demo scatters 30 uniformly over its playable square on
+// HP-1 rock, about one per 680 such cells. Kept at that DENSITY here, so the
+// world holds a few thousand. Each gives one golden ball.
+//
+// The golden pixel: uniform over the playable square, outside a box around spawn
+// that the demo sets at +/-100 of +/-176 (scaled to this world), never on a wall.
+// Its depth is a lottery, exactly as in the demo.
+const DEMO_UPG = 38, UPG_TOTAL = 78;
+const GBALL_P = 30 / 20500;
+const GOLD_EXCL = Math.round(100 * GEO);
+let UPG = [], UPG_SET = new Set(), GOLD_I = -1;
+
+function gballAt(x, y) {
+  if (Math.abs(x - SX) <= 20 && Math.abs(y - SY) <= 20) return false;
+  if (hash2(x, y, RUNSEED + 6061) >= GBALL_P) return false;
+  const i = y*WORLD + x;
+  if (UPG_SET.has(i) || i === GOLD_I) return false;
+  return baseType(x, y) === 1;
+}
+function placeSpecials() {
+  const rng = mulberry32(RUNSEED ^ 0x5eed);
+  // the demo re-rolls the noise offset until spawn is soft rock (HP 3 or less)
+  do { NOFF = rng() * 100000; } while (noiseType(CX, CY) > 3);
+  NOFF2 = rng() * 100000;
+
+  UPG = []; UPG_SET = new Set();
+  const add = (x, y) => { const i = y*WORLD + x; UPG.push(i); UPG_SET.add(i); };
+  const ok = (x, y) => x > 3 && y > 3 && x < WORLD-4 && y < WORLD-4
+                       && !UPG_SET.has(y*WORLD + x) && baseType(x, y) === 1;
+  let near = 0, num2 = 1;
+  for (let i = 0; i < UPG_TOTAL; i++) {
+    for (let tries = 0; tries < 20000; tries++) {
+      const a = rng() * Math.PI * 2;
+      if (i < 2) {
+        const r = 12 + rng() + near;
+        const x = Math.round(SX + Math.cos(a)*r), y = Math.round(SY + Math.sin(a)*r);
+        if (ok(x, y)) { add(x, y); near += 10; break; }
+        near += 0.1;
+      } else if (i < DEMO_UPG) {
+        const r = 20 + rng()*5 + num2;
+        const x = Math.round(SX + Math.cos(a)*r), y = Math.round(SY + Math.sin(a)*r);
+        if (Math.abs(x - SX) <= 20 && Math.abs(y - SY) <= 20) continue;
+        if (ok(x, y)) {
+          add(x, y);
+          const f = i / DEMO_UPG;
+          num2 = (1 + (120-1)*f) * 0.75 + Math.pow(120, f) * 0.25;
+          break;
+        }
+        if (num2 > 110) num2 = 90;
+      } else {
+        // extension: same blend, carried from the picture's edge to the outer world
+        const f = (i - DEMO_UPG) / (UPG_TOTAL - DEMO_UPG);
+        const span = HALF * 0.88 - 175;
+        const r = 175 + (1 + (span-1)*f) * 0.75 + Math.pow(span, f) * 0.25 + rng()*25;
+        const x = Math.round(SX + Math.cos(a)*r), y = Math.round(SY + Math.sin(a)*r);
+        if (ok(x, y)) { add(x, y); break; }
+      }
     }
+  }
+
+  GOLD_I = -1;
+  for (let tries = 0; tries < 100000; tries++) {
+    const x = 4 + Math.floor(rng() * (WORLD - 8)), y = 4 + Math.floor(rng() * (WORLD - 8));
+    if (Math.abs(x - SX) < GOLD_EXCL && Math.abs(y - SY) < GOLD_EXCL) continue;
+    if (!isRock(baseType(x, y)) || UPG_SET.has(y*WORLD + x)) continue;
+    GOLD_I = y*WORLD + x; break;
   }
 }
 
-//--------------------------------------------------------- chunked generation
 function genCell(x, y) {
-  const dx = x - CX, dy = y - CY, d = Math.sqrt(dx*dx + dy*dy);
-  if (d < 7) return 0;                            // the starting hollow
-
-  let t = d < 60 ? 1 : d < 200 ? 2 : 3;
-  const vein = ((fbm(x/16, y/16, RUNSEED) * .76 + fbm(x/3.4, y/3.4, RUNSEED+9) * .24) - .5) * 4;
-  if (vein > 0.30 && d > 20) {
-    const q = (fbm(x/34, y/34, RUNSEED+55) - .5) * 4;
-    t = 4;
-    if (d >  110 && q > -0.35) t = 5;
-    if (d >  260 && q > -0.05) t = 6;
-    if (d >  520 && q >  0.25) t = 7;
-    if (d >  900 && q >  0.55) t = 8;
-  }
-  // Upgrade pixels sit inside solid rock only, never in the opening hollow.
-  const hz = hash2(x, y, RUNSEED + 777);
-  if (d > 150 && hz < 0.0040) t = T_ORANGE;
-  else if (d > 420 && hz > 0.9955) t = T_PURPLE;
-  // Upgrade pixels start close to spawn. Holding them back to d>34 meant a small
-  // swarm never dug far enough to find ANY -- measured 0 points in twelve minutes,
-  // which is a dead run: no points, no upgrades, no income, no reach.
-  if (d > 13 && hash2(x, y, RUNSEED + 4241) < upgDensity(d)) t = T_UPG;
+  const t = baseType(x, y);
+  if (t === K_WALL) return t;
+  const i = y*WORLD + x;
+  if (UPG_SET.has(i)) return K_UPG;
+  if (i === GOLD_I) return K_GOLD;
+  if (t === 1 && gballAt(x, y)) return K_GBALL;
   return t;
 }
 
-function stampObjects(x0, y0, x1, y1) {
-  for (const o of OBJECTS) {
-    const h = o.art.length, w = o.art[0].length;
-    if (o.x + w < x0 || o.x >= x1 || o.y + h < y0 || o.y >= y1) continue;
-    for (let r = 0; r < h; r++) for (let cIdx = 0; cIdx < w; cIdx++) {
-      if (o.art[r][cIdx] !== "#") continue;
-      const px = o.x + cIdx, py = o.y + r;
-      if (px < x0 || px >= x1 || py < y0 || py >= y1) continue;
-      if (px < 0 || py < 0 || px >= WORLD || py >= WORLD) continue;
-      tier[py*WORLD + px] = T_OBJ;
-    }
-  }
-}
+//--------------------------------------------------------------- world data
+let tier, lit, chunkReady;
+const dmg = new Map();        // sparse: damage taken by cells that are still standing
+const beacon = new Set();     // special tiles revealed from a distance (UpdateFurthest)
 
 function ensureChunk(cx, cy) {
   if (cx < 0 || cy < 0 || cx >= CW || cy >= CW) return;
@@ -522,1003 +526,615 @@ function ensureChunk(cx, cy) {
   const x1 = Math.min(WORLD, x0+CHUNK), y1 = Math.min(WORLD, y0+CHUNK);
   for (let y = y0; y < y1; y++)
     for (let x = x0; x < x1; x++) tier[y*WORLD + x] = genCell(x, y);
-  stampObjects(x0, y0, x1, y1);
-  stampMonuments(x0, y0, x1, y1);
-  if (GOLD_I >= 0) {                              // the golden pixel outranks terrain
-    const gx = GOLD_I % WORLD, gy = (GOLD_I / WORLD) | 0;
-    if (gx >= x0 && gx < x1 && gy >= y0 && gy < y1) tier[GOLD_I] = T_GOLD;
-  }
-  // Register hazards AFTER the stamps, not from the generator loop. A relic, a
-  // monument or the golden pixel can land on a cell the generator made a hazard,
-  // and registering during generation logged a cell that the very next line
-  // overwrote with bedrock -- a phantom hazard, counted against HAZ_CAP forever
-  // and written into the save as a cell that is not a hazard at all. Measured as
-  // exactly one cell lost across a reload; it is small, but it is drift, and it
-  // only ever accumulates.
-  for (let y = y0; y < y1; y++)
-    for (let x = x0; x < x1; x++)
-      if (isHazard(tier[y*WORLD + x])) hazCells.add(y*WORLD + x);
   paintChunk(cx, cy);
 }
-// Keep everything within one chunk of a point generated, so a ball can never
-// travel into ungenerated space and read it as empty.
 function ensureAround(x, y) {
   const cx = (x / CHUNK) | 0, cy = (y / CHUNK) | 0;
   for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) ensureChunk(cx+ox, cy+oy);
 }
-
-// The golden pixel: one cell, on a bearing you cannot guess, at a depth drawn
-// from the band the dig actually reaches in about half an hour. No hint system.
-//
-// It used to be placed uniformly over all ten million cells, which made the
-// LENGTH OF A RUN a lottery rather than a design decision: the median sat near an
-// hour, but the spread was unbounded at both ends -- some runs ended in minutes,
-// and 21.5% of them (everything outside the inscribed circle) put the prize in
-// the corners, where depth runs past 2200 and hardness is e^(0.0035*d^1.1). Those
-// runs were not long, they were unwinnable, and the player had no way to know
-// which kind they were in.
-//
-// The band is measured, and it was measured twice, because the first answer was
-// wrong in an instructive way.
-//
-// Sampling 720 cells on each ring gives the fraction of that ring cleared at each
-// minute, which IS the chance the run has ended if the pixel sits there. Read off
-// a run whose auto-fire only ever worked the outer rim, that put the band at
-// 820-1020. But that run was abandoning every pocket it passed, so it drove reach
-// outward far faster than it actually cleared ground -- ring coverage saturated at
-// 82%. Reading a completion time off it over-predicted badly: the first run to
-// actually reach the golden pixel took 51.6 minutes, not 30.
-//
-// With auto-fire working every face (see frontierSpawn), inner rings saturate at
-// 96-99% instead, and a completed run gives reach ~= 75.4*t^0.699 with the prize
-// turning up at roughly 50% ring coverage -- which lands when reach reaches about
-// 1.23x its radius. Checked against the finished board: 50% coverage sat at r=960
-// with reach at 1203, against 978 predicted. Half an hour puts reach at 812, so
-// the median radius wants to be 812/1.23 ~= 660, and the band spans 26-35 minutes.
-//
-// The world is still 3163 cells across and you can still dig for as long as you
-// like. What is bounded is the WIN, not the map.
-const GOLD_R0 = 600, GOLD_R1 = 730;
-function placeGolden() {
-  const a = hash2(3, 77, RUNSEED+9001) * Math.PI * 2;
-  const r = GOLD_R0 + hash2(11, 178, RUNSEED+9001) * (GOLD_R1 - GOLD_R0);
-  const gx = Math.min(WORLD-2, Math.max(1, Math.round(CX + Math.cos(a)*r)));
-  const gy = Math.min(WORLD-2, Math.max(1, Math.round(CY + Math.sin(a)*r)));
-  GOLD_I = gy*WORLD + gx;
-}
-
-function cellHP(x, y, t) {
-  return Math.ceil(TIERS[t].hp * depthMul(Math.hypot(x-CX, y-CY)));
-}
-function cellVal(x, y, t) {
-  return TIERS[t].val * Math.pow(depthMul(Math.hypot(x-CX, y-CY)), VAL_POW) * 0.55;
-}
-
-//====================================================================== balls
-// Seven balls, as in the reference design. Slot 0 is the starter; slots 1-3 are
-// the three whose behaviour is documented; slots 4-6 are deliberately unbuilt
-// and show as UNKNOWN until their abilities are specified.
-// spd is in cells/sec and is deliberately TINY. Measured off reference footage:
-// balls drift at roughly 1-2 cells a second. Slow travel is the balance for
-// having a large swarm in the arena -- fast balls with a high ball cap is the
-// combination that makes an idle mode play itself.
-//
-// cap is the most that may be in flight AT ONCE for that ball. Prospector is
-// effectively uncapped; the special balls are strictly limited, because letting
-// auto-fire spam the strongest ball is not a strategy, it is an exploit.
-// spd is cells/sec. Deliberately slow: the point is a relaxed cavern you watch
-// erode, not a laser show. Rush is the one exception and is meant to read as a
-// streaking shooting star against everything else.
-//
-// cap is the most of that ball that may be in flight at once. These are FLAT.
-// An earlier version scaled the cap with cavern size and ended up at 2000+ balls,
-// which is chaos to look at and the opposite of relaxed.
-// spd measured off reference footage frame-by-frame (block pitch -> cells/sec):
-// orange 4.36, green 4.99, blue 4.58, yellow 4.44, red 2.74 -- and purple 58.2
-// median / 70 max, which is the railgun. An earlier measurement put purple at
-// 2.5 and was wrong: the tracker capped displacement at 90% of a block per frame,
-// so the one ball that crosses several blocks a frame was filtered out entirely.
-//
-// cost is the BASE price. What you actually pay rises with how many of that ball
-// are already in the air (see ballCost) -- there is no hard cap any more, the
-// price is the cap. grow is how steeply that climbs, per ball.
-const BALLS = [
-  { k:0, name:"Prospector", hue:"Orange", col:"#ff9a3c", cost:8,  soft:52, imp:40, spd:4.4,  unlock:0,
-    desc:"The ball you start with. A plain bounce that breaks the softest rock in one hit." },
-  { k:1, name:"Directional",hue:"Blue",   col:"#46b6ff", cost:26, soft:13, imp:34, spd:4.6,  unlock:1,
-    desc:"Only travels in a straight vertical or horizontal line, drifting sideways each bounce so it carves wide tunnels." },
-  { k:2, name:"Smash",      hue:"Red",    col:"#ff4a4a", cost:21, soft:11, imp:26, spd:2.7,  unlock:2,
-    desc:"The slowest ball there is. Detonates on impact, hitting every pixel in a surrounding area." },
-  { k:3, name:"Poison",     hue:"Green",  col:"#4cf05c", cost:12, soft:11, imp:22, spd:5.0,  unlock:3,
-    desc:"Poisons pixels on impact. Poison erodes them over time and spreads to nearby pixels on its own." },
-  { k:4, name:"Lightning",  hue:"Yellow", col:"#ffe14a", cost:56, soft:5, imp:20, spd:4.4,  unlock:4,
-    desc:"Crackles with static as it flies, arcing into nearby pixels before it ever touches them." },
-  { k:5, name:"Rush",       hue:"Purple", col:"#c060ff", cost:40, soft:2, imp:70, spd:58.0, unlock:4,
-    desc:"A railgun. Crosses the cavern in a heartbeat, and carries a deep magazine to spend on the way." },
-  // The oversized one. r is its radius in CELLS -- every other ball is a point,
-  // this one has a body, so it collides across its whole width and crushes what
-  // it touches. Massive, slow, expensive, and only a handful can be out at once.
-  { k:6, name:"Boulder",    hue:"Slate",  col:"#cfd8e6", cost:90, soft:3, imp:18, spd:2.0,  unlock:5, r:3.5,
-    desc:"An enormous ball with an actual body. It crushes everything its width touches instead of chipping single pixels, and it is the slowest thing in the cavern." },
-];
-const NBALL = BALLS.length;
-const built = b => b.unlock >= 0;                 // slots 5-6 are not specified yet
-
-// Upgrades CHANGE WHAT A BALL DOES. They do not nudge a percentage.
-//
-// This is the single most important design rule here, and it is the one the
-// first pass of this rewrite broke: cards reading "DAMAGE +55%" and
-// "IMPACTS +10" are the genre's classic failure mode, where an upgrade moves a
-// number without changing how the game feels or how you play. Every perk below
-// alters behaviour you can see on screen.
-//
-// Refine (further down) is the one deliberate exception: a repeatable damage
-// multiplier that exists purely to absorb surplus upgrade pixels and to let
-// damage keep pace with the depth curve. Flavour is behavioural; scaling is not.
-const PERKS = {
-  0:[ {id:"swift", n:"Swift",        c:2,  d:"The Prospector travels a quarter faster, so it works the face sooner after every launch."},
-      {id:"fleet", n:"Fleet",        c:4,  d:"Another quarter of travel speed on top."},
-      {id:"bolt",  n:"Bolt",         c:8,  d:"A third of a turn faster again. Stacks with the two before it."},
-      {id:"frag",  n:"Fragment",     c:2,  d:"The first impact splits the ball in two, each keeping half the remaining impacts."},
-      {id:"cross", n:"Crossbreak",   c:4,  d:"Every impact also strikes the four pixels orthogonally around it."},
-      {id:"heavy", n:"Heavy Strike", c:8, d:"Every eighth impact lands five times as hard."} ],
-  1:[ {id:"wide",  n:"Widebore",     c:2,  d:"Carves a three-wide tunnel instead of a single line."},
-      {id:"pierce",n:"Pierce",       c:4,  d:"Punches through up to four pixels behind the impact instead of stopping at one."},
-      {id:"free",  n:"Freewheel",    c:8, d:"Only impacts that actually break a pixel count against the ball's budget."} ],
-  2:[ {id:"wider", n:"Wider Blast",  c:2,  d:"The crater is two pixels wider."},
-      {id:"after", n:"Aftershock",   c:4,  d:"Craters keep burning and strike again a moment later."},
-      {id:"chain2",n:"Chain Blast",  c:8, d:"A blast has a one-in-four chance of setting off a second blast nearby."} ],
-  3:[ {id:"diag",  n:"Virulence",    c:2,  d:"Poison spreads diagonally as well as orthogonally."},
-      {id:"fast",  n:"Fast Rot",     c:4,  d:"Poison ticks twice as often."},
-      {id:"conta", n:"Contagion",    c:8, d:"Poison spreads on every tick instead of by chance, and never dies out on its own."} ],
-  6:[ {id:"heft",   n:"Heft",       c:2,  d:"The Boulder grows another cell and a half across, crushing a wider path with every touch."},
-      {id:"plough",  n:"Unstoppable",c:4,  d:"Nothing deflects it. It holds its heading and grinds straight on through whatever it breaks."},
-      {id:"shatter", n:"Shatter",    c:8,  d:"Its final impact goes off like a quarry charge, three times its own width."} ],
-  5:[ {id:"burn",  n:"Afterburner",  c:2,  d:"Accelerates with every bounce, ending far faster than it started."},
-      {id:"slip",  n:"Slipstream",   c:4,  d:"Drags a wake behind it that damages pixels it passes close to."},
-      {id:"blur",  n:"Blur",         c:8,  d:"Moving fast enough that every impact lands twice."} ],
-  4:[ {id:"arc",   n:"Arc",          c:2,  d:"Each impact jumps to three more pixels nearby."},
-      {id:"fork",  n:"Fork",         c:4,  d:"Every arc splits, doubling the pixels struck."},
-      {id:"over",  n:"Overload",     c:8, d:"Arcs reach twice as far."} ],
-};
-const perk = (k, id) => !!S.perks[k + ":" + id];
-
-// Speed is upgradeable per ball, in small steps, and the reference tree carries
-// exactly this (its comet icon). Kept multiplicative and modest so it stays a
-// feel change rather than a damage upgrade -- a shot buys a fixed number of
-// impacts, so going faster spends them sooner, it never mines more per shot.
-const SPEED_PERKS = { 0: [["swift", 1.25], ["fleet", 1.25], ["bolt", 1.30]] };
-// Radius in cells. Zero means a point, which is what every other ball is.
-function ballRadius(k) {
-  const base = BALLS[k].r || 0;
-  if (!base) return 0;
-  return base + (perk(k, "heft") ? 1.5 : 0);
-}
-
-function ballSpeed(k) {
-  let m = 1;
-  for (const sp of (SPEED_PERKS[k] || [])) if (perk(k, sp[0])) m *= sp[1];
-  return BALLS[k].spd * m;
-}
-
-//================================================================= tech tree
-// A sprawling node graph rather than a list of cards. Every node belongs to a
-// ball (which gives it its colour) and carries an icon for what it does. Nodes
-// unlock outward along dotted links, so spending points feels like exploring the
-// tree the same way finding them feels like exploring the world.
-//
-// kind:  "ball" = unlock that ball   "perk" = a behaviour change   "refine" = damage
-// icon:  drawn as inline SVG, keyed in ICONS below.
-// x / y: layout units, roughly -8..8. Scaled to fit whatever the panel gets.
-// The balls chain off ONE ANOTHER rather than all hanging off the root. An
-// earlier layout gave nearly every ball req:["root"], so Rush -- the strongest
-// ball -- was purchasable in the first minute and the tree had no shape. Each
-// ball now gates the next, and its own perks gate off it.
-// Laid out on a tight integer lattice, not scattered. Ball unlocks run down a
-// single spine on x=0; each ball's perks run along its own row to the right. Every
-// link is therefore purely horizontal or vertical and exactly one step long, which
-// is what makes the reference tree readable -- nodes sit next to each other rather
-// than trailing long diagonal wires across empty space.
-const NODES = [
-  // ---- spine: the balls, each gating the next ----
-  { id:"root",    ball:0, kind:"ball",   icon:"ball",  x:0, y:0, cost:0, req:[] },
-  { id:"b1",      ball:1, kind:"ball",   icon:"ball",  x:0, y:1, cost:1, req:["root"] },
-  { id:"b2",      ball:2, kind:"ball",   icon:"ball",  x:0, y:2, cost:2, req:["b1"] },
-  { id:"b3",      ball:3, kind:"ball",   icon:"ball",  x:0, y:3, cost:3, req:["b2"] },
-  { id:"b4",      ball:4, kind:"ball",   icon:"bolt",  x:0, y:4, cost:4, req:["b3"] },
-  { id:"b5",      ball:5, kind:"ball",   icon:"ball",  x:0, y:5, cost:4, req:["b4"] },
-  { id:"b6",      ball:6, kind:"ball",   icon:"boulder",x:0, y:6, cost:5, req:["b5"] },
-
-  // ---- slate row ----
-  { id:"6:heft",   ball:6, kind:"perk",   icon:"boulder",x:1, y:6, cost:2, req:["b6"] },
-  { id:"w_ref",    ball:6, kind:"refine", icon:"sword",  x:2, y:6, cost:1, req:["6:heft"] },
-  { id:"6:plough", ball:6, kind:"perk",   icon:"tunnel", x:3, y:6, cost:4, req:["w_ref"] },
-  { id:"6:shatter",ball:6, kind:"perk",   icon:"burst",  x:4, y:6, cost:8, req:["6:plough"] },
-
-  // ---- orange speed row, one step above the spine ----
-  { id:"0:swift", ball:0, kind:"perk",   icon:"comet", x:0, y:-1, cost:2, req:["root"] },
-  { id:"0:fleet", ball:0, kind:"perk",   icon:"comet", x:1, y:-1, cost:4, req:["0:swift"] },
-  { id:"0:bolt",  ball:0, kind:"perk",   icon:"comet", x:2, y:-1, cost:8, req:["0:fleet"] },
-
-  // ---- orange row ----
-  { id:"o_ref1",  ball:0, kind:"refine", icon:"sword", x:1, y:0, cost:1, req:["root"] },
-  { id:"0:frag",  ball:0, kind:"perk",   icon:"split", x:2, y:0, cost:2, req:["o_ref1"] },
-  { id:"0:cross", ball:0, kind:"perk",   icon:"cross", x:3, y:0, cost:4, req:["0:frag"] },
-  { id:"o_ref2",  ball:0, kind:"refine", icon:"sword", x:4, y:0, cost:1, req:["0:cross"] },
-  { id:"0:heavy", ball:0, kind:"perk",   icon:"hammer",x:5, y:0, cost:8, req:["o_ref2"] },
-
-  // ---- blue row ----
-  { id:"1:wide",  ball:1, kind:"perk",   icon:"tunnel",x:1, y:1, cost:2, req:["b1"] },
-  { id:"b_ref",   ball:1, kind:"refine", icon:"sword", x:2, y:1, cost:1, req:["1:wide"] },
-  { id:"1:pierce",ball:1, kind:"perk",   icon:"tunnel",x:3, y:1, cost:4, req:["b_ref"] },
-  { id:"1:free",  ball:1, kind:"perk",   icon:"tunnel",x:4, y:1, cost:8, req:["1:pierce"] },
-
-  // ---- red row ----
-  { id:"2:wider", ball:2, kind:"perk",   icon:"burst", x:1, y:2, cost:2, req:["b2"] },
-  { id:"r_ref",   ball:2, kind:"refine", icon:"sword", x:2, y:2, cost:1, req:["2:wider"] },
-  { id:"2:after", ball:2, kind:"perk",   icon:"burst", x:3, y:2, cost:4, req:["r_ref"] },
-  { id:"2:chain2",ball:2, kind:"perk",   icon:"burst", x:4, y:2, cost:8, req:["2:after"] },
-
-  // ---- green row ----
-  { id:"3:diag",  ball:3, kind:"perk",   icon:"skull", x:1, y:3, cost:2, req:["b3"] },
-  { id:"g_ref",   ball:3, kind:"refine", icon:"sword", x:2, y:3, cost:1, req:["3:diag"] },
-  { id:"3:fast",  ball:3, kind:"perk",   icon:"skull", x:3, y:3, cost:4, req:["g_ref"] },
-  { id:"3:conta", ball:3, kind:"perk",   icon:"skull", x:4, y:3, cost:8, req:["3:fast"] },
-
-  // ---- yellow row ----
-  { id:"4:arc",   ball:4, kind:"perk",   icon:"bolt",  x:1, y:4, cost:2, req:["b4"] },
-  { id:"y_ref",   ball:4, kind:"refine", icon:"sword", x:2, y:4, cost:1, req:["4:arc"] },
-  { id:"4:fork",  ball:4, kind:"perk",   icon:"bolt",  x:3, y:4, cost:4, req:["y_ref"] },
-  { id:"4:over",  ball:4, kind:"perk",   icon:"bolt",  x:4, y:4, cost:8, req:["4:fork"] },
-
-  // ---- purple row ----
-  { id:"5:burn",  ball:5, kind:"perk",   icon:"comet", x:1, y:5, cost:2, req:["b5"] },
-  { id:"p_ref",   ball:5, kind:"refine", icon:"sword", x:2, y:5, cost:1, req:["5:burn"] },
-  { id:"5:slip",  ball:5, kind:"perk",   icon:"comet", x:3, y:5, cost:4, req:["p_ref"] },
-  { id:"5:blur",  ball:5, kind:"perk",   icon:"comet", x:4, y:5, cost:8, req:["5:slip"] },
-];
-const NODEBY = {}; NODES.forEach(n => NODEBY[n.id] = n);
-
-// Refine nodes are repeatable; everything else is bought once.
-const isRefine = n => n.kind === "refine";
-const nodeTaken = n => isRefine(n) ? false : !!S.nodes[n.id];
-const nodeReady = n => n.req.every(r => {
-  const p = NODEBY[r];
-  return p ? (isRefine(p) ? !!S.nodes[p.id] : !!S.nodes[p.id]) : true;
-});
-function nodeCost(n) { return isRefine(n) ? REFINE_COST(S.refine) : n.cost; }
-
-const ICONS = {
-  ball:   '<circle cx="12" cy="12" r="6"/>',
-  sword:  '<path d="M6 18 L14 10 M12 4 L20 12 L16 16 L8 8 Z"/>',
-  split:  '<circle cx="8" cy="14" r="4"/><circle cx="17" cy="9" r="3"/>',
-  cross:  '<path d="M12 4 V20 M4 12 H20"/>',
-  hammer: '<path d="M5 19 L13 11 M10 5 H19 V11 H10 Z"/>',
-  burst:  '<path d="M12 3 L14 10 L21 12 L14 14 L12 21 L10 14 L3 12 L10 10 Z"/>',
-  skull:  '<circle cx="12" cy="10" r="6"/><circle cx="9.5" cy="10" r="1.6" fill="currentColor"/><circle cx="14.5" cy="10" r="1.6" fill="currentColor"/><path d="M9 18 H15"/>',
-  tunnel: '<path d="M4 8 H20 M4 16 H20 M12 4 V20"/>',
-  bolt:   '<path d="M13 3 L6 13 H11 L10 21 L18 10 H13 Z"/>',
-  comet:  '<circle cx="15" cy="9" r="4"/><path d="M4 20 L10 14 M4 14 L8 12 M9 20 L12 17"/>',
-  lock:   '<path d="M8 11 V8 a4 4 0 0 1 8 0 V11 M6 11 H18 V20 H6 Z"/>',
-  boulder:'<circle cx="12" cy="12" r="8.5"/><circle cx="9" cy="9.5" r="1.8"/><circle cx="15" cy="14" r="2.4"/>',
-};
-
-
-//================================================================ game state
-const S = {
-  px:160, tokens:0, tokensFound:0,
-  owned:[1,0,0,0,0,0,0],
-  perks:{}, nodes:{root:1}, refine:0,
-  minedCount:0, maxDepth:0, rate:0, bestRate:0, playtime:0,
-  shots:0, auto:false, goldFound:false, objectsFound:{},
-};
-
-// Refine has to out-run an exponential depth curve, so its cost curve is shallow
-// on purpose. Verified against the worst case where a player spends on every
-// perk and unlock BEFORE refining even once: damage still overtakes rock by
-// reach ~320 and stays ahead. Players buy the interesting-looking thing first,
-// and the balance has to survive that rather than assume otherwise.
-const REFINE_COST = lv => 1 + Math.floor(lv / 3);
-// Refine is GLOBAL, not per ball. Per-ball damage meant that unlocking a new
-// ball threw away everything you had invested — measured as a drop from x69 to
-// x4.1 the moment Electric came online. That punishes the experimentation the
-// seven ball types exist to encourage, so damage scaling belongs to the player,
-// not to one ball. The per-ball character lives entirely in the perks.
-// BASE_DMG exists so the starting ball one-shots the softest rock, as it does in
-// the reference. With balls drifting at a few cells a second, rock that needs
-// four to eight hits stalls the opening outright: income never covers the cost
-// of growing the swarm and the run cannot get started.
-const BASE_DMG = 4;
-const ballDmg  = k => BASE_DMG * Math.pow(1.60, S.refine);
-const ballImp  = k => BALLS[k].imp;
-// Price grows with the SQUARE of how many of that colour are already in flight.
-//
-// A plain exponential cannot do this job. Gentle enough to let the swarm ignite
-// (1.07) and it never stops growing, because income compounds through Refine and
-// outruns any fixed rate -- measured, it ran to the 600 backstop. Steep enough to
-// cap (1.35) and the opening can never afford a second ball, so the run is dead
-// on arrival at four balls. There is no constant that does both; the two failures
-// are a few percent apart.
-//
-// Squaring the exponent separates them: nearly free for the first dozen, savage
-// past the soft point. `soft` is where each colour starts to bite, so the premium
-// balls crowd out far sooner than the starter.
-const CROWD = 1.06;
-const ballCost = k => {
-  const n = liveOf(k);
-  return Math.ceil(BALLS[k].cost * Math.pow(CROWD, (n*n) / BALLS[k].soft));
-};
-
-// Thousands, not hundreds. Impacts per second per ball is proportional to speed,
-// so once balls drift at a few cells a second the ONLY way to keep a ten-million
-// cell world clearable is to have a great many of them. Measured cost at 2500
-// live balls: 2.4ms simulation + 4.9ms draw, inside a 16.7ms frame budget.
-// Slow and numerous also looks right -- a dense working swarm, not a laser show.
-// There is no ball cap. The PRICE is the cap: every ball of a colour already in
-// flight makes the next one of that colour dearer, so the swarm settles wherever
-// your income can sustain it and grows only as income grows. This is what the
-// reference does -- its dock price for the ball being fired visibly inflates and
-// then decays, while the untouched colours sit at their base price.
-//
-// HARD_LIMIT is a performance backstop, not a design constraint; the economy
-// should settle far below it.
-const HARD_LIMIT = 600;
-function liveCap() { return HARD_LIMIT; }
-const START_PX = 160;                             // seed stock, or the first shot is unaffordable
-
-// A currency you spend to earn currency can strand you at zero. If nothing is in
-// flight and the cheapest ball you own is unaffordable, the world hands you one
-// shot for free. Without this the game can soft-lock permanently, and no amount
-// of good balance prevents it — only this check does.
-//
-// It must price off the CHEAPEST OWNED ball, not the basic one: selecting a
-// pricier ball and going broke otherwise strands you at a top-up that can never
-// afford a shot, which is a dead save.
-function cheapestOwned() {
-  let best = Infinity;
-  for (const B of BALLS) if (built(B) && S.owned[B.k]) best = Math.min(best, ballCost(B.k));
-  return isFinite(best) ? best : ballCost(0);
-}
-function salvage() {
-  if (balls.length || S.px >= cheapestOwned()) return;
-  S.px = cheapestOwned();
-}
-
-//====================================================================== balls
-let balls = [], selKind = 0;
-const liveCount = () => balls.length;
-const liveOf = k => balls.reduce((n,b) => n + (b.kind === k ? 1 : 0), 0);
-
-// Balls launch from wherever you click, not from the middle of the world. This is
-// the difference between eroding one disc outward and actually steering the dig:
-// you can drive a shaft toward an upgrade pixel, or work a rich seam you found.
-function spawnClear(x, y) {
-  x = Math.max(1, Math.min(WORLD-2, Math.round(x)));
-  y = Math.max(1, Math.min(WORLD-2, Math.round(y)));
-  ensureAround(x, y);
-  if (!solid(x, y)) return [x, y];
-  // Clicked inside rock: walk out to the nearest open cell so the ball has room.
-  for (let r = 1; r < 90; r++) {
-    for (let a = 0; a < 12; a++) {
-      const th = a * (Math.PI/6);
-      const nx = Math.round(x + Math.cos(th)*r), ny = Math.round(y + Math.sin(th)*r);
-      if (nx<1||ny<1||nx>=WORLD-1||ny>=WORLD-1) continue;
-      ensureAround(nx, ny);
-      if (!solid(nx, ny)) return [nx, ny];
-    }
-  }
-  return null;
-}
-function fire(kind, ang, ox, oy, power) {
-  const B = BALLS[kind];
-  if (!built(B) || !S.owned[kind]) return false;
-  if (balls.length >= liveCap()) return false;
-  const c = ballCost(kind);
-  if (S.px < c) return false;
-  const at = spawnClear(ox === undefined ? CX : ox, oy === undefined ? CY : oy);
-  if (!at) return false;
-  S.px -= c; S.shots++;
-  let a = ang;
-  if (kind === 1) a = Math.round(ang / (Math.PI/2)) * (Math.PI/2);
-  // Power scales launch speed only, never damage or impacts — a soft lob and a
-  // hard throw cost the same and mine the same, they just travel differently.
-  const pw = Math.max(0.3, Math.min(1, power === undefined ? 1 : power));
-  const sp = ballSpeed(kind) * pw;
-  balls.push({ x:at[0]+.5, y:at[1]+.5, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
-               kind, trail:[], left:ballImp(kind), stall:0, hits:0, boost:1, pw,
-               paid:c });                    // refund must price off THIS, not the market
-  return true;
-}
-
-// Auto-fire launches ON THE WORKING FACE: pick a bearing, then walk INWARD from
-// beyond the reach until the first open cell. That cell touches rock by
-// construction, so the ball starts work immediately.
-//
-// It used to pick a radius uniformly in 0.55-1.0 of the reach, which sounds like
-// the frontier and is not: measured, the average launch sat at 0.63 of the reach,
-// several hundred cells inside open cavern. A ball only gets DRIFT_SECONDS to
-// find rock -- 53 cells for a Prospector -- so it could not possibly cross that
-// gap, and it retired with its magazine almost untouched. Measured across a
-// thirty-minute run, 87-93% of every impact the player PAID FOR was never landed.
-// The refund hid the cost in the wallet, but the throughput was simply gone.
-// Walking in to the face instead is worth 4.4x the pixels mined, with no number
-// anywhere made bigger.
-function frontierSpawn() {
-  const faces = [];
-  for (let t = 0; t < 6; t++) {
-    const a = Math.random()*Math.PI*2;
-    const ca = Math.cos(a), sa = Math.sin(a);
-    faces.length = 0;
-    // Walk the whole bearing and record EVERY face on it -- each open cell with
-    // rock against it, on either side -- rather than stopping at the first.
-    //
-    // Stopping at the first was a second bug wearing the first one's clothes. The
-    // outermost open cell is the outer rim and nothing else, so once the dig
-    // punched past a patch of stubborn rock the frontier moved beyond it and that
-    // pocket was never worked again: measured mid-run, 0 of 300 launches landed
-    // inside a ring the cavern had already passed, and a pocket sitting there sat
-    // there for good. Which is fatal when the thing you are hunting is one cell:
-    // a golden pixel in an abandoned pocket makes the run unwinnable in exactly
-    // the way the corners used to.
-    let prevOpen = false, px = 0, py = 0;
-    for (let r = S.maxDepth + 3; r >= 5; r--) {
-      const x = Math.round(CX + ca*r), y = Math.round(CY + sa*r);
-      const open = x>=1 && y>=1 && x<WORLD-1 && y<WORLD-1 && !solid(x, y);
-      if (open !== prevOpen) {
-        if (open) faces.push(x, y);                  // stepping off rock into cavern
-        else if (prevOpen) faces.push(px, py);       // last open cell before rock
-      }
-      prevOpen = open; px = x; py = y;
-    }
-    if (faces.length) {
-      const k = ((Math.random()*(faces.length>>1))|0) << 1;
-      ensureAround(faces[k], faces[k+1]);
-      return [faces[k], faces[k+1]];
-    }
-  }
-  return [CX, CY];
-}
-
-//==================================================================== mining
-let dirty = [];
-const markDirty = (x,y) => { dirty.push(x,y); };
-
-function payout(x, y, t) {
-  S.minedCount++;
-  const d = Math.hypot(x-CX, y-CY);
-  if (d > S.maxDepth) S.maxDepth = d;
-
-  if (t === T_UPG) { S.tokens++; S.tokensFound++;
-                     // The offline pass runs this same path thousands of times in
-                     // one go, before there is a frame to draw into. Its bursts
-                     // and toasts belong to the welcome-back panel, not here.
-                     if (!offlinePass) { spawnBurst(x, y); toast("UPGRADE PIXEL FOUND"); }
-                     return; }
-  if (t === T_GOLD) { S.goldFound = true; showGolden(); return; }
-  if (t === T_OBJ && !S.objectsFound[(x>>6)+","+(y>>6)]) {
-    S.objectsFound[(x>>6)+","+(y>>6)] = 1;
-    if (!offlinePass) toast("YOU UNCOVERED SOMETHING BURIED");
-  }
-  S.px += cellVal(x, y, t);
-}
-
-function hitCell(x, y, amount) {
-  if (x < 0 || y < 0 || x >= WORLD || y >= WORLD) return;
-  const i = y*WORLD + x, t = tier[i];
-  if (!t) return;
-  const cur = (dmg.get(i) || 0) + amount;
-  if (cur >= cellHP(x, y, t)) {
-    tier[i] = 0; dmg.delete(i); poison.delete(i);
-    if (isHazard(t)) hazCells.delete(i);
-    payout(x, y, t);
-    spawnSpark(x, y, TIERS[t].col, t >= 4 ? 5 : 1);
-    stampLight(x, y, true);
-    growBounds(x, y);
-    hazSpread.delete(i);
-    // Creep seeds one child on death, at under even odds.
-    if (t === T_PURPLE && Math.random() < 0.50) spreadHazard(x, y, T_PURPLE, 1);
-    markDirty(x, y);
-    return true;
-  } else {
-    dmg.set(i, cur);
-    // Bloom expands when struck — but ONLY the first time that pixel is struck.
-    //
-    // This has to be once-per-pixel, not once-per-hit. Per-hit spreading looks
-    // reasonable until you do the arithmetic: a Bloom deep in the world takes
-    // well over a hundred hits to break, so even a small per-hit chance means
-    // dozens of offspring each, and the hazard grows exponentially and eats the
-    // cavern. Measured: 3k -> 12k -> 23k cells in sixteen minutes.
-    //
-    // Gated this way each Bloom has a single chance below 1, so the expected
-    // offspring per pixel is 0.55 and total growth from one seed converges to
-    // 1/(1-0.55) ~= 2.2 cells. Bounded by construction, not by tuning.
-    if (t === T_ORANGE && !hazSpread.has(i)) {
-      hazSpread.add(i);
-      if (Math.random() < 0.55) spreadHazard(x, y, T_ORANGE, 1);
-    }
-  }
-  markDirty(x, y);
-  return false;
-}
-
-// Hazards only grow into ground you have ALREADY cleared, never into fresh rock.
-// That keeps them a threat to your progress rather than a wall against it.
-function spreadHazard(x, y, t, n) {
-  if (hazCells.size >= HAZ_CAP) return;
-  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
-  for (let k = 0; k < n; k++) {
-    const d = dirs[(Math.random()*4)|0];
-    const nx = x + d[0], ny = y + d[1];
-    if (nx < 0 || ny < 0 || nx >= WORLD || ny >= WORLD) continue;
-    const j = ny*WORLD + nx;
-    if (tier[j] !== 0 || !lit[j]) continue;          // cleared, lit ground only
-    tier[j] = t; dmg.delete(j); hazCells.add(j);
-    markDirty(nx, ny);
-  }
-}
-
-function blast(cx0, cy0, radius, amount) {
-  const r = Math.ceil(radius);
-  for (let oy = -r; oy <= r; oy++)
-    for (let ox = -r; ox <= r; ox++) {
-      const dd = Math.sqrt(ox*ox + oy*oy);
-      if (dd > radius) continue;
-      hitCell(cx0+ox, cy0+oy, Math.max(1, amount * (1 - dd/(radius+1))));
-    }
-}
-
-// Bulk lighting. `lit` is a max-filter: a cell's level is set by its Chebyshev
-// distance to the nearest CLEARED cell -- 3 within one, 2 within two, 1 within
-// four, dark beyond. stampLight writes that outwards from one cell, which is
-// right for a single pixel breaking during play.
-//
-// It is badly wrong for bulk work. The offline pass and relight() clear cells in
-// contiguous blobs, so stamping a 9x9 per cell rewrote the same neighbourhood
-// eighty times over: measured at 3.1 seconds per 100k cells, and the old
-// visibility handler ran that over EVERY cleared cell on the board on every
-// return to the tab.
-//
-// Read the other way round it is a distance transform, and a Chebyshev distance
-// transform is two linear sweeps -- one forward taking the min of the four
-// already-visited neighbours, one backward taking the other four. Cost is
-// proportional to the box, not to the box times eighty-one.
-const LIT_R = 4, LIT_FAR = 9;
-let dtBuf = null;
-function relightBox(bx0, by0, bx1, by1) {
-  bx0 = Math.max(0, bx0); by0 = Math.max(0, by0);
-  bx1 = Math.min(WORLD-1, bx1); by1 = Math.min(WORLD-1, by1);
-  if (bx1 < bx0 || by1 < by0) return;
-  // Scan a margin around the box: a cleared cell just outside it still lights
-  // cells inside, and cropping to the box exactly would leave a dark seam.
-  const x0 = Math.max(0, bx0-LIT_R), y0 = Math.max(0, by0-LIT_R);
-  const x1 = Math.min(WORLD-1, bx1+LIT_R), y1 = Math.min(WORLD-1, by1+LIT_R);
-  const w = x1-x0+1, h = y1-y0+1, n = w*h;
-  if (!dtBuf || dtBuf.length < n) dtBuf = new Uint8Array(n);
-  const d = dtBuf;
-  // Seed: distance 0 at every OPEN cell. Ungenerated counts as solid, exactly as
-  // solid() has it -- an ungenerated cell holds tier 0, the same value a mined-out
-  // cell holds, so reading tier alone would light the untouched corners of the box
-  // as though they were cavern and paint fresh rock bright when it generated.
-  for (let y = 0; y < h; y++) {
-    const wy = y0+y, src = wy*WORLD + x0, o = y*w, crow = (wy >> CHUNK_SHIFT)*CW;
-    for (let x = 0; x < w; x++)
-      d[o+x] = (!tier[src+x] && chunkReady[crow + ((x0+x) >> CHUNK_SHIFT)]) ? 0 : LIT_FAR;
-  }
-  for (let y = 0; y < h; y++) {
-    const o = y*w, p = o-w;
-    for (let x = 0; x < w; x++) {
-      let v = d[o+x];
-      if (!v) continue;
-      if (y > 0) {
-        if (d[p+x]+1 < v) v = d[p+x]+1;
-        if (x > 0   && d[p+x-1]+1 < v) v = d[p+x-1]+1;
-        if (x < w-1 && d[p+x+1]+1 < v) v = d[p+x+1]+1;
-      }
-      if (x > 0 && d[o+x-1]+1 < v) v = d[o+x-1]+1;
-      d[o+x] = v > LIT_FAR ? LIT_FAR : v;      // capped: anything past 4 is dark
-    }
-  }
-  for (let y = h-1; y >= 0; y--) {
-    const o = y*w, p = o+w;
-    for (let x = w-1; x >= 0; x--) {
-      let v = d[o+x];
-      if (!v) continue;
-      if (y < h-1) {
-        if (d[p+x]+1 < v) v = d[p+x]+1;
-        if (x > 0   && d[p+x-1]+1 < v) v = d[p+x-1]+1;
-        if (x < w-1 && d[p+x+1]+1 < v) v = d[p+x+1]+1;
-      }
-      if (x < w-1 && d[o+x+1]+1 < v) v = d[o+x+1]+1;
-      d[o+x] = v > LIT_FAR ? LIT_FAR : v;
-    }
-  }
-  for (let y = by0; y <= by1; y++) {
-    const o = (y-y0)*w - x0, row = y*WORLD;
-    for (let x = bx0; x <= bx1; x++) {
-      const dd = d[o+x];
-      lit[row+x] = dd <= 1 ? 3 : dd <= 2 ? 2 : dd <= LIT_R ? 1 : 0;
-    }
-  }
-}
-
-function stampLight(x, y, mark) {
-  for (let oy = -4; oy <= 4; oy++) {
-    const ny = y + oy; if (ny < 0 || ny >= WORLD) continue;
-    for (let ox = -4; ox <= 4; ox++) {
-      const nx = x + ox; if (nx < 0 || nx >= WORLD) continue;
-      const c = Math.max(Math.abs(ox), Math.abs(oy));
-      const lvl = c <= 1 ? 3 : c <= 2 ? 2 : 1, i = ny*WORLD + nx;
-      if (lit[i] < lvl) { lit[i] = lvl; if (mark) markDirty(nx, ny); }
-    }
-  }
-}
-
-//=================================================================== physics
-// Out of bounds is solid, and so is anything NOT YET GENERATED -- ungenerated
-// chunks hold tier 0, which is the same value a mined-out cell holds, so without
-// this check the untouched world reads as open space you have already cleared.
-//
-// That is what carved a perfect square: mining hollowed out the generated chunk
-// rectangle, found "empty" space beyond it, and stopped. The walls were the edge
-// of what happened to be generated, not rock. Generating on demand here is the
-// fix, and it is cheap: the ready flag is one array read, and a chunk is only
-// ever built once.
-// Does this ball's BODY overlap rock at (cx,cy)? A point ball is just solid().
-// A Boulder samples its rim, so it stops when any part of it meets stone rather
-// than only when its centre does -- otherwise a seven-cell ball sinks halfway
-// into a wall before noticing it has arrived.
-function bodyHits(b, cx, cy) {
-  const r = ballRadius(b.kind);
-  if (r <= 0) return solid(cx, cy);
-  if (solid(cx, cy)) return true;
-  for (let a = 0; a < 8; a++) {
-    const th = a * (Math.PI/4);
-    if (solid(Math.round(cx + Math.cos(th)*r), Math.round(cy + Math.sin(th)*r))) return true;
-  }
-  return false;
-}
-
+// Out of bounds is solid, and so is anything not yet generated: an ungenerated
+// cell holds 0, the same as a mined one, so it is generated on first touch.
 function solid(x, y) {
   if (x < 0 || y < 0 || x >= WORLD || y >= WORLD) return true;
   const cx = x >> CHUNK_SHIFT, cy = y >> CHUNK_SHIFT;
   if (!chunkReady[cy*CW + cx]) ensureChunk(cx, cy);
   return tier[y*WORLD + x] !== 0;
 }
+function baseHP(t) { return isRock(t) ? t : (t === K_UPG || t === K_GBALL) ? 1 : Infinity; }
+const curHP = i => baseHP(tier[i]) - (dmg.get(i) || 0);
 
-// Balls NEVER steer themselves. A ball flies exactly where you sent it until it
-// bounces off rock, and if it crosses this much open ground without touching
-// anything it simply retires.
+//====================================================================== balls
+// Bench order (BallShooting.balls[] index). Colours are Orebound's own; every
+// number is the demo's.
+//   cost / step : BallButton.cost and costIncrease, read from each button prefab
+//   mult        : BallStats.defaultSpeedMults -- speed is 8 x mult cells/sec
+const ORANGE = 0, GRAY = 1, GREEN = 2, YELLOW = 3, RED = 4, BLUE = 5, PINK = 6, GOLDEN = 7;
+const BALLS = [
+  { k:0, name:"Basic",       col:"#ff9a3c", cost:4,   step:2,  mult:0.4,
+    desc:"The ball you start with. Bounces forever and chips one HP off whatever it hits." },
+  { k:1, name:"Gravity",     col:"#cfd8e6", cost:10,  step:3,  mult:1.0,
+    desc:"Falls endlessly in the direction you shot it. Every bounce, it accelerates back onto that heading, so it digs a deep shaft." },
+  { k:2, name:"Poison",      col:"#4cf05c", cost:30,  step:5,  mult:0.8,
+    desc:"Poisons what it hits. Poison eats one HP per tick, and with spread chance it can jump to a neighbouring pixel." },
+  { k:3, name:"Lightning",   col:"#ffe14a", cost:50,  step:8,  mult:0.7,
+    desc:"On every lightning tick, each one strikes the nearest rock within four cells, touching or not." },
+  { k:4, name:"Smash",       col:"#ff4a4a", cost:70,  step:12, mult:1.2,
+    desc:"Every impact also hits pixels around it: one at first, more with Hit spread." },
+  { k:5, name:"Directional", col:"#46b6ff", cost:90,  step:14, mult:1.2,
+    desc:"Locked to the axis you fire it along. It drills one straight line, back and forth, forever." },
+  { k:6, name:"Speed",       col:"#ff6fd8", cost:120, step:20, mult:4.0,
+    desc:"Five times faster than the basic ball." },
+  { k:7, name:"Golden",      col:"#ffd75e", cost:0,   step:0,  mult:1.5,
+    desc:"The only thing that can break the golden pixel. It homes in when close, and dies on the first thing it touches." },
+];
+const NB = BALLS.length;
+const BASE_SPEED = 8;
+const R_BALL = 0.15, R_GOLDEN = 0.3;      // CircleCollider2D r 0.5 at scale 0.3 / 0.6
+const FIXED = 0.01;                        // TimeManager: 100 physics steps a second
+const GOLDEN_MAX = 30, GOLDEN_LAUNCH = 18; // GoldenBall.maxSpeed; launch impulse / mass
+const RECALL_CD = 30, RECALL_CAP = 1;      // BallData.recallCooldown / recallMaxCapacity
+
+// BallData, one per ball. Starts at the demo's defaults; the skill tree adds to it.
+function freshStats() {
+  return BALLS.map(B => ({ damage: B.k === GOLDEN ? 0 : 1, speedMult: B.mult, recalling: false,
+    piercing: 0, poisonDamage: 1, poisonSpeed: 1, poisonSpread: 0, hitSpread: 1, spreadDamage: 1,
+    lightningRate: 1, lightningDamage: 1, gravityForce: 1000 }));
+}
+let ST = freshStats();
+const ballSpeed = k => BASE_SPEED * ST[k].speedMult;
+// Ball.GravitateInShootingDirection: AddForce(dir * gravityForce * fixedDt) every
+// fixed step, at mass 1, is an acceleration of gravityForce * fixedDt.
+const gravAccel = () => ST[GRAY].gravityForce * FIXED;
+
+//================================================================= skill tree
+// The demo's tree, read node by node out of level0: 66 buttons on a 40-unit
+// lattice, of which the demo enables 32 (38 points). The other 34 (Red and Gray
+// branches, more Orange piercing, more Green, Yellow and Pink) are built into the
+// scene but switched off; they are enabled here. Three of them overlapped enabled
+// nodes and two could not be reached, so those five moved by one cell.
 //
-// The allowance is a DURATION, not a distance. A fixed distance punishes a ball
-// for being fast: at 55 cells, a Prospector drifting at 4.4 cells/sec got twelve
-// and a half seconds to find rock while Rush at 58 got under one, so the railgun
-// expired mid-flight across a wide cavern without ever reaching the face.
-// Every ball now gets the same number of seconds, whatever its speed.
-const DRIFT_SECONDS = 12;
-const driftLimit = k => DRIFT_SECONDS * ballSpeed(k);
-
-function onImpact(b, hx, hy) {
-  // A ploughing Boulder never stops touching rock, so without this it re-triggers
-  // on every 0.35-cell substep and spends its whole magazine inside the one
-  // crater it already cleared -- measured at 2 pixels mined against 26 for a
-  // plain shot. One impact per NEW cell crushed, so it carves a tunnel instead.
-  if (plough(b)) {
-    const key = hx + "," + hy;
-    if (b.lastHit === key) return;
-    b.lastHit = key;
-  }
-  b.stall = 0; b.left--; b.hits = (b.hits || 0) + 1;
-  const k = b.kind;
-  let d = ballDmg(k);
-  let destroyed = false;
-
-  if (k === 0) {
-    if (perk(0,"heavy") && b.hits % 8 === 0) d *= 5;       // Heavy Strike
-    destroyed = hitCell(hx, hy, d);
-    if (perk(0,"cross")) {                                  // Crossbreak
-      hitCell(hx+1,hy,d); hitCell(hx-1,hy,d);
-      hitCell(hx,hy+1,d); hitCell(hx,hy-1,d);
-    }
-    // Fragment costs half price. It used to conjure a ball out of nothing, which
-    // punched straight through the crowding economy: purchases correctly stopped
-    // around eighty orange, then free splits pushed it to two hundred and on to
-    // the backstop. Anything that adds a body has to pay something.
-    const fragFee = Math.ceil(ballCost(0) * 0.5);
-    if (perk(0,"frag") && !b.frag && b.left > 4 && balls.length < liveCap() && S.px >= fragFee) {
-      S.px -= fragFee;
-      b.frag = 1;                                           // Fragment: split once
-      const half = b.left >> 1; b.left -= half;
-      // Perpendicular to the parent, not random: a split, not a teleport.
-      const sp = Math.hypot(b.vx, b.vy) || ballSpeed(0);
-      balls.push({ x:b.x, y:b.y, vx:-b.vy/sp*ballSpeed(0), vy:b.vx/sp*ballSpeed(0),
-                   kind:0, trail:[], left:half, stall:0, frag:1, hits:0, boost:1,
-                   paid:fragFee });
-    }
-  } else if (k === 1) {
-    destroyed = hitCell(hx, hy, d);
-    if (perk(1,"wide")) {                                   // Widebore
-      const px = Math.abs(b.vx) > Math.abs(b.vy) ? [0,1] : [1,0];
-      hitCell(hx+px[0], hy+px[1], d); hitCell(hx-px[0], hy-px[1], d);
-    }
-    if (perk(1,"pierce")) {                                 // Pierce
-      const sx = Math.sign(b.vx), sy = Math.sign(b.vy);
-      for (let i = 1; i <= 4; i++) hitCell(hx + sx*i, hy + sy*i, d);
-    }
-    if (perk(1,"free") && !destroyed) b.left++;              // Freewheel: refund
-  } else if (k === 2) {
-    // Crater grows with Refine. With a small swarm the only way throughput can
-    // climb is for each impact to clear more ground rather than for there to be
-    // more impacts -- and a widening crater is calm to watch, unlike more balls.
-    const r = 1.5 + (perk(2,"wider") ? 2 : 0) + Math.min(7, S.refine * 0.30);
-    blast(hx, hy, r, d);
-    if (perk(2,"after")) aftershocks.push({ x:hx, y:hy, r, d:d*0.7, t:0.45 });
-    if (perk(2,"chain2") && Math.random() < 0.25) {
-      const a = Math.random()*Math.PI*2, off = 3 + Math.random()*4;
-      blast(hx + Math.round(Math.cos(a)*off), hy + Math.round(Math.sin(a)*off), r, d*0.8);
-    }
-  } else if (k === 3) {
-    // Infect FIRST, then strike. Poisoning after the hit meant nothing was ever
-    // infected: the ball one-shots soft rock, so by the time poison was applied
-    // the cell was already destroyed and poison silently did nothing at all.
-    // Infecting a small patch also gives the rot somewhere to spread from.
-    for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
-      const px = hx+ox, py = hy+oy;
-      if (px < 0 || py < 0 || px >= WORLD || py >= WORLD) continue;
-      const j = py*WORLD + px, tj = tier[j];
-      if (!tj || isHazard(tj) || unbreakable(tj)) continue;
-      if (poison.size >= POISON_CAP) break;
-      poison.set(j, (poison.get(j)||0) + 1);
-      markDirty(px, py);
-    }
-    destroyed = hitCell(hx, hy, d);
-  } else if (k === 4) {
-    // Lightning does its work in flight (see staticDischarge), so the impact
-    // itself is an ordinary strike.
-    destroyed = hitCell(hx, hy, d);
-  } else if (k === 5) {
-    if (perk(5,"blur")) d *= 2;                             // Blur: double strike
-    destroyed = hitCell(hx, hy, d);
-    if (perk(5,"burn")) b.boost = Math.min(3, (b.boost || 1) * 1.05);   // Afterburner
-  } else if (k === 6) {
-    // It does not chip a pixel, it crushes its own footprint.
-    const r = ballRadius(6);
-    // A ploughing Boulder bores NARROWER than its own body. Blasting its full
-    // width clears the rock its rim needs to stay in contact with, so it shot
-    // straight out through its own tunnel and never struck anything again --
-    // measured at one impact and zero pixels for a whole shot.
-    blast(hx, hy, plough(b) ? r * 0.55 : r, d);
-    destroyed = true;
-    // Shatter: the last impact of its magazine goes off like a quarry charge.
-    if (perk(6,"shatter") && b.left <= 0) blast(hx, hy, r * 3.2, d * 2.2);
-  } else {
-    destroyed = hitCell(hx, hy, d);
+// A bought node reveals each lattice neighbour that is the same colour, or is a
+// New Ball node (TreeButton.FindNextUnlocks). x/y are the demo's, y up.
+const UT = { NEW:0, DMG:1, SPD:2, RECALL:3, PIERCE:4, PDMG:5, PSPD:6, PSPREAD:7, HSPREAD:8, SDMG:9, LRATE:10 };
+const TREE = [
+  // orange (the starting node is Orange Speed at the origin)
+  [0,0,ORANGE,UT.SPD,0.1,1,1], [-1,0,ORANGE,UT.RECALL,0,1], [-2,0,ORANGE,UT.SPD,0.2,1],
+  [0,1,ORANGE,UT.DMG,1,1], [0,2,ORANGE,UT.DMG,2,1], [-1,2,ORANGE,UT.PIERCE,1,2],
+  [-1,1,ORANGE,UT.DMG,4,1], [-2,1,ORANGE,UT.PIERCE,1,5], [-3,1,ORANGE,UT.PIERCE,1,1], [-4,1,ORANGE,UT.PIERCE,6,1],
+  // green
+  [1,0,GREEN,UT.NEW,0,2], [2,0,GREEN,UT.RECALL,0,1], [3,0,GREEN,UT.SPD,0.2,1], [3,1,GREEN,UT.SPD,0.2,1],
+  [4,1,GREEN,UT.SPD,0.2,1], [1,1,GREEN,UT.PDMG,2,1], [2,1,GREEN,UT.PDMG,2,1], [1,2,GREEN,UT.PSPD,0.5,1],
+  [2,2,GREEN,UT.PSPD,0.5,1], [3,2,GREEN,UT.PSPD,0.5,1], [1,3,GREEN,UT.PSPREAD,0.9,1], [2,3,GREEN,UT.PSPREAD,0.9,1],
+  [3,3,GREEN,UT.PSPREAD,0.3,1],
+  // blue
+  [1,-1,BLUE,UT.NEW,0,2], [0,-1,BLUE,UT.SPD,0.8,1], [-1,-1,BLUE,UT.SPD,0.8,1], [-2,-1,BLUE,UT.SPD,0.8,1],
+  [0,-2,BLUE,UT.DMG,2,1], [0,-3,BLUE,UT.DMG,2,1], [1,-2,BLUE,UT.RECALL,0,1],
+  // pink
+  [2,-1,PINK,UT.NEW,0,2], [2,-2,PINK,UT.DMG,1,1], [2,-3,PINK,UT.DMG,1,1], [3,-2,PINK,UT.RECALL,0,1],
+  [3,-3,PINK,UT.SPD,3,1], [3,-4,PINK,UT.SPD,3,1], [3,-5,PINK,UT.SPD,5,1], [4,-4,PINK,UT.SPD,5,1],
+  // yellow
+  [3,-1,YELLOW,UT.NEW,0,3], [4,-1,YELLOW,UT.LRATE,10,1], [5,-1,YELLOW,UT.LRATE,10,1], [6,-1,YELLOW,UT.LRATE,10,1],
+  [4,-2,YELLOW,UT.RECALL,0,1], [6,0,YELLOW,UT.LRATE,5,1], [6,1,YELLOW,UT.LRATE,5,1],
+  // gray (disabled in the demo)
+  [-3,0,GRAY,UT.NEW,0,2], [-4,0,GRAY,UT.SPD,0.5,1], [-5,0,GRAY,UT.SPD,0.5,1], [-6,0,GRAY,UT.SPD,1,1],
+  [-7,0,GRAY,UT.SPD,1,1], [-3,-1,GRAY,UT.DMG,1,1], [-4,-1,GRAY,UT.DMG,1,1], [-5,-1,GRAY,UT.DMG,1,1],
+  [-6,-1,GRAY,UT.DMG,6,1],
+  // red (disabled in the demo)
+  [1,-3,RED,UT.NEW,0,2], [1,-4,RED,UT.DMG,1,1], [1,-5,RED,UT.DMG,1,1], [1,-6,RED,UT.DMG,6,1],
+  [0,-4,RED,UT.SDMG,1,1], [0,-5,RED,UT.SDMG,1,1], [0,-6,RED,UT.SDMG,1,1], [0,-7,RED,UT.SDMG,6,1],
+  [2,-4,RED,UT.HSPREAD,1,1], [2,-5,RED,UT.HSPREAD,1,1], [2,-6,RED,UT.HSPREAD,1,1], [2,-7,RED,UT.HSPREAD,4,1],
+].map((r, i) => ({ id:i, x:r[0], y:r[1], ball:r[2], type:r[3], inc:r[4], cost:r[5], first:!!r[6] }));
+const TREE_AT = new Map(TREE.map(n => [n.x + "," + n.y, n]));
+for (const n of TREE) {
+  n.next = [];
+  for (const [dx, dy] of [[0,1],[1,0],[0,-1],[-1,0]]) {
+    const m = TREE_AT.get((n.x+dx) + "," + (n.y+dy));
+    if (m && (m.ball === n.ball || m.type === UT.NEW)) n.next.push(m.id);
   }
 }
 
-// Aftershock craters, ticked from the main loop.
-const aftershocks = [];
-function tickAftershocks(dt) {
-  for (let i = aftershocks.length-1; i >= 0; i--) {
-    const a = aftershocks[i];
-    a.t -= dt;
-    if (a.t > 0) continue;
-    blast(a.x, a.y, a.r, a.d);
-    aftershocks.splice(i, 1);
+const ICONS = {
+  [UT.NEW]:    '<circle cx="12" cy="12" r="6"/>',
+  [UT.DMG]:    '<path d="M6 18 L14 10 M12 4 L20 12 L16 16 L8 8 Z"/>',
+  [UT.SPD]:    '<circle cx="15" cy="9" r="4"/><path d="M4 20 L10 14 M4 14 L8 12 M9 20 L12 17"/>',
+  [UT.RECALL]: '<path d="M18 8 A7 7 0 1 0 19 14 M18 3 V8 H13"/>',
+  [UT.PIERCE]: '<path d="M3 12 H19 M14 7 L19 12 L14 17"/>',
+  [UT.PDMG]:   '<circle cx="12" cy="10" r="6"/><circle cx="9.5" cy="10" r="1.6" fill="currentColor"/><circle cx="14.5" cy="10" r="1.6" fill="currentColor"/><path d="M9 18 H15"/>',
+  [UT.PSPD]:   '<circle cx="12" cy="12" r="8"/><path d="M12 7 V12 L16 14"/>',
+  [UT.PSPREAD]:'<circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="20" r="2"/>',
+  [UT.HSPREAD]:'<path d="M12 3 L14 10 L21 12 L14 14 L12 21 L10 14 L3 12 L10 10 Z"/>',
+  [UT.SDMG]:   '<path d="M12 3 L14 10 L21 12 L14 14 L12 21 L10 14 L3 12 L10 10 Z"/><circle cx="12" cy="12" r="2" fill="currentColor"/>',
+  [UT.LRATE]:  '<path d="M13 3 L6 13 H11 L10 21 L18 10 H13 Z"/>',
+};
+
+function applyNode(n) {
+  const s = ST[n.ball];
+  switch (n.type) {
+    case UT.NEW:     addToBench(n.ball); break;
+    case UT.DMG:     s.damage += n.inc; break;
+    // UpgradeManager.ActivateUpgrade: the Gravity ball's speed node also raises
+    // its pull by 3000 per unit.
+    case UT.SPD:     s.speedMult += n.inc; if (n.ball === GRAY) s.gravityForce += n.inc * 3000; break;
+    case UT.RECALL:  s.recalling = true; break;
+    case UT.PIERCE:  s.piercing += n.inc; break;
+    case UT.PDMG:    s.poisonDamage += n.inc; break;
+    case UT.PSPD:    s.poisonSpeed += n.inc; break;
+    case UT.PSPREAD: s.poisonSpread += n.inc; break;
+    case UT.HSPREAD: s.hitSpread += n.inc; break;
+    case UT.SDMG:    s.spreadDamage += n.inc; break;
+    case UT.LRATE:   s.lightningRate += n.inc; break;
   }
 }
 
-// Static electricity: a Lightning ball crackles into rock it is PASSING, before
-// it ever touches anything. Arcing on impact made it a worse Smash; arcing in
-// flight makes it the ball you send down a corridor.
-function staticDischarge(b, dt) {
-  b.zap = (b.zap || 0) + dt;
-  const every = perk(4,"fast") ? 0.06 : 0.10;
-  if (b.zap < every) return;
-  b.zap = 0;
-  const reach = perk(4,"over") ? 14 : 7;          // Overload
-  let n = 1 + (perk(4,"arc") ? 2 : 0);            // Arc
-  if (perk(4,"fork")) n *= 2;                     // Fork
-  const d = ballDmg(4) * 0.55;
-  const bx = Math.round(b.x), by = Math.round(b.y);
-  for (let i = 0; i < n; i++) {
-    // walk outward on a random heading until it finds rock to earth itself in
-    const a = Math.random()*Math.PI*2, cs = Math.cos(a), sn = Math.sin(a);
-    for (let r = 2; r <= reach; r++) {
-      const tx = bx + Math.round(cs*r), ty = by + Math.round(sn*r);
-      if (tx < 0 || ty < 0 || tx >= WORLD || ty >= WORLD) break;
-      if (!solid(tx, ty)) continue;
-      hitCell(tx, ty, d);
-      addBolt(bx, by, tx, ty);
-      break;
+//================================================================ game state
+const S = {
+  px:0, points:0, pointsFound:0, golden:0, goldenFound:0,
+  bought:{}, bench:[ORANGE],
+  cost: BALLS.map(B => B.cost), free: new Array(NB).fill(0), recallT: new Array(NB).fill(RECALL_CD),
+  minedCount:0, playtime:0, shots:0, goldFound:false, goldSeen:false,
+  ext:{ x0:SX, x1:SX, y0:SY, y1:SY },
+};
+const owned = k => S.bench.includes(k);
+function addToBench(k) { if (!owned(k)) S.bench.push(k); }
+
+let balls = [], selKind = ORANGE, simT = 0;
+const liveOf = k => { let n = 0; for (const b of balls) if (b.k === k && !b.dying) n++; return n; };
+
+function canShoot(k) {
+  if (k === GOLDEN) return S.golden > 0;
+  return owned(k) && (S.free[k] > 0 || S.px >= S.cost[k]);
+}
+function shotLabel(k) {
+  if (k === GOLDEN) return "×" + S.golden;
+  if (S.free[k] > 0) return "FREE ×" + S.free[k];
+  return fmt(S.cost[k]) + "px";
+}
+
+// BallShooting: you can only press in open ground. Release fires the ball
+// opposite the drag. The drag length does nothing past the first tenth of a
+// second -- Ball.ResetVelocity snaps every ball to its fixed speed -- so power is
+// not a mechanic and is not drawn.
+function fire(k, ang, ox, oy) {
+  if (!canShoot(k)) return false;
+  const x = Math.floor(ox), y = Math.floor(oy);
+  if (solid(x, y)) return false;
+  if (k === GOLDEN) S.golden--;
+  else if (S.free[k] > 0) S.free[k]--;
+  else { S.px -= S.cost[k]; S.cost[k] += BALLS[k].step; }
+  S.shots++;
+  // Keep the whole circle inside the open cell it was pressed in. Unity would
+  // push an overlapping ball out of the wall; the grid sweep here would instead
+  // miss a wall the ball already overlaps and let it sink into the rock.
+  const R = k === GOLDEN ? R_GOLDEN : R_BALL;
+  ox = Math.max(x + R, Math.min(x + 1 - R, ox));
+  oy = Math.max(y + R, Math.min(y + 1 - R, oy));
+  let vx = Math.cos(ang), vy = Math.sin(ang);
+  const b = { k, x:ox, y:oy, vx:0, vy:0, tsc:0, trail:[], rx:ox, ry:oy, rt:0 };
+  if (k === BLUE) {                     // snap to the nearest axis and lock the other
+    if (Math.abs(vx) >= Math.abs(vy)) { vx = Math.sign(vx) || 1; vy = 0; b.lockY = oy; }
+    else { vy = Math.sign(vy) || 1; vx = 0; b.lockX = ox; }
+  }
+  const sp = k === GOLDEN ? GOLDEN_LAUNCH : ballSpeed(k);
+  b.vx = vx * sp; b.vy = vy * sp;
+  if (k === GRAY) { b.gx = vx; b.gy = vy; }
+  balls.push(b);
+  if (k === GOLDEN) toast("GOLDEN BALL — FIND THE GOLDEN PIXEL");
+  return true;
+}
+
+// Ball recycling (BallButton.OnPointerClick, right button): recall the ball of
+// this colour that has gone longest without touching anything, and bank it as a
+// free shot. One banked at a time, then a thirty-second cooldown.
+function recall(k) {
+  if (k === GOLDEN || !owned(k)) return;
+  if (!ST[k].recalling) { toast("UNLOCK " + BALLS[k].name.toUpperCase() + " BALL RECYCLING IN THE TREE"); return; }
+  if (S.recallT[k] < RECALL_CD) { toast("RECYCLING — " + Math.ceil(RECALL_CD - S.recallT[k]) + "s"); return; }
+  if (S.free[k] >= RECALL_CAP) { toast("ALREADY HOLDING A FREE " + BALLS[k].name.toUpperCase() + " BALL"); return; }
+  let best = null;
+  for (const b of balls) if (b.k === k && !b.dying && (!best || b.tsc > best.tsc)) best = b;
+  if (!best) { toast("NO " + BALLS[k].name.toUpperCase() + " BALLS OUT"); return; }
+  balls.splice(balls.indexOf(best), 1);
+  S.free[k]++; S.recallT[k] = 0;
+  toast(BALLS[k].name.toUpperCase() + " BALL RECYCLED — NEXT SHOT FREE");
+}
+
+//==================================================================== mining
+let dirty = [];
+const markDirty = (x, y) => { dirty.push(x, y); };
+const flashes = [];
+function flash(x, y, hpLeft) {
+  if (flashes.length > 700) return;
+  flashes.push({ x, y, c: FLASH_COL[Math.max(0, Math.min(7, hpLeft))], t: 0 });
+}
+
+// Damage a cell. Returns true if it broke. Walls and the golden pixel never take
+// damage from here.
+function hitCell(x, y, amount) {
+  if (x < 0 || y < 0 || x >= WORLD || y >= WORLD || amount <= 0) return false;
+  const i = y*WORLD + x, t = tier[i];
+  if (!t || t === K_WALL || t === K_GOLD) return false;
+  const hp = curHP(i);
+  if (amount >= hp) { breakCell(x, y); flash(x, y, 0); return true; }
+  dmg.set(i, (dmg.get(i) || 0) + amount);
+  flash(x, y, hp - amount);
+  markDirty(x, y);
+  return false;
+}
+
+function breakCell(x, y) {
+  const i = y*WORLD + x, t = tier[i];
+  if (!t || t === K_WALL) return;
+  tier[i] = 0; dmg.delete(i); poison.delete(i); beacon.delete(i);
+  S.px++; S.minedCount++; pxTick++;
+  if (t === K_UPG) {
+    S.points++; S.pointsFound++;
+    spawnBurst(x, y, [151, 66, 255]); toast("UPGRADE PIXEL — +1 SKILL POINT");
+  } else if (t === K_GBALL) {
+    S.golden++; S.goldenFound++;
+    spawnBurst(x, y, [134, 241, 255]); toast("GOLDEN BALL FOUND");
+  }
+  stampLight(x, y);
+  growBounds(x, y);
+  extend(x, y);
+  markDirty(x, y);
+}
+
+// WorldManager.UpdateFurthest. When the dig pushes its bounding box outward,
+// every hidden upgrade pixel and golden-ball pixel within 15 cells of the new
+// box lights up from a distance, so you can see what to dig toward.
+const BEACON_R = 15;
+function extend(x, y) {
+  const e = S.ext;
+  if (x < e.x0)      { revealStrip(x - BEACON_R, e.x0 - BEACON_R - 1, e.y0 - BEACON_R, e.y1 + BEACON_R); e.x0 = x; }
+  else if (x > e.x1) { revealStrip(e.x1 + BEACON_R + 1, x + BEACON_R, e.y0 - BEACON_R, e.y1 + BEACON_R); e.x1 = x; }
+  if (y < e.y0)      { revealStrip(e.x0 - BEACON_R, e.x1 + BEACON_R, y - BEACON_R, e.y0 - BEACON_R - 1); e.y0 = y; }
+  else if (y > e.y1) { revealStrip(e.x0 - BEACON_R, e.x1 + BEACON_R, e.y1 + BEACON_R + 1, y + BEACON_R); e.y1 = y; }
+}
+function revealStrip(x0, x1, y0, y1) {
+  x0 = Math.max(2, x0); y0 = Math.max(2, y0); x1 = Math.min(WORLD-3, x1); y1 = Math.min(WORLD-3, y1);
+  if (x1 < x0 || y1 < y0) return;
+  for (const i of UPG) {
+    const ux = i % WORLD, uy = (i / WORLD) | 0;
+    if (ux >= x0 && ux <= x1 && uy >= y0 && uy <= y1) showBeacon(ux, uy);
+  }
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++)
+    if (hash2(x, y, RUNSEED + 6061) < GBALL_P && gballAt(x, y)) showBeacon(x, y);
+}
+function showBeacon(x, y) {
+  const i = y*WORLD + x;
+  ensureAround(x, y);
+  const t = tier[i];
+  if ((t === K_UPG || t === K_GBALL) && !beacon.has(i)) { beacon.add(i); markDirty(x, y); }
+}
+
+//=================================================================== lighting
+// Visibility is the demo's: breaking a pixel makes its four neighbours fully
+// visible, theirs half, theirs dim, and nothing further (WorldManager
+// MakeTileCollidable / MakeTileVisible / MakeTileDimmlyVisible). That is a
+// Manhattan distance of 1, 2 or 3 from open ground: lit 3, 2, 1, else hidden.
+// Upgrade pixels are skipped by the chain -- only a touching break or a beacon
+// shows them.
+const LIT_R = 3, LIT_FAR = 9;
+let dtBuf = null;
+function relightBox(bx0, by0, bx1, by1) {
+  bx0 = Math.max(0, bx0); by0 = Math.max(0, by0);
+  bx1 = Math.min(WORLD-1, bx1); by1 = Math.min(WORLD-1, by1);
+  if (bx1 < bx0 || by1 < by0) return;
+  const x0 = Math.max(0, bx0-LIT_R), y0 = Math.max(0, by0-LIT_R);
+  const x1 = Math.min(WORLD-1, bx1+LIT_R), y1 = Math.min(WORLD-1, by1+LIT_R);
+  const w = x1-x0+1, h = y1-y0+1, n = w*h;
+  if (!dtBuf || dtBuf.length < n) dtBuf = new Uint8Array(n);
+  const d = dtBuf;
+  for (let y = 0; y < h; y++) {
+    const wy = y0+y, src = wy*WORLD + x0, o = y*w, crow = (wy >> CHUNK_SHIFT)*CW;
+    for (let x = 0; x < w; x++)
+      d[o+x] = (!tier[src+x] && chunkReady[crow + ((x0+x) >> CHUNK_SHIFT)]) ? 0 : LIT_FAR;
+  }
+  for (let y = 0; y < h; y++) {                      // forward: up and left
+    const o = y*w;
+    for (let x = 0; x < w; x++) {
+      let v = d[o+x]; if (!v) continue;
+      if (y > 0 && d[o-w+x]+1 < v) v = d[o-w+x]+1;
+      if (x > 0 && d[o+x-1]+1 < v) v = d[o+x-1]+1;
+      d[o+x] = v;
+    }
+  }
+  for (let y = h-1; y >= 0; y--) {                   // backward: down and right
+    const o = y*w;
+    for (let x = w-1; x >= 0; x--) {
+      let v = d[o+x]; if (!v) continue;
+      if (y < h-1 && d[o+w+x]+1 < v) v = d[o+w+x]+1;
+      if (x < w-1 && d[o+x+1]+1 < v) v = d[o+x+1]+1;
+      d[o+x] = v;
+    }
+  }
+  for (let y = by0; y <= by1; y++) {
+    const o = (y-y0)*w - x0, row = y*WORLD;
+    for (let x = bx0; x <= bx1; x++) {
+      const dd = d[o+x];
+      lit[row+x] = dd === 0 ? 3 : dd <= 1 ? 3 : dd === 2 ? 2 : dd === 3 ? 1 : 0;
+    }
+  }
+  if (GOLD_I >= 0 && lit[GOLD_I] && !S.goldSeen) discoverGold(false);
+}
+function stampLight(x, y) {
+  for (let oy = -LIT_R; oy <= LIT_R; oy++) {
+    const ny = y + oy; if (ny < 0 || ny >= WORLD) continue;
+    const span = LIT_R - Math.abs(oy);
+    for (let ox = -span; ox <= span; ox++) {
+      const nx = x + ox; if (nx < 0 || nx >= WORLD) continue;
+      const md = Math.abs(ox) + Math.abs(oy), lvl = md <= 1 ? 3 : md === 2 ? 2 : 1, i = ny*WORLD + nx;
+      if (lit[i] < lvl) { lit[i] = lvl; markDirty(nx, ny); if (i === GOLD_I && !S.goldSeen) discoverGold(true); }
     }
   }
 }
 
-// Unstoppable: the Boulder is not deflected by what it breaks. It keeps its
-// heading and grinds onward until its magazine is gone.
-const plough = b => b.kind === 6 && perk(6, "plough");
+//=================================================================== physics
+// Every ball is a circle 0.3 cells across (the golden one 0.6) against a grid of
+// unit squares, frictionless and perfectly elastic (PhysicsMaterial2D "Bouncy").
+// Balls do not collide with each other: the ball layer is masked off from itself
+// in Physics2DSettings. Moves are split per axis so a corner reflects both.
+function ballR(b) { return b.k === GOLDEN ? R_GOLDEN : R_BALL; }
 
 function stepBall(b, dt) {
-  ensureAround(b.x, b.y);
-  if (b.kind === 4) staticDischarge(b, dt);
-  b.trail.push(b.x, b.y);
-  const tailMax = b.kind === 5 ? 34 : 10;         // Rush leaves a shooting-star streak
-  if (b.trail.length > tailMax) b.trail.splice(0,2);
-
-  const mag = Math.hypot(b.vx, b.vy) || 1;
-  const ux = b.vx/mag, uy = b.vy/mag;
-  let remain = mag * dt;
-
-  while (remain > 0 && b.left > 0) {
-    const s = Math.min(0.35, remain);
-    remain -= s;
-    const nx = b.x + ux*s, ny = b.y + uy*s;
-    const cxi = Math.floor(b.x), cyi = Math.floor(b.y);
-    const gxi = Math.floor(nx),  gyi = Math.floor(ny);
-
-    // A ball with a BODY collides on its rim, not on its centre crossing a cell
-    // boundary. Sharing the point-ball path meant a seven-cell Boulder could
-    // grind along a wall registering nothing at all, because its middle had not
-    // yet stepped into a new cell -- one impact spent per twenty-five seconds.
-    const bodyR = ballRadius(b.kind);
-    if (bodyR > 0) {
-      const bx = Math.floor(nx), by = Math.floor(ny);
-      if (bodyHits(b, bx, by)) {
-        const key = bx + "," + by;
-        if (b.lastHit !== key) { onImpact(b, bx, by); b.lastHit = key; }
-        if (!plough(b)) {
-          b.vx = -b.vx; b.vy = -b.vy;
-          const sp2 = ballSpeed(b.kind) * (b.boost || 1) * (b.pw || 1);
-          const m2 = Math.hypot(b.vx, b.vy) || 1;
-          b.vx = b.vx/m2*sp2; b.vy = b.vy/m2*sp2;
-          // Back it off the surface. A body this wide stays buried in the wall
-          // after a bounce, and the once-per-cell guard then suppresses every
-          // further impact -- it wedged there having spent a single hit.
-          const off = Math.max(1, bodyR * 0.7);
-          b.x += (b.vx/sp2) * off;
-          b.y += (b.vy/sp2) * off;
-          b.lastHit = null;
-          b.stall = 0;
-          return;
-        }
-        b.stall = 0;
-      }
-      b.x = nx; b.y = ny; b.stall += s;
-      continue;
-    }
-
-    let bounced = false;
-    if (gxi !== cxi && bodyHits(b, gxi, cyi)) { onImpact(b, gxi, cyi); if (!plough(b)) b.vx = -b.vx; bounced = true; }
-    if (gyi !== cyi && bodyHits(b, cxi, gyi)) { onImpact(b, cxi, gyi); if (!plough(b)) b.vy = -b.vy; bounced = true; }
-    if (!bounced && (gxi !== cxi || gyi !== cyi) && bodyHits(b, gxi, gyi)) {
-      onImpact(b, gxi, gyi);
-      if (!plough(b)) { b.vx = -b.vx; b.vy = -b.vy; }
-      bounced = true;
-    }
-
-    if (bounced) {
-      if (b.kind === 1) {                          // Directional: axis-lock + drift
-        if (Math.random() < .5) { const t = b.vx; b.vx = b.vy; b.vy = t; }
-        const perp = Math.abs(b.vx) > Math.abs(b.vy) ? [0,1] : [1,0];
-        const offs = (Math.random() < .5 ? -1 : 1) * (1 + (Math.random()*3|0));
-        const tx = b.x + perp[0]*offs, ty = b.y + perp[1]*offs;
-        if (!solid(Math.floor(tx), Math.floor(ty))) { b.x = tx; b.y = ty; }
-      }
-      const sp = ballSpeed(b.kind) * (b.boost || 1) * (b.pw || 1);
-      const m = Math.hypot(b.vx, b.vy) || 1;
-      b.vx = b.vx/m*sp; b.vy = b.vy/m*sp;
-      return;
-    }
-    b.x = nx; b.y = ny; b.stall += s;
-    if (b.kind === 5 && perk(5,"slip") && Math.random() < 0.05) {   // Slipstream wake
-      const wd = ballDmg(5) * 0.5;
-      hitCell(Math.floor(nx)+1, Math.floor(ny), wd);
-      hitCell(Math.floor(nx)-1, Math.floor(ny), wd);
-      hitCell(Math.floor(nx), Math.floor(ny)+1, wd);
-      hitCell(Math.floor(nx), Math.floor(ny)-1, wd);
-    }
+  if (b.dying) { b.dying -= dt; return; }
+  b.tsc += dt;
+  if (b.k === GOLDEN) homeGolden(b, dt);
+  else if (b.k === GRAY) {
+    b.vx += b.gx * gravAccel() * dt; b.vy += b.gy * gravAccel() * dt;
+    const m = Math.hypot(b.vx, b.vy), mx = ballSpeed(GRAY);
+    if (m > mx) { b.vx *= mx/m; b.vy *= mx/m; }
+  } else {
+    // Ball.ResetVelocity: every ball is held at its own fixed speed.
+    const m = Math.hypot(b.vx, b.vy) || 1, sp = ballSpeed(b.k);
+    b.vx *= sp/m; b.vy *= sp/m;
+    stuckNudge(b, dt);
   }
-  if (b.stall > driftLimit(b.kind)) {
-    // Retire it -- but hand back what it never used. You bought impacts; impacts
-    // that never landed were never delivered. Without this a ball that drifts off
-    // into open cavern silently burns the whole ticket price, which is most of the
-    // early economy and is what stalled the opening outright.
-    // Refund what THIS ball cost, not what one costs now. Pricing the refund at
-    // the current market rate is an arbitrage: a colour's price climbs while the
-    // ball is in the air, so it pays back more than it cost, balls go free, and
-    // the swarm runs straight to the backstop. Every colour was settling at the
-    // same marginal price -- the equilibrium was right, the refund was printing.
-    if (b.left > 0) S.px += (b.paid || 0) * (b.left / Math.max(1, ballImp(b.kind)));
-    b.left = 0;
+  b.trail.push(b.x, b.y);
+  if (b.trail.length > (b.k === PINK ? 24 : 10)) b.trail.splice(0, 2);
+
+  const sp = Math.hypot(b.vx, b.vy);
+  if (!sp) return;
+  const R = ballR(b);
+  let dist = sp * dt;
+  while (dist > 1e-9 && !b.dying) {
+    const s = Math.min(0.1, dist); dist -= s;
+    const f = s / sp;
+    if (b.vx) {
+      const nx = b.x + b.vx*f;
+      const e0 = Math.floor(b.vx > 0 ? b.x + R : b.x - R), e1 = Math.floor(b.vx > 0 ? nx + R : nx - R);
+      let through = true;
+      if (e1 !== e0) {
+        const rc = Math.floor(b.y), r0 = Math.floor(b.y - R + 1e-6), r1 = Math.floor(b.y + R - 1e-6);
+        through = edgeHit(b, solid(e1, rc) ? [e1, rc] : null, (r0 !== rc && solid(e1, r0)) ? [e1, r0] : null,
+                             (r1 !== rc && solid(e1, r1)) ? [e1, r1] : null);
+        if (!through) b.vx = -b.vx;
+      }
+      if (through) b.x = nx;
+    }
+    if (b.dying) break;
+    if (b.vy) {
+      const ny = b.y + b.vy*f;
+      const e0 = Math.floor(b.vy > 0 ? b.y + R : b.y - R), e1 = Math.floor(b.vy > 0 ? ny + R : ny - R);
+      let through = true;
+      if (e1 !== e0) {
+        const cc = Math.floor(b.x), c0 = Math.floor(b.x - R + 1e-6), c1 = Math.floor(b.x + R - 1e-6);
+        through = edgeHit(b, solid(cc, e1) ? [cc, e1] : null, (c0 !== cc && solid(c0, e1)) ? [c0, e1] : null,
+                             (c1 !== cc && solid(c1, e1)) ? [c1, e1] : null);
+        if (!through) b.vy = -b.vy;
+      }
+      if (through) b.y = ny;
+    }
+    if (b.lockX !== undefined) b.x = b.lockX;
+    if (b.lockY !== undefined) b.y = b.lockY;
   }
 }
 
-// Directional balls must stay axis-aligned after being knocked about.
-// Ball-to-ball collision is gone. Two thousand elastic collisions a frame read as
-// noise rather than physics, and bouncing balls off each other kept knocking them
-// off the headings the player chose. Balls now pass through one another.
-//
-// The one thing that pass survived for is keeping Directional balls axis-aligned.
-function alignDirectional() {
-  for (const b of balls) {
-    if (b.kind !== 1) continue;
-    const sp = Math.hypot(b.vx, b.vy) || 1;
-    if (Math.abs(b.vx) > Math.abs(b.vy)) { b.vx = Math.sign(b.vx)*sp; b.vy = 0; }
-    else { b.vy = Math.sign(b.vy)*sp; b.vx = 0; }
+// The cells the ball's leading edge has just reached: the one in line with its
+// centre first, then the cells either side that its width also touches. One
+// impact and a bounce, normally. A piercing ball strikes all of them and only
+// carries on if every one broke -- passing through one while still overlapping
+// its neighbour would leave the ball half inside the rock, where the sweep can
+// no longer see it.
+function edgeHit(b, a, c, d) {
+  const cells = [a, c, d].filter(Boolean);
+  if (!cells.length) return true;
+  if (b.k !== ORANGE || ST[ORANGE].piercing <= 0) return impact(b, cells[0][0], cells[0][1]);
+  let all = true;
+  for (const [x, y] of cells) all = impact(b, x, y) && all;
+  return all;
+}
+
+// Ball.ResetVelocity's escape hatch: a ball that has been oscillating on one
+// line for twenty seconds gets knocked sideways. Not for Directional balls,
+// which are meant to do exactly that.
+function stuckNudge(b, dt) {
+  if (b.k === BLUE) return;
+  b.rt += dt;
+  if (b.rt < 20) return;
+  const sp = ballSpeed(b.k);
+  if (Math.abs(b.rx - b.x) < 0.12) { const m = Math.hypot(b.vx + sp, b.vy) || 1; b.vx = (b.vx + sp)/m*sp; b.vy = b.vy/m*sp; }
+  else if (Math.abs(b.ry - b.y) < 0.2) { const m = Math.hypot(b.vx, b.vy + sp) || 1; b.vx = b.vx/m*sp; b.vy = (b.vy + sp)/m*sp; }
+  b.rt = 0; b.rx = b.x; b.ry = b.y;
+}
+
+// GoldenBall.GravitateTowardsGoldenPixel: pull = lerp(0, 20000, f^18) where f
+// runs 0 at 500 cells to 1 at the pixel, applied as a per-step force at mass 0.5.
+// The eighteenth power means it does almost nothing until it is close.
+function homeGolden(b, dt) {
+  if (GOLD_I >= 0 && !S.goldFound) {
+    const gx = GOLD_I % WORLD + 0.5, gy = ((GOLD_I / WORLD) | 0) + 0.5;
+    const dx = gx - b.x, dy = gy - b.y, d = Math.hypot(dx, dy) || 1;
+    if (d < 500) {
+      const f = 1 - d/500, pull = 20000 * Math.pow(f, 18);
+      const acc = pull * FIXED / 0.5;
+      b.vx += dx/d * acc * dt; b.vy += dy/d * acc * dt;
+    }
+  }
+  const m = Math.hypot(b.vx, b.vy);
+  if (m > GOLDEN_MAX) { b.vx *= GOLDEN_MAX/m; b.vy *= GOLDEN_MAX/m; }
+}
+
+// PhysicsAgent.OnCollisionEnter2D + PhysicsTile.GotHit. Returns true if the ball
+// carries on through the cell instead of bouncing.
+function impact(b, x, y) {
+  const i = y*WORLD + x;
+  const t = (x < 0 || y < 0 || x >= WORLD || y >= WORLD) ? K_WALL : tier[i];
+  if (t !== K_WALL) b.tsc = 0;
+  if (b.k === GOLDEN) {
+    if (t === K_GOLD) collectGold(x, y);
+    b.dying = 0.5;                                     // a golden ball dies on any contact
+    b.vx = b.vy = 0;
+    return false;
+  }
+  if (t === K_WALL) return false;
+  if (t === K_GOLD) {                                  // any other ball chips off a golden ball
+    S.golden++; S.goldenFound++;
+    flash(x, y, 0); spawnSpark(x, y, [255, 215, 94], 4);
+    toast("+1 GOLDEN BALL"); dockSig = "";
+    return false;
+  }
+  const s = ST[b.k], hpBefore = curHP(i);
+  const broke = hitCell(x, y, s.damage);
+  if (b.k === RED) smash(x, y);
+  if (b.k === GREEN && !broke && isRock(tier[i]) && !poison.has(i)) poisonCell(i);
+  // Orange piercing: if its piercing beats the pixel's HP, it does not bounce off
+  // the pixel it just broke.
+  if (b.k === ORANGE && broke && s.piercing >= hpBefore) return true;
+  return false;
+}
+
+// PhysicsTile.SmashNearbyTiles: walk the eight neighbours in shuffled order and
+// strike visible rock until hitSpread pixels have been hit.
+const OFF8 = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
+function shuffled8() {
+  const a = OFF8.slice();
+  for (let i = a.length-1; i > 0; i--) { const j = (Math.random()*(i+1))|0; const t = a[i]; a[i] = a[j]; a[j] = t; }
+  return a;
+}
+function smash(x, y) {
+  let left = ST[RED].hitSpread;
+  for (const [dx, dy] of shuffled8()) {
+    const nx = x+dx, ny = y+dy;
+    if (nx < 0 || ny < 0 || nx >= WORLD || ny >= WORLD) continue;
+    const j = ny*WORLD + nx;
+    if (!isRock(tier[j]) || poison.has(j) || !lit[j]) continue;
+    hitCell(nx, ny, ST[RED].spreadDamage);
+    if (--left <= 0) return;
   }
 }
 
 //=================================================================== poison
-// Poison is the one damage source that keeps working with no ball present: it
-// ticks on a timer, erodes what it sits on, and creeps outward on its own.
-const POISON_CAP = 60000;
-let poisonAcc = 0;
-function tickPoison(dt) {
+// PoisonTile.Poisoning: after a random 0-0.5s delay, a poisoned pixel takes one
+// HP per tick at poisonSpeed ticks a second, poisonDamage times. Each tick it
+// looks at its neighbours in shuffled order, and at the FIRST visible rock it
+// finds, spreads with poisonSpread/5 odds -- then stops looking either way.
+const POISON_CAP = 200000;
+const poison = new Map();     // cell -> { at: next tick time, left: ticks remaining }
+function poisonCell(i) {
+  if (poison.size >= POISON_CAP) return;
+  poison.set(i, { at: simT + Math.random()*0.5, left: ST[GREEN].poisonDamage });
+  markDirty(i % WORLD, (i / WORLD) | 0);
+}
+function tickPoison() {
   if (!poison.size) return;
-  poisonAcc += dt;
-  const interval = perk(3,"fast") ? 0.15 : 0.30;           // Fast Rot
-  if (poisonAcc < interval) return;
-  poisonAcc = 0;
-  const pot = ballDmg(3) * 0.45;
-  const always = perk(3,"conta");                          // Contagion
-  const spr = always ? 1 : 0.10;
-  const dirs = perk(3,"diag")                              // Virulence
-    ? [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]
-    : [[1,0],[-1,0],[0,1],[0,-1]];
+  const s = ST[GREEN], every = 1 / s.poisonSpeed;
   const adds = [];
-  for (const entry of poison) {
-    const i = entry[0], st = entry[1];
+  for (const [i, p] of poison) {
+    if (simT < p.at) continue;
     const x = i % WORLD, y = (i / WORLD) | 0;
-    if (!tier[i] || unbreakable(tier[i])) { poison.delete(i); continue; }
-    hitCell(x, y, Math.max(1, pot * st));
+    if (!isRock(tier[i])) { poison.delete(i); continue; }
+    p.at += every;
+    hitCell(x, y, 1);
     if (!tier[i]) { poison.delete(i); continue; }
-    markDirty(x, y);                                       // keep the tint fresh
-    if (Math.random() < spr) {
-      const n = dirs[(Math.random()*dirs.length)|0];
-      const nx = x+n[0], ny = y+n[1];
-      if (nx>=0 && ny>=0 && nx<WORLD && ny<WORLD) {
-        const j = ny*WORLD+nx;
-        if (tier[j] && !isHazard(tier[j]) && !unbreakable(tier[j])) adds.push(j);
+    if (s.poisonSpread > 0) {
+      for (const [dx, dy] of shuffled8()) {
+        const nx = x+dx, ny = y+dy, j = ny*WORLD + nx;
+        if (!isRock(tier[j]) || poison.has(j) || !lit[j]) continue;
+        if (Math.random() < s.poisonSpread / 5) adds.push(j);
+        break;
       }
     }
+    if (--p.left <= 0) { poison.delete(i); markDirty(x, y); }
   }
-  for (const i of adds) if (poison.size < POISON_CAP) poison.set(i, poison.get(i)||1);
+  for (const j of adds) if (!poison.has(j)) poisonCell(j);
+}
+
+//================================================================ lightning
+// LightningManager: one global tick, every 1/lightningRate seconds (1s while
+// there are no lightning balls). On each tick every lightning ball checks the
+// eight compass directions in shuffled order, out to four cells, and strikes the
+// first rock it finds. A wall or the golden pixel ends that direction.
+let lightningAt = 0;
+const bolts = [];
+function tickLightning() {
+  if (simT < lightningAt) return;
+  const ys = balls.filter(b => b.k === YELLOW && !b.dying);
+  lightningAt = simT + (ys.length ? 1 / ST[YELLOW].lightningRate : 1);
+  for (const b of ys) {
+    const bx = Math.floor(b.x), by = Math.floor(b.y);
+    let done = false;
+    for (const [dx, dy] of shuffled8()) {
+      for (let j = 0; j < 5; j++) {
+        const tx = bx + dx*j, ty = by + dy*j;
+        if (!solid(tx, ty)) continue;
+        const t = (tx < 0 || ty < 0 || tx >= WORLD || ty >= WORLD) ? K_WALL : tier[ty*WORLD + tx];
+        if (t === K_WALL || t === K_GOLD) break;
+        hitCell(tx, ty, ST[YELLOW].lightningDamage);
+        addBolt(b.x, b.y, tx + .5, ty + .5);
+        done = true; break;
+      }
+      if (done) break;
+    }
+  }
+}
+function addBolt(x0, y0, x1, y1) {
+  if (bolts.length > 400) return;
+  const segs = 4, pts = [], dx = x1-x0, dy = y1-y0, len = Math.hypot(dx, dy) || 1;
+  const nx = -dy/len, ny = dx/len;
+  for (let i = 0; i <= segs; i++) {
+    const t = i/segs, j = (i === 0 || i === segs) ? 0 : (Math.random()-0.5) * len * 0.4;
+    pts.push(x0 + dx*t + nx*j, y0 + dy*t + ny*j);
+  }
+  bolts.push({ pts, t:0, life:0.1 });
+}
+
+//============================================================== golden pixel
+let goldShake = 0, goldBreak = 0;
+function discoverGold(live) {
+  S.goldSeen = true;
+  const gx = GOLD_I % WORLD, gy = (GOLD_I / WORLD) | 0;
+  markDirty(gx, gy);
+  if (live) { goldShake = 1; toast("THE GOLDEN PIXEL — ONLY A GOLDEN BALL CAN BREAK IT"); }
+}
+function collectGold(x, y) {
+  if (S.goldFound) return;
+  S.goldFound = true;
+  goldBreak = 3;                                      // GoldenPixelManager.breakingTime
+  goldShake = 0.6;
+  toast("THE GOLDEN PIXEL IS BREAKING");
+}
+function finishGold() {
+  if (GOLD_I >= 0 && tier[GOLD_I] === K_GOLD) {
+    tier[GOLD_I] = 0; S.px++; S.minedCount++;
+    const x = GOLD_I % WORLD, y = (GOLD_I / WORLD) | 0;
+    stampLight(x, y); growBounds(x, y); extend(x, y); markDirty(x, y); spawnBurst(x, y, [255, 215, 94]);
+  }
+  showGolden();
 }
 
 //================================================================= particles
-// Lightning is drawn, not implied: every arc lays down a jagged bolt from the
-// point of impact to the pixel it zapped, which fades over a few frames.
-const bolts = [];
-function addBolt(x0, y0, x1, y1) {
-  if (bolts.length > 260) return;
-  const segs = 5, pts = [];
-  const dx = x1-x0, dy = y1-y0, len = Math.hypot(dx,dy) || 1;
-  const nx = -dy/len, ny = dx/len;                 // perpendicular, for the kink
-  for (let i = 0; i <= segs; i++) {
-    const t = i/segs;
-    const j = (i === 0 || i === segs) ? 0 : (Math.random()-0.5) * len * 0.34;
-    pts.push(x0 + dx*t + nx*j, y0 + dy*t + ny*j);
-  }
-  bolts.push({ pts, t:0, life:0.16 + Math.random()*0.1 });
-}
 const sparks = [];
-// Purely visual. Finding an upgrade pixel is the best moment in the game and it
-// used to pass with the same four sparks as a lump of dust, so it gets its own
-// burst: a bright ring of violet shards that carry further and linger longer.
-// Cosmetic only -- it deals no damage and touches no game state.
-function spawnBurst(x, y) {
-  const N = 34;
-  for (let i = 0; i < N; i++) {
-    const a = (i / N) * 6.283 + Math.random()*0.2;
-    const sp = 9 + Math.random()*16;
-    sparks.push({ x:x+.5, y:y+.5, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
-                  life:.55+Math.random()*.5, t:0,
-                  col: Math.random()<.45 ? [255,255,255] : [200,139,255] });
+function spawnBurst(x, y, col) {
+  for (let i = 0; i < 34; i++) {
+    const a = (i / 34) * 6.283 + Math.random()*0.2, sp = 9 + Math.random()*16;
+    sparks.push({ x:x+.5, y:y+.5, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life:.55+Math.random()*.5, t:0,
+                  col: Math.random() < .45 ? [255,255,255] : col });
   }
 }
-function spawnSpark(x,y,col,n) {
+function spawnSpark(x, y, col, n) {
   if (sparks.length > 460) return;
-  for (let i=0;i<n;i++) {
+  for (let i = 0; i < n; i++) {
     const a = Math.random()*6.283, s = 2+Math.random()*9;
     sparks.push({ x:x+.5, y:y+.5, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:.35+Math.random()*.5, t:0, col });
   }
@@ -1528,7 +1144,7 @@ function spawnSpark(x,y,col,n) {
 const cv = document.getElementById("c"), ctx = cv.getContext("2d");
 const off = document.createElement("canvas"); off.width = off.height = WORLD;
 const octx = off.getContext("2d", { alpha:false });
-let W=0, H=0, DPR=1;
+let W = 0, H = 0, DPR = 1;
 
 const GLOW = {};
 function glowFor(col) {
@@ -1541,22 +1157,18 @@ function glowFor(col) {
   return GLOW[col] = g;
 }
 
-// Auto-fit with a zoom floor. Once the cavern outgrows the floor the camera
-// stops pulling back and follows the mining instead, so the world stays
-// readable and most of the world stays off-screen and unexplored.
 const ZOOM_MIN = 2.2, ZOOM_MAX = 40;
-const cam = { x:CX, y:CY, z:9, tx:CX, ty:CY, tz:9, manual:false };
-const bb = { x0:CX-8, y0:CY-8, x1:CX+8, y1:CY+8 };
-function growBounds(x,y){ if(x<bb.x0)bb.x0=x; if(x>bb.x1)bb.x1=x; if(y<bb.y0)bb.y0=y; if(y>bb.y1)bb.y1=y; }
-
-let focusX = CX, focusY = CY;
+const cam = { x:SX, y:SY, z:14, tx:SX, ty:SY, tz:14, manual:false };
+const bb = { x0:SX-12, y0:SY-12, x1:SX+12, y1:SY+12 };
+function growBounds(x, y) { if (x<bb.x0) bb.x0=x; if (x>bb.x1) bb.x1=x; if (y<bb.y0) bb.y0=y; if (y>bb.y1) bb.y1=y; }
+let focusX = SX, focusY = SY;
 function fitCamera() {
   const zx = W/(bb.x1-bb.x0+26), zy = H/(bb.y1-bb.y0+26);
   const fit = Math.min(zx, zy);
-  if (fit >= ZOOM_MIN) {                          // whole cavern still fits
+  if (fit >= ZOOM_MIN) {
     cam.tz = Math.min(ZOOM_MAX, fit);
     cam.tx = (bb.x0+bb.x1)/2; cam.ty = (bb.y0+bb.y1)/2;
-  } else {                                        // floored: follow the action
+  } else {
     cam.tz = ZOOM_MIN;
     let sx = 0, sy = 0, n = 0;
     for (const b of balls) { sx += b.x; sy += b.y; n++; }
@@ -1573,237 +1185,175 @@ function resize() {
 }
 addEventListener("resize", resize);
 
-function cellColor(i, t) {
-  const c = TIERS[t].col;
-  const hp = cellHP(i%WORLD, (i/WORLD)|0, t);
-  const dv = dmg.get(i) || 0;
-  let f = dv > 0 ? Math.max(.28, 1 - dv/hp*.72) : 1;
-  f *= LITMUL[lit[i]];
-  // Poisoned rock is washed toward a sickly green that deepens as stacks build,
-  // so infection is legible at a glance and you can watch it creep.
-  const st = poison.get(i) || 0;
-  if (st) {
-    const k = Math.min(1, 0.45 + st*0.18);
-    const r = c[0]*f*(1-k*0.75), g = Math.min(255, c[1]*f*(1-k*0.2) + 70 + k*90), b = c[2]*f*(1-k*0.8);
-    return "rgb("+(r|0)+","+(g|0)+","+(b|0)+")";
-  }
-  return "rgb("+((c[0]*f)|0)+","+((c[1]*f)|0)+","+((c[2]*f)|0)+")";
+// ComputeTextureUpdater.UpdateRegion.
+function cellColor(i) {
+  const t = tier[i], l = lit[i];
+  if (!t) return OPEN_COL;
+  if (t === K_UPG)   return (l === 3 || beacon.has(i)) ? UPG_COL : HIDDEN_COL;
+  if (t === K_GBALL) return (l || beacon.has(i)) ? GBALL_COL : HIDDEN_COL;
+  if (!l) return HIDDEN_COL;
+  if (t === K_GOLD)  return GOLD_COL;
+  if (t === K_WALL)  return WALL_COL[l-1];
+  const hp = Math.max(1, curHP(i));
+  if (poison.has(i)) return "#3bd14a";
+  return TILE_COL[(hp-1)*3 + (l-1)];
 }
-// Painting is per-chunk, never over the whole board.
 function paintChunk(cx, cy) {
   const x0 = cx*CHUNK, y0 = cy*CHUNK;
   const x1 = Math.min(WORLD, x0+CHUNK), y1 = Math.min(WORLD, y0+CHUNK);
-  octx.fillStyle = "#070a12"; octx.fillRect(x0, y0, x1-x0, y1-y0);
+  octx.fillStyle = HIDDEN_COL; octx.fillRect(x0, y0, x1-x0, y1-y0);
   for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
-    const i = y*WORLD + x, t = tier[i];
-    if (!t || !lit[i]) continue;
-    octx.fillStyle = cellColor(i,t); octx.fillRect(x,y,1,1);
+    const i = y*WORLD + x, c = cellColor(i);
+    if (c === HIDDEN_COL) continue;
+    octx.fillStyle = c; octx.fillRect(x, y, 1, 1);
   }
 }
 function repaintReady() {
-  octx.fillStyle = "#070a12"; octx.fillRect(0,0,WORLD,WORLD);
+  octx.fillStyle = HIDDEN_COL; octx.fillRect(0, 0, WORLD, WORLD);
   for (let cy = 0; cy < CW; cy++) for (let cx = 0; cx < CW; cx++)
     if (chunkReady[cy*CW+cx]) paintChunk(cx, cy);
 }
 function flushDirty() {
-  for (let k=0;k<dirty.length;k+=2) {
-    const x=dirty[k], y=dirty[k+1];
-    if (x<0||y<0||x>=WORLD||y>=WORLD) continue;
-    const i = y*WORLD+x, t = tier[i];
-    octx.fillStyle = (t && lit[i]) ? cellColor(i,t) : "#070a12";
-    octx.fillRect(x,y,1,1);
+  for (let k = 0; k < dirty.length; k += 2) {
+    const x = dirty[k], y = dirty[k+1];
+    if (x < 0 || y < 0 || x >= WORLD || y >= WORLD) continue;
+    octx.fillStyle = cellColor(y*WORLD + x);
+    octx.fillRect(x, y, 1, 1);
   }
   dirty.length = 0;
 }
 
 function draw(dt) {
   flushDirty();
-  ctx.fillStyle = "#070a12"; ctx.fillRect(0,0,W,H);
-  const z = cam.z, sw = W/z, sh = H/z, sx = cam.x-sw/2, sy = cam.y-sh/2;
+  ctx.fillStyle = HIDDEN_COL; ctx.fillRect(0, 0, W, H);
+  let shx = 0, shy = 0;
+  if (goldShake > 0) { shx = (Math.random()-.5) * goldShake * 10; shy = (Math.random()-.5) * goldShake * 10; }
+  const z = cam.z, sw = W/z, sh = H/z, sx = cam.x-sw/2 + shx/z, sy = cam.y-sh/2 + shy/z;
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(off, sx, sy, sw, sh, 0, 0, W, H);
-  const toS = (wx,wy) => [(wx-sx)*z, (wy-sy)*z];
+  const toS = (wx, wy) => [(wx-sx)*z, (wy-sy)*z];
 
-  ctx.globalCompositeOperation = "lighter";
-  for (let i=sparks.length-1;i>=0;i--) {
-    const p = sparks[i]; p.t += dt;
-    if (p.t > p.life) { sparks.splice(i,1); continue; }
-    p.x += p.vx*dt; p.y += p.vy*dt; p.vx *= .93; p.vy *= .93;
-    const P = toS(p.x,p.y);
-    ctx.globalAlpha = 1-p.t/p.life;
-    ctx.fillStyle = "rgb("+p.col[0]+","+p.col[1]+","+p.col[2]+")";
-    const s = Math.max(1, z*.5); ctx.fillRect(P[0]-s/2,P[1]-s/2,s,s);
+  // hit flashes (BounceSquare): a cell-sized pop in the colour of the HP left
+  for (let i = flashes.length-1; i >= 0; i--) {
+    const f = flashes[i]; f.t += dt;
+    if (f.t > 0.16) { flashes.splice(i, 1); continue; }
+    const k = 1 - f.t/0.16, P = toS(f.x + .5, f.y + .5), s = z * (1 + (1-k)*0.5);
+    ctx.globalAlpha = k * 0.85; ctx.fillStyle = f.c;
+    ctx.fillRect(P[0]-s/2, P[1]-s/2, s, s);
   }
   ctx.globalAlpha = 1;
 
+  ctx.globalCompositeOperation = "lighter";
+  for (let i = sparks.length-1; i >= 0; i--) {
+    const p = sparks[i]; p.t += dt;
+    if (p.t > p.life) { sparks.splice(i, 1); continue; }
+    p.x += p.vx*dt; p.y += p.vy*dt; p.vx *= .93; p.vy *= .93;
+    const P = toS(p.x, p.y);
+    ctx.globalAlpha = 1 - p.t/p.life;
+    ctx.fillStyle = "rgb("+p.col[0]+","+p.col[1]+","+p.col[2]+")";
+    const s = Math.max(1, z*.5); ctx.fillRect(P[0]-s/2, P[1]-s/2, s, s);
+  }
+  ctx.globalAlpha = 1;
   for (let i = bolts.length-1; i >= 0; i--) {
     const bo = bolts[i]; bo.t += dt;
-    if (bo.t > bo.life) { bolts.splice(i,1); continue; }
+    if (bo.t > bo.life) { bolts.splice(i, 1); continue; }
     const f = 1 - bo.t/bo.life;
-    ctx.globalAlpha = f;
-    ctx.strokeStyle = "#ffe14a"; ctx.lineWidth = Math.max(1, z*.18);
+    ctx.globalAlpha = f; ctx.strokeStyle = "#ffe14a"; ctx.lineWidth = Math.max(1, z*.16);
     ctx.beginPath();
     for (let k = 0; k < bo.pts.length; k += 2) {
       const P = toS(bo.pts[k], bo.pts[k+1]);
-      k === 0 ? ctx.moveTo(P[0],P[1]) : ctx.lineTo(P[0],P[1]);
+      k === 0 ? ctx.moveTo(P[0], P[1]) : ctx.lineTo(P[0], P[1]);
     }
     ctx.stroke();
-    ctx.globalAlpha = f*.55; ctx.strokeStyle = "#fff";
-    ctx.lineWidth = Math.max(1, z*.07); ctx.stroke();      // hot white core
   }
   ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
 
-  const tailPts = balls.length > 120 ? 3 : balls.length > 40 ? 4 : 5;
+  // BlackoutManager: the world darkens while a golden ball is out
+  const goldenOut = balls.some(b => b.k === GOLDEN && !b.dying);
+  blackout += ((goldenOut ? 0.85 : 0) - blackout) * Math.min(1, dt * (goldenOut ? 10 : 6));
+  if (blackout > 0.01) { ctx.fillStyle = "rgba(0,0,0," + blackout.toFixed(3) + ")"; ctx.fillRect(0, 0, W, H); }
+
+  // the golden pixel, once seen, shines through everything
+  if (GOLD_I >= 0 && S.goldSeen && (!S.goldFound || goldBreak > 0)) {
+    const gx = GOLD_I % WORLD + .5, gy = ((GOLD_I / WORLD) | 0) + .5, P = toS(gx, gy);
+    const pulse = 0.75 + 0.25 * Math.sin(simT * 3);
+    ctx.globalCompositeOperation = "lighter";
+    const g = Math.max(26, z * 7) * pulse * (goldBreak > 0 ? 1 + (3 - goldBreak) : 1);
+    ctx.drawImage(glowFor("#ffd75e"), P[0]-g/2, P[1]-g/2, g, g);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = GOLD_COL; const s = Math.max(3, z);
+    ctx.fillRect(P[0]-s/2, P[1]-s/2, s, s);
+  }
+
+  ctx.globalCompositeOperation = "lighter";
+  const tailPts = balls.length > 300 ? 2 : balls.length > 80 ? 3 : 5;
   for (const b of balls) {
-    const col = BALLS[b.kind].col;
-    const seg = Math.min(b.kind === 5 ? 17 : tailPts, b.trail.length>>1);
+    const col = BALLS[b.k].col, R = ballR(b), P = toS(b.x, b.y);
+    if (b.dying) { ctx.globalAlpha = Math.max(0, b.dying / 0.5); }
+    const seg = Math.min(b.k === PINK ? 12 : tailPts, b.trail.length >> 1);
     if (seg > 1) {
-      ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, z*.22);
-      // Round caps and joins, so the wake of a round ball is a round-ended
-      // streak rather than a chain of mitred rectangles.
+      ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, z*R*1.4);
       ctx.lineCap = "round"; ctx.lineJoin = "round";
-      ctx.globalAlpha = .38; ctx.beginPath();
+      const a0 = ctx.globalAlpha; ctx.globalAlpha = a0 * .35; ctx.beginPath();
       const start = b.trail.length - seg*2;
-      for (let k=start;k<b.trail.length;k+=2) {
-        const P = toS(b.trail[k], b.trail[k+1]);
-        k===start ? ctx.moveTo(P[0],P[1]) : ctx.lineTo(P[0],P[1]);
+      for (let k = start; k < b.trail.length; k += 2) {
+        const Q = toS(b.trail[k], b.trail[k+1]);
+        k === start ? ctx.moveTo(Q[0], Q[1]) : ctx.lineTo(Q[0], Q[1]);
       }
-      ctx.stroke();
+      ctx.stroke(); ctx.globalAlpha = a0;
     }
-    // Measured against reference footage: a ball is about a quarter of a block.
-    // Drawn as a disc, not a square. Every ball is a ball -- the Boulder collides
-    // on a circular rim (see bodyHits) and the point balls carry a radial glow,
-    // so a square body was the one part of the picture disagreeing with both the
-    // physics and the lighting.
-    const br = ballRadius(b.kind);
-    const P = toS(b.x,b.y);
-    const sz = br > 0 ? Math.max(4, z*br*2) : Math.max(2, z*.25);
-    const g = Math.max(7, sz*(br > 0 ? 1.5 : 3.6));
-    ctx.globalAlpha = 1;
+    const sz = Math.max(2, z*R*2), g = Math.max(7, sz*3.4);
     ctx.drawImage(glowFor(col), P[0]-g/2, P[1]-g/2, g, g);
     ctx.fillStyle = col;
     ctx.beginPath(); ctx.arc(P[0], P[1], sz/2, 0, 6.2832); ctx.fill();
+    ctx.globalAlpha = 1;
   }
   ctx.lineCap = "butt"; ctx.lineJoin = "miter";
   ctx.globalCompositeOperation = "source-over";
 
-  if (aim !== null && canFire(selKind)) {
-    const col = BALLS[selKind].col;
-    const src = aimFrom || aim;
-    const okHere = !solid(Math.round(src[0]), Math.round(src[1]));
-    const P = toS(src[0], src[1]);
-    const pulled = aimFrom && Math.hypot(aim[0]-aimFrom[0], aim[1]-aimFrom[1]) >= PULL_DEAD;
-
+  // aim: launch point, the band back to the cursor, and the shot opposite it
+  if (aimFrom && canShoot(selKind)) {
+    const col = BALLS[selKind].col, P = toS(aimFrom[0], aimFrom[1]);
+    const C = toS(aim[0], aim[1]);
+    const pulled = Math.hypot(aim[0]-aimFrom[0], aim[1]-aimFrom[1]) >= DRAG_MIN;
+    ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+    ctx.globalAlpha = .9; ctx.beginPath(); ctx.arc(P[0], P[1], Math.max(4, z*ballR({k:selKind})*2), 0, 6.2832); ctx.stroke();
     if (pulled) {
-      // The band: drawn from the cursor back to the launch point, thickening as
-      // it draws, so it reads as something under tension rather than a heading.
-      const pw = launchPower();
-      const C = toS(aim[0], aim[1]);
-      ctx.strokeStyle = col; ctx.globalAlpha = .30 + pw*.45;
-      ctx.lineWidth = 1 + pw*3;
-      ctx.beginPath(); ctx.moveTo(C[0],C[1]); ctx.lineTo(P[0],P[1]); ctx.stroke();
-
-      // the nock you are dragging
-      ctx.globalAlpha = .8; ctx.beginPath();
-      ctx.arc(C[0],C[1], 3+pw*3, 0, 6.2832); ctx.stroke();
-
-      // and the shot itself, opposite the pull, its length showing the power
-      const a = launchAngle(), L = 34 + pw*150;
-      const hx = P[0]+Math.cos(a)*L, hy = P[1]+Math.sin(a)*L;
-      ctx.globalAlpha = .9; ctx.lineWidth = 1 + pw*2.4;
-      ctx.setLineDash([5,5]);
-      ctx.beginPath(); ctx.moveTo(P[0],P[1]); ctx.lineTo(hx,hy); ctx.stroke();
-      ctx.setLineDash([]);
+      ctx.globalAlpha = .45; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(C[0], C[1]); ctx.lineTo(P[0], P[1]); ctx.stroke();
+      let a = Math.atan2(aimFrom[1]-aim[1], aimFrom[0]-aim[0]);
+      if (selKind === BLUE) a = Math.round(a / (Math.PI/2)) * (Math.PI/2);
+      const L = 120, hx = P[0] + Math.cos(a)*L, hy = P[1] + Math.sin(a)*L;
+      ctx.globalAlpha = .9; ctx.setLineDash([5,5]);
+      ctx.beginPath(); ctx.moveTo(P[0], P[1]); ctx.lineTo(hx, hy); ctx.stroke(); ctx.setLineDash([]);
       ctx.beginPath();
-      ctx.moveTo(hx, hy);
-      ctx.lineTo(hx-Math.cos(a-0.42)*(9+pw*7), hy-Math.sin(a-0.42)*(9+pw*7));
-      ctx.moveTo(hx, hy);
-      ctx.lineTo(hx-Math.cos(a+0.42)*(9+pw*7), hy-Math.sin(a+0.42)*(9+pw*7));
+      ctx.moveTo(hx, hy); ctx.lineTo(hx - Math.cos(a-0.42)*12, hy - Math.sin(a-0.42)*12);
+      ctx.moveTo(hx, hy); ctx.lineTo(hx - Math.cos(a+0.42)*12, hy - Math.sin(a+0.42)*12);
       ctx.stroke();
-
-      // power readout, so the ramp is legible while you drag
-      ctx.globalAlpha = .85; ctx.fillStyle = col;
-      ctx.font = "11px ui-monospace, Consolas, monospace";
-      ctx.textAlign = "center";
-      ctx.fillText(Math.round(pw*100)+"%", P[0], P[1]-16);
-      ctx.textAlign = "start";
     }
-
-    ctx.strokeStyle = okHere ? col : "#7b8598";
-    ctx.globalAlpha = okHere ? .9 : .4;
-    ctx.lineWidth = 1.5;
-    const r = 9;
-    ctx.beginPath();
-    ctx.moveTo(P[0]-r,P[1]); ctx.lineTo(P[0]-3,P[1]);
-    ctx.moveTo(P[0]+3,P[1]); ctx.lineTo(P[0]+r,P[1]);
-    ctx.moveTo(P[0],P[1]-r); ctx.lineTo(P[0],P[1]-3);
-    ctx.moveTo(P[0],P[1]+3); ctx.lineTo(P[0],P[1]+r);
-    ctx.stroke();
     ctx.globalAlpha = 1;
   }
 
   const g2 = ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.12, W/2,H/2,Math.max(W,H)*.72);
-  g2.addColorStop(0,"rgba(7,10,18,0)"); g2.addColorStop(.6,"rgba(7,10,18,.14)");
-  g2.addColorStop(1,"rgba(7,10,18,.66)");
-  ctx.fillStyle = g2; ctx.fillRect(0,0,W,H);
+  g2.addColorStop(0,"rgba(0,8,3,0)"); g2.addColorStop(.6,"rgba(0,8,3,.14)"); g2.addColorStop(1,"rgba(0,8,3,.66)");
+  ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H);
 }
+let blackout = 0;
 
 //====================================================================== loop
 let last = performance.now(), aim = null;
-let rateT = 0, rateMark = 0, pxMark = 0, pxRate = 0;
 let fps = 0, fpsAcc = 0, fpsFrames = 0;
-const canFire = k => built(BALLS[k]) && S.owned[k] && S.px >= ballCost(k)
-  && balls.length < liveCap();
-
+// PointsManager.UpdatePixelsPerSecond: every three seconds, the average of the
+// last window and the previous reading.
+let pxTick = 0, pxWin = 3, pxShown = 0;
 function tickRate(dt) {
-  rateT += dt; S.playtime += dt;
-  if (rateT < 1) return;
-  const obs = (S.minedCount - rateMark)/rateT;
-  S.rate = S.rate ? S.rate*.75 + obs*.25 : obs;
-  if (S.rate > S.bestRate) S.bestRate = S.rate;
-  const pobs = (S.px - pxMark)/rateT;
-  pxRate = pxRate ? pxRate*.75 + pobs*.25 : pobs;
-  rateMark = S.minedCount; pxMark = S.px; rateT = 0;
-}
-let autoT = 0;
-const AUTO_INT = 0.05;
-const AUTO_BURST = 40;            // most launches per tick, so it ramps not spikes
-// Auto-fire tops the swarm up rather than firing on a fixed timer.
-//
-// A one-shot-per-tick rate was a hidden ceiling: balls launched at the working
-// face spend their impact budget almost immediately and die young, so
-// concurrency collapsed and total output pinned at shots/sec x impacts/shot no
-// matter how rich the player got. Your pixels should be the limit, not a timer.
-function tickAuto(dt) {
-  if (!S.auto) return;
-  autoT += dt;
-  if (autoT < AUTO_INT) return;
-  autoT = 0;
-  for (let i = 0; i < AUTO_BURST; i++) {
-    if (balls.length >= liveCap()) return;
-    // Auto-fire buys the CHEAPEST ball it can afford, not the selected one.
-    //
-    // Preferring the selected colour made it crowd itself into the ground: the
-    // price of a colour climbs with the square of how many are already out, so
-    // spamming one drives its own cost to five hundred million and drains the
-    // bank to zero. Measured: seventy balls and 377/sec at five minutes, two
-    // balls and nothing at all by ten.
-    //
-    // Cheapest-first makes the colours balance themselves -- each crowds to its
-    // own soft point, then the next-cheapest takes over. The selected ball still
-    // governs what YOU fire by hand.
-    let k = -1, bestC = Infinity;
-    for (const B of BALLS) {
-      if (!canFire(B.k)) continue;
-      const c = ballCost(B.k);
-      if (c < bestC) { bestC = c; k = B.k; }
-    }
-    if (k < 0) return;
-    const at = frontierSpawn();
-    const rad = Math.atan2(at[1]-CY, at[0]-CX);
-    const tan = rad + (Math.random() < .5 ? Math.PI/2 : -Math.PI/2) + (Math.random()-0.5)*0.7;
-    if (!fire(k, isFinite(tan) ? tan : Math.random()*Math.PI*2, at[0], at[1])) return;
-  }
+  S.playtime += dt;
+  pxWin -= dt;
+  if (pxWin > 0) return;
+  pxWin = 3;
+  pxShown = (pxTick / 3 + pxShown) / 2;
+  pxTick = 0;
 }
 
 function frame(now) {
@@ -1812,17 +1362,18 @@ function frame(now) {
   if (fpsAcc >= 0.5) { fps = fpsFrames/fpsAcc; fpsAcc = 0; fpsFrames = 0; }
   const dt = paused ? 0 : real;
   if (!paused) {
-    const sub = 3;
-    for (let s=0;s<sub;s++) for (const b of balls) if (b.left > 0) stepBall(b, dt/sub);
-    alignDirectional();
-    for (let i=balls.length-1;i>=0;i--) if (balls[i].left <= 0) balls.splice(i,1);
-    tickPoison(dt); tickAftershocks(dt); tickAuto(dt); tickRate(dt); salvage();
+    simT += dt;
+    const sub = dt > 1/45 ? 2 : 1;
+    for (let s = 0; s < sub; s++) for (const b of balls) stepBall(b, dt/sub);
+    for (let i = balls.length-1; i >= 0; i--) if (balls[i].dying !== undefined && balls[i].dying <= 0) balls.splice(i, 1);
+    tickPoison(); tickLightning(); tickRate(dt);
+    for (let k = 0; k < NB; k++) S.recallT[k] = Math.min(RECALL_CD, S.recallT[k] + dt);
+    if (goldShake > 0) goldShake = Math.max(0, goldShake - dt*0.25);
+    if (goldBreak > 0) { goldBreak -= dt; if (goldBreak <= 0) finishGold(); }
   }
-
   if (!cam.manual) fitCamera();
   const k = Math.min(1, dt*(cam.manual ? 9 : 1.1));
   cam.x += (cam.tx-cam.x)*k; cam.y += (cam.ty-cam.y)*k; cam.z += (cam.tz-cam.z)*k;
-
   draw(dt);
   updateHUD();
   requestAnimationFrame(frame);
@@ -1833,49 +1384,58 @@ const $ = id => document.getElementById(id);
 function fmt(n) {
   if (!isFinite(n)) return "∞";
   if (n < 1000) return n < 10 ? (Math.round(n*10)/10+"") : Math.round(n)+"";
-  const u = ["k","M","B","T","Qa","Qi","Sx","Sp","Oc"];
-  let i=-1; while (n >= 1000 && i < u.length-1) { n/=1000; i++; }
+  const u = ["k","M","B","T"];
+  let i = -1; while (n >= 1000 && i < u.length-1) { n /= 1000; i++; }
   return n.toFixed(n<10?2:n<100?1:0)+u[i];
 }
 let hudAcc = 0, dockSig = "";
 function updateHUD() {
   $("px").innerHTML = fmt(S.px) + ' <i>px</i>';
-  $("rate2").textContent = (pxRate>=0?"+":"") + fmt(pxRate) + " /s";
-  $("tokn").textContent = S.tokens;
-  $("tok").className = S.tokens ? "" : "none";
-  if (fps) { $("fps").textContent = fps.toFixed(0);
-             $("fps").className = fps < 30 ? "bad" : "ok"; }
+  $("rate2").textContent = Math.ceil(pxShown) + " / s";
+  $("tokn").textContent = S.points;
+  $("tok").className = S.points ? "" : "none";
+  $("gbln").textContent = S.golden;
+  $("gbl").className = (S.golden || S.goldenFound) ? "" : "none";
+  if (fps) { $("fps").textContent = fps.toFixed(0); $("fps").className = fps < 30 ? "bad" : "ok"; }
   $("pct").textContent = (S.minedCount/TOTAL*100).toFixed(4)+"%";
   $("mined").textContent = fmt(S.minedCount);
-  $("rate").textContent = fmt(S.rate);
-  $("ballct").textContent = balls.length + " / " + liveCap();
-  $("depth").textContent = Math.round(S.maxDepth);
-  $("prompt").classList.toggle("on", S.shots < 6 && canFire(selKind));
+  $("ballct").textContent = balls.length;
+  $("prompt").classList.toggle("on", S.shots < 3 && canShoot(selKind));
   drawDock();
   if (++hudAcc % 20 === 0) {
     if (panelOpen === "upg")   refreshUpg();
     if (panelOpen === "stats") refreshStats();
   }
 }
+function benchList() { return S.golden > 0 || S.goldenFound > 0 ? S.bench.concat([GOLDEN]) : S.bench.slice(); }
 function drawDock() {
-  const sig = BALLS.map(B => (S.owned[B.k]?1:0)+(canFire(B.k)?"c":"")).join("|")+selKind+S.tokens;
+  const list = benchList();
+  const sig = list.map(k => k + ":" + shotLabel(k) + (canShoot(k)?"c":"") + (ST[k].recalling ? Math.ceil(RECALL_CD - S.recallT[k]) : "")).join("|") + selKind + recallMode;
   if (sig === dockSig) return;
   dockSig = sig;
   let h = "";
-  for (const B of BALLS) {
-    const isLocked = !S.owned[B.k];
-    h += '<div class="slot'+(B.k===selKind?" sel":"")+(canFire(B.k)?" can":"")
-       + (isLocked?" locked":"")+'" style="color:'+B.col+';border-color:'+B.col+'" data-k="'+B.k+'">'
-       + '<div class="kn">'+(isLocked && !built(B) ? "?????" : B.name.toUpperCase())+'</div>'
-       + '<div class="kc">'+(isLocked ? "—" : fmt(ballCost(B.k))+"px")+'</div>'
-       + '<div class="kk">['+(B.k+1)+']</div></div>';
-  }
+  list.forEach((k, idx) => {
+    const B = BALLS[k], key = k === GOLDEN ? "G" : String(idx + 1);
+    let rc = "";
+    if (k !== GOLDEN && ST[k].recalling) {
+      const cd = RECALL_CD - S.recallT[k];
+      rc = cd > 0 ? '<i class="rc cd">'+Math.ceil(cd)+'</i>' : '<i class="rc">&#8635;</i>';
+    }
+    h += '<div class="slot'+(k===selKind?" sel":"")+(canShoot(k)?" can":"")
+       + '" style="color:'+B.col+';border-color:'+B.col+(recallMode && k!==GOLDEN ? ';border-style:dashed' : '')+'" data-k="'+k+'">'
+       + '<div class="kn">'+B.name.toUpperCase()+'</div>'
+       + '<div class="kc'+((S.free[k] > 0 && k !== GOLDEN) ? " free" : "")+'">'+shotLabel(k)+'</div>'
+       + '<div class="kk">['+key+']</div>' + rc + '</div>';
+  });
   const d = $("dock"); d.innerHTML = h;
-  for (const el of d.children) el.onclick = () => {
+  for (const el of d.children) {
     const k = +el.dataset.k;
-    if (!S.owned[k]) { openPanel("upg"); return; }
-    selKind = k; dockSig = ""; drawDock();
-  };
+    el.onclick = () => {
+      if (recallMode) { recallMode = false; recall(k); dockSig = ""; return; }
+      selKind = k; dockSig = ""; drawDock();
+    };
+    el.oncontextmenu = e => { e.preventDefault(); recall(k); dockSig = ""; };
+  }
 }
 let toastT = 0;
 function toast(msg) {
@@ -1895,264 +1455,202 @@ function openPanel(name) {
   if (panelOpen === "stats") refreshStats();
 }
 
-// ---- the tech tree ----
-// SVG for the dotted links, absolutely positioned buttons for the nodes, so the
-// graph scales to any panel size while nodes stay crisp and clickable.
-let treeSel = null, hoverSel = null;
-const NODE_R = 25;
-function nodeLabel(n) {
-  if (n.kind === "ball")   return built(BALLS[n.ball]) ? BALLS[n.ball].name + " ball" : "?????";
-  if (n.kind === "refine") return "Refine";
-  const P = (PERKS[n.ball]||[]).find(x => n.id === n.ball + ":" + x.id);
-  return P ? P.n : n.id;
-}
-function nodeDesc(n) {
-  if (n.kind === "ball")   return built(BALLS[n.ball]) ? BALLS[n.ball].desc
-                                : "This ball has not been specified yet. The slot is reserved.";
-  if (n.kind === "refine") return "Sharpens every ball you own. The one plain multiplier, so damage "
-                                + "can keep pace with rock that hardens the further out you dig.";
-  const P = (PERKS[n.ball]||[]).find(x => n.id === n.ball + ":" + x.id);
-  return P ? P.d : "";
+// ---- the skill tree ----
+// TreeButton: a node is shown once it is the first skill or a bought node has
+// revealed it. A shown, unbought node draws its links and the faint outlines of
+// what it leads to; everything else stays hidden.
+let treeSel = null, hoverSel = null, treeBuilt = false;
+const NODE_PX = 46, GRID_PX = 58;
+function revealed(n) {
+  if (n.first || S.bought[n.id]) return true;
+  return TREE.some(m => S.bought[m.id] && m.next.includes(n.id));
 }
 function nodeState(n) {
-  if (n.kind === "ball" && !built(BALLS[n.ball])) return "locked";
-  if (nodeTaken(n)) return "taken";
-  if (!nodeReady(n)) return "locked";
-  return S.tokens >= nodeCost(n) ? "ready" : "short";
+  if (S.bought[n.id]) return "taken";
+  if (!revealed(n)) return "hidden";
+  return S.points >= n.cost ? "ready" : "short";
 }
-
-// The tree DOM is built ONCE. refreshUpg then only edits classes and text in
-// place.
-//
-// It used to rebuild every node with innerHTML on each call, and updateHUD calls
-// it several times a second while the panel is open -- so the CSS pulse on an
-// affordable node restarted from frame zero constantly and the whole tree
-// flickered erratically. Replacing the nodes is also why hover felt unstable:
-// the element under the cursor was a different element moment to moment.
-let treeBuilt = false;
+function header(n) {
+  return ["New ball","Damage","Speed","Ball recycling","Piercing damage","Poison damage","Poison rate",
+          "Poison spread chance","Hit spread","Spread damage","Lightning rate per second"][n.type];
+}
+function statOf(n) {
+  const s = ST[n.ball];
+  switch (n.type) {
+    case UT.DMG: return s.damage; case UT.SPD: return s.speedMult; case UT.PIERCE: return s.piercing;
+    case UT.PDMG: return s.poisonDamage; case UT.PSPD: return s.poisonSpeed; case UT.PSPREAD: return s.poisonSpread;
+    case UT.HSPREAD: return s.hitSpread; case UT.SDMG: return s.spreadDamage; case UT.LRATE: return s.lightningRate;
+  }
+  return 0;
+}
+function showVal(n, v) {
+  switch (n.type) {
+    case UT.SPD: case UT.PSPREAD: return Math.round(v*100) + "%";
+    case UT.PSPD: case UT.LRATE: return v.toFixed(1) + "/s";
+  }
+  return String(Math.round(v));
+}
+function nodeLine(n) {
+  if (n.type === UT.NEW) return BALLS[n.ball].name + " ball";
+  if (n.type === UT.RECALL) return "Right-click the " + BALLS[n.ball].name.toLowerCase() + " ball button";
+  const v = statOf(n);
+  return S.bought[n.id] ? showVal(n, v) : showVal(n, v) + " &rarr; " + showVal(n, v + n.inc);
+}
+function nodeDesc(n) {
+  if (n.type === UT.NEW) return BALLS[n.ball].desc;
+  if (n.type === UT.RECALL) return "Lets you return a ball and shoot it again for free, every " + RECALL_CD + " seconds.";
+  return "";
+}
 function buildTree() {
   const host = $("balls");
-  const xs = NODES.map(n=>n.x), ys = NODES.map(n=>n.y);
-  const minX = Math.min(...xs)-0.6, maxX = Math.max(...xs)+0.6;
-  const minY = Math.min(...ys)-0.6, maxY = Math.max(...ys)+0.6;
-  const SCALE = 66;
-  const w = (maxX-minX)*SCALE, h = (maxY-minY)*SCALE;
-  const px = n => (n.x-minX)*SCALE, py = n => (n.y-minY)*SCALE;
-
+  const xs = TREE.map(n => n.x), ys = TREE.map(n => -n.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const w = (maxX-minX+1)*GRID_PX, h = (maxY-minY+1)*GRID_PX;
+  const px = n => (n.x-minX)*GRID_PX + GRID_PX/2, py = n => (-n.y-minY)*GRID_PX + GRID_PX/2;
   let links = "";
-  NODES.forEach((n, ni) => n.req.forEach((r, ri) => {
-    const pnt = NODEBY[r]; if (!pnt) return;
-    links += '<line data-l="'+ni+'_'+ri+'" x1="'+px(pnt)+'" y1="'+py(pnt)
-          +  '" x2="'+px(n)+'" y2="'+py(n)+'" stroke="#26303f" stroke-width="2"'
-          +  ' stroke-dasharray="2 5" opacity=".3"/>';
-  }));
-  let nodes = "";
-  for (const n of NODES) {
-    const col = BALLS[n.ball].col;
-    const round = n.kind === "ball" ? "50%" : "8px";
-    nodes += '<button class="tnode locked" data-id="'+n.id+'"'
-      + ' style="left:'+(px(n)-NODE_R)+'px;top:'+(py(n)-NODE_R)+'px;'
-      + 'width:'+(NODE_R*2)+'px;height:'+(NODE_R*2)+'px;border-radius:'+round+';color:'+col+'">'
-      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"'
-      + ' stroke-linecap="round" stroke-linejoin="round">'+ICONS[n.icon]+'</svg>'
-      + '<i class="lv" style="display:none"></i></button>';
+  for (const n of TREE) for (const j of n.next) {
+    const m = TREE[j];
+    links += '<line data-l="'+n.id+'_'+j+'" x1="'+px(n)+'" y1="'+py(n)+'" x2="'+px(m)+'" y2="'+py(m)
+          +  '" stroke="'+BALLS[m.ball].col+'" stroke-width="2" stroke-dasharray="2 5" opacity="0"/>';
   }
-  host.innerHTML = '<div id="treewrap" style="width:'+w+'px;height:'+h+'px">'
-    + '<svg width="'+w+'" height="'+h+'">'+links+'</svg>' + nodes + '</div>';
-
+  let spots = "", nodes = "";
+  for (const n of TREE) {
+    const col = BALLS[n.ball].col;
+    spots += '<div class="tspot" data-s="'+n.id+'" style="display:none;left:'+(px(n)-NODE_PX/2)+'px;top:'+(py(n)-NODE_PX/2)+'px;'
+          +  'width:'+NODE_PX+'px;height:'+NODE_PX+'px;background:'+col+'"></div>';
+    nodes += '<button class="tnode hidden" data-id="'+n.id+'" style="left:'+(px(n)-NODE_PX/2)+'px;top:'+(py(n)-NODE_PX/2)+'px;'
+          +  'width:'+NODE_PX+'px;height:'+NODE_PX+'px;color:'+col+(n.type===UT.NEW?';border-radius:50%':'')+'">'
+          +  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+          +  ICONS[n.type]+'</svg></button>';
+  }
+  host.innerHTML = '<div id="treewrap" style="width:'+w+'px;height:'+h+'px"><svg width="'+w+'" height="'+h+'">'+links+'</svg>'
+                 + spots + nodes + '</div>';
   for (const b of host.querySelectorAll(".tnode")) {
-    b.onmouseenter = () => { hoverSel = b.dataset.id; renderCard(); };
+    b.onmouseenter = () => { hoverSel = +b.dataset.id; renderCard(); };
     b.onmouseleave = () => { hoverSel = null; renderCard(); };
-    b.onclick = () => { treeSel = b.dataset.id; hoverSel = null; refreshUpg(); };
+    b.onclick = () => { treeSel = +b.dataset.id; hoverSel = null; refreshUpg(); };
   }
   treeBuilt = true;
 }
-
 function refreshUpg() {
   if (!treeBuilt) buildTree();
   const host = $("balls");
+  const shownSpot = new Set();
   for (const el of host.querySelectorAll(".tnode")) {
-    const n = NODEBY[el.dataset.id];
-    if (!n) continue;
-    const want = "tnode " + nodeState(n) + (treeSel === n.id ? " sel" : "");
-    if (el.className !== want) el.className = want;      // only touch it if it changed
-    if (isRefine(n)) {
-      const badge = el.querySelector(".lv");
-      if (badge) {
-        const show = !!S.nodes[n.id];
-        const txt = show ? String(S.refine) : "";
-        if (badge.textContent !== txt) badge.textContent = txt;
-        const disp = show ? "" : "none";
-        if (badge.style.display !== disp) badge.style.display = disp;
-      }
-    }
+    const n = TREE[+el.dataset.id], st = nodeState(n);
+    const want = "tnode " + st + (treeSel === n.id ? " sel" : "");
+    if (el.className !== want) el.className = want;
+    if (st === "ready" || st === "short") for (const j of n.next) if (nodeState(TREE[j]) === "hidden") shownSpot.add(j);
   }
-  NODES.forEach((n, ni) => n.req.forEach((r, ri) => {
-    const line = host.querySelector('[data-l="'+ni+'_'+ri+'"]');
-    if (!line) return;
-    const on = nodeState(n) !== "locked" || !!S.nodes[n.id];
-    const col = on ? BALLS[n.ball].col : "#26303f";
-    if (line.getAttribute("stroke") !== col) {
-      line.setAttribute("stroke", col);
-      line.setAttribute("opacity", on ? ".75" : ".3");
-    }
-  }));
+  for (const el of host.querySelectorAll(".tspot")) {
+    const d = shownSpot.has(+el.dataset.s) ? "" : "none";
+    if (el.style.display !== d) el.style.display = d;
+  }
+  for (const el of host.querySelectorAll("line")) {
+    const [a, b] = el.dataset.l.split("_").map(Number), na = TREE[a], nb = TREE[b];
+    const sa = nodeState(na), sb = nodeState(nb);
+    const on = (sa === "taken" && sb !== "hidden") || ((sa === "ready" || sa === "short") && sb === "hidden");
+    const op = on ? (sa === "taken" && sb === "taken" ? ".85" : ".55") : "0";
+    if (el.getAttribute("opacity") !== op) el.setAttribute("opacity", op);
+  }
   renderCard();
-  const sub = "Points available &nbsp; <b>&#10022; " + S.tokens + "</b>"
-    + '<br><span style="opacity:.65">Found by digging &mdash; ' + S.tokensFound + " in total</span>";
+  const sub = "Skill points &nbsp; <b>&#9670; " + S.points + "</b>"
+    + '<br><span style="opacity:.65">' + S.pointsFound + " of " + UPG_TOTAL + " upgrade pixels found</span>";
   if ($("upgsub").innerHTML !== sub) $("upgsub").innerHTML = sub;
 }
-
 function renderCard() {
-  const id = hoverSel || treeSel;
-  const n = id ? NODEBY[id] : null;
-  const el = $("tcard");
-  if (!n) { el.className = ""; el.innerHTML = ""; return; }
+  const id = hoverSel !== null ? hoverSel : treeSel;
+  const n = id !== null ? TREE[id] : null, el = $("tcard");
+  if (!n || nodeState(n) === "hidden") { el.className = ""; el.innerHTML = ""; return; }
   const col = BALLS[n.ball].col, st = nodeState(n);
-  const head = n.kind === "ball" ? "New ball" : n.kind === "refine" ? "Upgrade" : "Ball ability";
-  el.className = "on";
-  el.style.borderColor = col; el.style.color = col;
+  el.className = "on"; el.style.borderColor = col; el.style.color = col;
   let foot;
-  if (st === "taken")       foot = '<div class="tc">OWNED</div>';
-  else if (st === "locked") foot = '<div class="tc lk">' + lockReason(n) + '</div>';
-  else foot = '<div class="tc'+(st==="short"?" short":"")+'">&#10022; '+nodeCost(n)+'</div>'
-            + (hoverSel && hoverSel !== treeSel
-               ? '<div class="tt">click to select</div>'
+  if (st === "taken") foot = '<div class="tc">OWNED</div>';
+  else foot = '<div class="tc'+(st==="short"?" short":"")+'">&#9670; '+n.cost+'</div>'
+            + (hoverSel !== null && hoverSel !== treeSel ? '<div class="tt">click to select</div>'
                : '<button id="tbuy"'+(st==="short"?" disabled":"")+'>UNLOCK</button>');
-  el.innerHTML = '<div class="th">'+head+'</div>'
-    + '<div class="tn">'+nodeLabel(n)+'</div>'
-    + '<div class="tb">'+(BALLS[n.ball].hue||"")+'</div>'
-    + '<div class="td">'+nodeDesc(n)+'</div>' + foot;
+  el.innerHTML = '<div class="th">'+BALLS[n.ball].name.toUpperCase()+' BALL</div>'
+    + '<div class="tn">'+header(n)+'</div>'
+    + '<div class="tb">'+nodeLine(n)+'</div>'
+    + (nodeDesc(n) ? '<div class="td">'+nodeDesc(n)+'</div>' : '') + foot;
   const btn = document.getElementById("tbuy");
-  if (btn) btn.onclick = () => { buyNode(NODEBY[treeSel]); refreshUpg(); };
+  if (btn) btn.onclick = () => { buyNode(TREE[treeSel]); refreshUpg(); };
 }
-
-// Name the specific thing that is in the way, rather than just "LOCKED".
-function lockReason(n) {
-  if (n.kind === "ball" && !built(BALLS[n.ball])) return "NOT YET SPECIFIED";
-  const missing = n.req.filter(r => !S.nodes[r]).map(r => {
-    const pn = NODEBY[r]; return pn ? nodeLabel(pn) : r;
-  });
-  return missing.length ? "NEEDS " + missing.join(" + ").toUpperCase() : "LOCKED";
-}
-
 function buyNode(n) {
   if (!n) return;
-  if (nodeState(n) === "taken")  { toast("ALREADY OWNED"); return; }
-  if (nodeState(n) === "locked") { toast("LOCKED — UNLOCK WHAT LEADS TO IT FIRST"); return; }
-  const c = nodeCost(n);
-  if (S.tokens < c) { toast("NOT ENOUGH UPGRADE PIXELS"); return; }
-  S.tokens -= c;
-  S.nodes[n.id] = 1;
-  if (n.kind === "ball")   { S.owned[n.ball] = 1; selKind = n.ball; dockSig = "";
-                             toast("NEW BALL — " + BALLS[n.ball].name.toUpperCase()); }
-  else if (n.kind === "refine") { S.refine++; }
-  else { S.perks[n.id] = 1;
-         toast(BALLS[n.ball].name.toUpperCase() + " — " + nodeLabel(n).toUpperCase()); }
-  drawDock(); save();
+  const st = nodeState(n);
+  if (st === "taken" || st === "hidden") return;
+  if (S.points < n.cost) { toast("NOT ENOUGH SKILL POINTS"); return; }
+  S.points -= n.cost;
+  S.bought[n.id] = 1;
+  applyNode(n);
+  if (n.type === UT.NEW) { selKind = n.ball; toast("NEW BALL — " + BALLS[n.ball].name.toUpperCase()); }
+  else toast(BALLS[n.ball].name.toUpperCase() + " — " + header(n).toUpperCase());
+  dockSig = ""; drawDock(); save();
 }
 
 function statBox(title, rows) {
   let h = '<div class="cxbox"><h4>'+title+'</h4>';
-  for (const r of rows)
-    h += '<div class="cxrow'+(r[2]?" "+r[2]:"")+'"><span>'+r[0]+'</span><b>'+r[1]+'</b></div>';
+  for (const r of rows) h += '<div class="cxrow'+(r[2]?" "+r[2]:"")+'"><span>'+r[0]+'</span><b>'+r[1]+'</b></div>';
   return h + '</div>';
 }
 function refreshStats() {
   const hrs = Math.floor(S.playtime/3600), mins = Math.floor(S.playtime%3600/60);
-  const objs = Object.keys(S.objectsFound).length;
-  const B = BALLS[selKind];
+  const k = selKind, B = BALLS[k], s = ST[k];
+  const rows = [
+    ["Live", liveOf(k)],
+    ["Next shot", k === GOLDEN ? "free (" + S.golden + " held)" : shotLabel(k)],
+    ["Price step", k === GOLDEN ? "—" : "+" + B.step + " px a ball"],
+    ["Damage", s.damage],
+    ["Speed", (k === GOLDEN ? GOLDEN_LAUNCH : ballSpeed(k)).toFixed(1) + " cells/s"],
+  ];
+  if (k === ORANGE) rows.push(["Piercing", s.piercing]);
+  if (k === GRAY)   rows.push(["Pull", (gravAccel()).toFixed(0) + " cells/s²"]);
+  if (k === GREEN)  rows.push(["Poison", s.poisonDamage + " ticks"], ["Poison rate", s.poisonSpeed.toFixed(1) + "/s"],
+                              ["Spread chance", Math.round(s.poisonSpread/5*100) + "% a tick"]);
+  if (k === YELLOW) rows.push(["Lightning rate", s.lightningRate.toFixed(1) + "/s"], ["Lightning damage", s.lightningDamage]);
+  if (k === RED)    rows.push(["Hit spread", s.hitSpread], ["Spread damage", s.spreadDamage]);
+  if (k !== GOLDEN) rows.push(["Recycling", s.recalling ? "unlocked" : "locked"]);
   $("statgrid").innerHTML =
     statBox("THE HUNT", [
-      ["Golden pixel", S.goldFound ? "FOUND" : "still buried", "gold"],
+      ["Golden pixel", S.goldFound ? "FOUND" : S.goldSeen ? "SEEN — needs a golden ball" : "still buried", "gold"],
+      ["Golden balls", S.golden + " held, " + S.goldenFound + " found"],
       ["Pixels mined", fmt(S.minedCount)],
       ["Of the world", (S.minedCount/TOTAL*100).toFixed(4)+"%"],
-      ["Buried objects found", objs + " / " + OBJECTS.length],
-      ["Upgrade pixels found", S.tokensFound],
-      ["Hazard pixels live", fmt(hazCells.size)],
-      ["Furthest reach", Math.round(S.maxDepth)],
+      ["Upgrade pixels", S.pointsFound + " / " + UPG_TOTAL],
     ]) +
-    statBox("SELECTED BALL — " + B.name.toUpperCase(), [
-      ["Cost to fire", built(B) ? fmt(ballCost(selKind)) + " px" : "—"],
-      ["Damage per impact", built(B) ? "x"+fmt(ballDmg(selKind)) : "—"],
-      ["Perks", built(B) ? (PERKS[selKind]||[]).filter(P=>perk(selKind,P.id)).length + " / " + (PERKS[selKind]||[]).length : "—"],
-      ["Impacts per shot", built(B) ? ballImp(selKind) : "—"],
-      ["Travel speed", built(B) ? B.spd + " cells/s (fixed)" : "—"],
-      ["Shots fired", fmt(S.shots)],
-    ]) +
+    statBox(B.name.toUpperCase() + " BALL", rows) +
     statBox("RATE", [
-      ["Pixels / sec", fmt(S.rate)],
-      ["Best rate", fmt(S.bestRate)],
-      ["Income / sec", fmt(pxRate)],
-      ["Balls live", balls.length + " / " + liveCap()],
-      ["Hardness at reach", "x"+fmt(depthMul(S.maxDepth))],
+      ["Pixels / sec", Math.ceil(pxShown)],
+      ["Balls live", balls.length],
+      ["Shots fired", fmt(S.shots)],
       ["Playtime", hrs + "h " + mins + "m"],
     ]);
 }
-
 function showGolden() {
+  const left = TOTAL - S.minedCount;
   $("gbody").innerHTML =
       '<div class="wrow"><span>Pixels mined</span><b>'+fmt(S.minedCount)+'</b></div>'
-    + '<div class="wrow"><span>Of the world</span><b>'+(S.minedCount/TOTAL*100).toFixed(4)+'%</b></div>'
     + '<div class="wrow"><span>Shots fired</span><b>'+fmt(S.shots)+'</b></div>'
-    + '<div class="wrow"><span>Playtime</span><b>'+Math.floor(S.playtime/3600)+'h '
-      + Math.floor(S.playtime%3600/60)+'m</b></div>'
-    + '<div class="wnote">One golden pixel in the whole world, and you dug it out.</div>';
+    + '<div class="wrow"><span>Playtime</span><b>'+Math.floor(S.playtime/3600)+'h '+Math.floor(S.playtime%3600/60)+'m</b></div>'
+    + '<div class="wnote">But there are still about '+fmt(left)+' pixels left&hellip;</div>';
   $("gold").style.display = "flex";
   save();
 }
 
 //===================================================================== input
-// Screen point -> world cell. The cursor is now a launch site, not an aim vector.
 function worldAt(e) {
   const sw = W/cam.z, sh = H/cam.z;
   return [cam.x-sw/2 + e.clientX/cam.z, cam.y-sh/2 + e.clientY/cam.z];
 }
-// Press sets the launch point, drag sets the direction, release fires along it.
-// Firing in a random direction made "launch anywhere" pointless: you could pick
-// the spot but not the shot. Panning moves to right-drag (or two fingers) so it
-// no longer competes with aiming for the left button.
 const ptrs = new Map();
-let pinchLen = 0, panning = false;
-let aimFrom = null;                       // world point the shot will launch from
-const TAP_SLOP = 8;
+let pinchLen = 0, panning = false, aimFrom = null, recallMode = false;
+const DRAG_MIN = 0.1;                     // BallShooting: shorter than this cancels
 const setZoom = z => { cam.tz = Math.max(1.0, Math.min(ZOOM_MAX, z)); };
 function pinchSpan() {
   const a = [...ptrs.values()];
   return a.length < 2 ? 0 : Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y);
 }
-// Slingshot. You drag AWAY from where the ball will go and let go, and the
-// further back you pull the harder it leaves.
-//
-// Power is continuous in the drag length -- 0.5% per screen pixel, so a full
-// draw is 200px and every pixel in between is a distinct speed. The old curve
-// jumped from full power to 30% the moment the drag passed six cells, a 3.3x
-// step off a single pixel of mouse movement, which is what made it feel chunky.
-//
-// Measured in SCREEN pixels, not world cells: the camera zoom ranges from about
-// 2 to 40, so a fixed distance in cells is a flick at one end and an arm's
-// length at the other. Screen distance feels the same at every zoom.
-const PULL_RATE = 0.005;                          // power gained per screen pixel
-const PULL_FLOOR = 0.25;                          // a bare tap still lobs it gently
-const PULL_DEAD = 0.4;                            // cells of slop before it counts as a pull
-function pullScreenPx() {
-  if (!aimFrom || !aim) return 0;
-  return Math.hypot(aim[0]-aimFrom[0], aim[1]-aimFrom[1]) * cam.z;
-}
-function launchPower() {
-  return Math.max(PULL_FLOOR, Math.min(1, pullScreenPx() * PULL_RATE));
-}
-
-function launchAngle() {
-  if (!aimFrom || !aim) return Math.random()*Math.PI*2;
-  const dx = aim[0]-aimFrom[0], dy = aim[1]-aimFrom[1];
-  if (Math.hypot(dx, dy) < PULL_DEAD) {    // nothing pulled: send it outward
-    const a = Math.atan2(aimFrom[1]-CY, aimFrom[0]-CX);
-    return isFinite(a) && (aimFrom[0]!==CX || aimFrom[1]!==CY) ? a : Math.random()*Math.PI*2;
-  }
-  return Math.atan2(-dy, -dx);             // INVERTED: it flies opposite the pull
-}
-
 cv.addEventListener("contextmenu", e => e.preventDefault());
 cv.addEventListener("pointerdown", e => {
   if (paused) return;
@@ -2161,30 +1659,28 @@ cv.addEventListener("pointerdown", e => {
   if (ptrs.size === 2) { panning = true; aimFrom = null; pinchLen = pinchSpan(); return; }
   if (e.button === 2 || e.button === 1) { panning = true; aimFrom = null; return; }
   panning = false;
-  aimFrom = worldAt(e); aim = aimFrom.slice();
+  const at = worldAt(e);
+  if (!canShoot(selKind)) {
+    toast(selKind === GOLDEN ? "NO GOLDEN BALLS" : "NEED " + fmt(S.cost[selKind]) + " PX");
+    return;
+  }
+  if (solid(Math.floor(at[0]), Math.floor(at[1]))) { toast("PRESS IN OPEN GROUND"); return; }
+  aimFrom = at; aim = at.slice();
 });
-
 cv.addEventListener("pointermove", e => {
   const p = ptrs.get(e.pointerId);
-  if (!p) { if (!paused && e.pointerType === "mouse") { aim = worldAt(e); } return; }
+  if (!p) return;
   const dx = e.clientX-p.x, dy = e.clientY-p.y;
   p.moved += Math.abs(dx)+Math.abs(dy);
   p.x = e.clientX; p.y = e.clientY;
-
   if (ptrs.size === 2) {
     const d = pinchSpan();
     if (pinchLen > 0 && d > 0) { cam.manual = true; setZoom(cam.tz * d/pinchLen); cam.z = cam.tz; }
-    pinchLen = d;
-    return;
+    pinchLen = d; return;
   }
-  if (panning) {
-    cam.manual = true;
-    cam.tx -= dx/cam.z; cam.ty -= dy/cam.z; cam.x -= dx/cam.z; cam.y -= dy/cam.z;
-  } else {
-    aim = worldAt(e);                       // dragging out the aim vector
-  }
+  if (panning) { cam.manual = true; cam.tx -= dx/cam.z; cam.ty -= dy/cam.z; cam.x -= dx/cam.z; cam.y -= dy/cam.z; }
+  else if (aimFrom) aim = worldAt(e);
 });
-
 function endPointer(e) {
   const p = ptrs.get(e.pointerId);
   if (!p) return;
@@ -2192,37 +1688,26 @@ function endPointer(e) {
   if (ptrs.size < 2) pinchLen = 0;
   if (paused) { aimFrom = null; return; }
   if (!panning && aimFrom && ptrs.size === 0) {
-    const ang = launchAngle();
-    if (!fire(selKind, ang, aimFrom[0], aimFrom[1], launchPower())) {
-      if (!S.owned[selKind]) toast("BALL LOCKED — FIND UPGRADE POINTS");
-      else if (balls.length >= liveCap()) toast("ARENA FULL — DIG OUT MORE ROOM");
-      else if (S.px < ballCost(selKind)) toast("NEED " + fmt(ballCost(selKind)) + " PX");
-      else toast("SOLID ROCK — LAUNCH INSIDE GROUND YOU HAVE OPENED");
-    }
+    const dx = aim[0]-aimFrom[0], dy = aim[1]-aimFrom[1];
+    if (Math.hypot(dx, dy) >= DRAG_MIN) fire(selKind, Math.atan2(-dy, -dx), aimFrom[0], aimFrom[1]);
+    else toast("DRAG BACK TO AIM — THE BALL FLIES THE OTHER WAY");
   }
   if (ptrs.size === 0) { panning = false; aimFrom = null; }
 }
 cv.addEventListener("pointerup", endPointer);
 cv.addEventListener("pointercancel", e => { ptrs.delete(e.pointerId); pinchLen = 0; panning = false; aimFrom = null; });
-
 addEventListener("wheel", e => {
   if (panelOpen || paused) return;
   cam.manual = true;
   setZoom(cam.tz*(e.deltaY<0 ? 1.18 : .85));
 }, { passive:true });
 
-function toggleAuto() {
-  S.auto = !S.auto;
-  toast(S.auto ? "AUTO-FIRE ON" : "AUTO-FIRE OFF");
-  for (const b of document.querySelectorAll('#mobibar button[data-a="auto"]'))
-    b.classList.toggle("on", S.auto);
-  save();
-}
 for (const b of document.querySelectorAll("#mobibar button")) {
   b.onclick = () => {
     const a = b.dataset.a;
     if (a === "menu") { paused ? closeMenu() : openMenu(); }
-    else if (a === "auto") { if (!paused) toggleAuto(); }
+    else if (a === "recall") { recallMode = !recallMode; b.classList.toggle("on", recallMode); dockSig = "";
+                               if (recallMode) toast("TAP A BALL TO RECYCLE ONE"); }
     else openPanel(a);
   };
 }
@@ -2230,170 +1715,31 @@ $("pclose").onclick = () => { if (panelOpen) openPanel(panelOpen); };
 addEventListener("keydown", e => {
   const k = e.key.toLowerCase();
   if (k === "escape") {
-    if (panelOpen) { panelOpen = null; $("pclose").classList.remove("on");
-      for (const p of ["upg","stats"]) $(p).classList.remove("on"); }
+    if (aimFrom) { aimFrom = null; return; }
+    if (panelOpen) { panelOpen = null; $("pclose").classList.remove("on"); for (const p of ["upg","stats"]) $(p).classList.remove("on"); }
     else if (paused) { if (!$("mcont").disabled) $("mcont").click(); }
     else openMenu();
     return;
   }
   if (paused) return;
-  if (k >= "1" && k <= "7") { const n = +k-1; if (S.owned[n]) { selKind = n; dockSig=""; drawDock(); } }
+  if (k === "tab") { e.preventDefault(); openPanel("upg"); return; }
+  if (k >= "1" && k <= "7") { const n = +k-1; if (n < S.bench.length) { selKind = S.bench[n]; dockSig = ""; } }
+  if (k === "g" || k === "8") { if (S.golden > 0) { selKind = GOLDEN; dockSig = ""; } }
   if (k === "u") openPanel("upg");
   if (k === "s") openPanel("stats");
-  if (k === "a") toggleAuto();
-  if (k === "f") { cam.manual = false; toast("CAMERA REFIT"); }
+  if (k === "f" || k === " ") { cam.manual = false; }
   if (k === "r") openMenu();
 });
 
-//=================================================================== offline
-// Credits away-time by eroding the cavern frontier through the same payout path
-// a live pixel uses, so offline income can never diverge from online income.
-//
-// The CELL CAP is the real control, and it is the only one that can be, because
-// it is the only term scaled to the run rather than to the player. Away pay is
-// 40% of the observed rate, and the observed rate mid-run is ~1000 cells/sec, so
-// 40% of it reaches any plausible ceiling within minutes: measured, the old
-// 400,000 was already spent six minutes into a twelve-hour absence, which made
-// every absence past six minutes pay exactly the same. The hours in OFFLINE_CAP_S
-// were decoration.
-//
-// So the ceiling is set as a fraction of a RUN. A full run mines ~2.4M cells, and
-// 400k of that is a sixth of the game handed over for closing a tab -- along with
-// 206 upgrade points against the ~726 a whole run yields. At half an hour a run,
-// away time should be a top-up, not a sixth of the game: 150k is about 6% of a
-// run, two or three minutes of mid-run mining. This is the one number here picked
-// by judgement rather than measured, and it is a one-line dial.
-const OFFLINE_CAP_S = 4*3600, OFFLINE_MAX = 150000;
-let offlinePass = false;
-function erodeFrontier(n) {
-  if (n <= 0) return 0;
-  const seen = new Set(), front = [];
-  const x0 = Math.max(1,bb.x0-2), x1 = Math.min(WORLD-2,bb.x1+2);
-  const y0 = Math.max(1,bb.y0-2), y1 = Math.min(WORLD-2,bb.y1+2);
-  // Generate the whole span first, or the scan below sees ungenerated cells as
-  // already-mined and the offline credit eats a rectangle instead of a cavern.
-  for (let cy = y0 >> CHUNK_SHIFT; cy <= (y1 >> CHUNK_SHIFT); cy++)
-    for (let cx = x0 >> CHUNK_SHIFT; cx <= (x1 >> CHUNK_SHIFT); cx++) ensureChunk(cx, cy);
-  for (let y=y0;y<=y1;y++) for (let x=x0;x<=x1;x++) {
-    const i = y*WORLD+x;
-    if (!tier[i] || seen.has(i)) continue;
-    if (!tier[i-1]||!tier[i+1]||!tier[i-WORLD]||!tier[i+WORLD]) { seen.add(i); front.push(i); }
-  }
-  let done = 0, ex0 = WORLD, ey0 = WORLD, ex1 = 0, ey1 = 0;
-  offlinePass = true;
-  while (done < n && front.length) {
-    const p = (Math.random()*front.length)|0, i = front[p];
-    front[p] = front[front.length-1]; front.pop();
-    const t = tier[i];
-    if (!t) continue;
-    const x = i%WORLD, y = (i/WORLD)|0;
-    // Bedrock is unbreakable, and this pass was quietly eating it. It wrote
-    // tier[i] = 0 for whatever it landed on, with none of the checks hitCell
-    // makes, so a long enough absence dissolved the monuments -- the one thing in
-    // the world that is supposed to be permanent -- and the cavern came back a
-    // featureless disc.
-    if (unbreakable(t)) continue;
-    // And it could win the game for you while the tab was shut. The golden pixel
-    // is the whole run; it is not something to come back and find already spent.
-    if (t === T_GOLD) continue;
-    tier[i] = 0; dmg.delete(i); poison.delete(i); hazSpread.delete(i);
-    if (isHazard(t)) hazCells.delete(i);// or the live tally drifts up and HAZ_CAP jams
-    payout(x,y,t); growBounds(x,y); done++;
-    if (x < ex0) ex0 = x; if (x > ex1) ex1 = x;
-    if (y < ey0) ey0 = y; if (y > ey1) ey1 = y;
-    // Only near a chunk seam can a 4-neighbour live in a chunk that does not
-    // exist yet; inside a chunk the raw tier read below is already valid. Calling
-    // this on every cell cost 2.75s per 100k for nine array reads apiece.
-    if ((x & 63) < 2 || (x & 63) > 61 || (y & 63) < 2 || (y & 63) > 61) ensureAround(x, y);
-    for (const j of [i-1,i+1,i-WORLD,i+WORLD])
-      if (j>=0 && j<tier.length && tier[j] && !seen.has(j)) { seen.add(j); front.push(j); }
-  }
-  offlinePass = false;
-  // Light what was cleared in one sweep rather than 81 writes per cell. Without
-  // any lighting at all, everything mined while away came back solid black.
-  if (done) relightBox(ex0-LIT_R, ey0-LIT_R, ex1+LIT_R, ey1+LIT_R);
-  return done;
-}
-function runOffline(awaySec) {
-  if (!S.auto || awaySec < 60 || S.rate <= 0) return null;
-  const t = Math.min(awaySec, OFFLINE_CAP_S);
-  const want = Math.min(OFFLINE_MAX, Math.floor(S.rate*0.40*t));
-  if (want < 1) return null;
-  const p0 = S.px, tk0 = S.tokensFound;
-  const got = erodeFrontier(want);
-  return got ? { pixels:got, px:S.px-p0, tokens:S.tokensFound-tk0, secs:t,
-                 capped: got >= OFFLINE_MAX || awaySec > OFFLINE_CAP_S } : null;
-}
-function showWelcome(r) {
-  const h = Math.floor(r.secs/3600), m = Math.floor(r.secs%3600/60);
-  $("wbody").innerHTML =
-      '<div class="wrow"><span>Away</span><b>'+(h?h+"h ":"")+m+'m</b></div>'
-    + '<div class="wrow"><span>Pixels mined</span><b>'+fmt(r.pixels)+'</b></div>'
-    + '<div class="wrow"><span>Earned</span><b>'+fmt(r.px)+' px</b></div>'
-    + (r.tokens ? '<div class="wrow"><span>Upgrade pixels</span><b>◆ '+r.tokens+'</b></div>' : '')
-    + (r.capped ? '<div class="wnote">Offline yield was capped. Check in more often.</div>' : '');
-  $("welcome").style.display = "flex";
-}
-
-let pendingOffline = null;
-let hiddenAt = 0;
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) { hiddenAt = Date.now(); save(); return; }
-  const sec = hiddenAt ? (Date.now()-hiddenAt)/1000 : 0;
-  hiddenAt = 0;
-  if (sec < 15) { last = performance.now(); return; }
-  const r = runOffline(sec);
-  last = performance.now();                 // after the pass, which is not free
-  if (!r) return;
-  // erodeFrontier lights what it clears now, so this no longer needs the full
-  // relight() rescan of every generated chunk -- just a repaint.
-  repaintReady();
-  if (paused) {
-    // Still sitting on the start menu. Hold the result for the welcome panel
-    // instead of firing a toast at a screen the player cannot see it on, and
-    // fold it into anything already waiting there rather than dropping one.
-    pendingOffline = pendingOffline ? mergeOffline(pendingOffline, r) : r;
-  } else {
-    toast("WHILE AWAY — " + fmt(r.pixels) + " PIXELS");
-  }
-  save();
-});
-function mergeOffline(a, b) {
-  return { pixels:a.pixels+b.pixels, px:a.px+b.px, tokens:a.tokens+b.tokens,
-           secs:a.secs+b.secs, capped:a.capped||b.capped };
-}
-
-// One pass to find what is open (which is also how `bb` is rebuilt), then one
-// distance transform over the box that holds it -- instead of a 9x9 stamp per
-// cleared cell, which is what made returning to the tab hitch.
-function relight() {
-  lit = new Uint8Array(TOTAL);
-  let x0 = WORLD, y0 = WORLD, x1 = -1, y1 = -1;
-  for (let cy = 0; cy < CW; cy++) for (let cx = 0; cx < CW; cx++) {
-    if (!chunkReady[cy*CW+cx]) continue;
-    const bx0 = cx*CHUNK, by0 = cy*CHUNK;
-    const bx1 = Math.min(WORLD, bx0+CHUNK), by1 = Math.min(WORLD, by0+CHUNK);
-    for (let y=by0;y<by1;y++) {
-      const row = y*WORLD;
-      for (let x=bx0;x<bx1;x++) {
-        if (tier[row+x]) continue;
-        growBounds(x, y);
-        if (x < x0) x0 = x; if (x > x1) x1 = x;
-        if (y < y0) y0 = y; if (y > y1) y1 = y;
-      }
-    }
-  }
-  if (x1 >= 0) relightBox(x0-LIT_R, y0-LIT_R, x1+LIT_R, y1+LIT_R);
-}
-
 //====================================================================== save
-// The mined mask is run-length encoded over every cell on the board. Almost all of
-// it is a single enormous run, so it stays small; only generated chunks can hold
-// mined pixels, and chunkReady is stored alongside so terrain can be rebuilt.
+// The demo saves every tile, every ball in flight and every button. This keeps
+// the seed (terrain is rebuilt from it), a run-length mask of what is mined, the
+// damage on standing cells, revealed beacons, and every ball's position and
+// velocity -- balls are permanent, so they come back where they were.
 function rleMined() {
   const out = []; let run = 0, cur = 0;
   for (let i = 0; i < TOTAL; i++) {
-    const ready = chunkReady[(((i/WORLD)|0)/CHUNK|0)*CW + ((i%WORLD)/CHUNK|0)];
+    const ready = chunkReady[(((i/WORLD)|0) >> CHUNK_SHIFT)*CW + ((i%WORLD) >> CHUNK_SHIFT)];
     const v = (ready && !tier[i]) ? 1 : 0;
     if (v === cur) run++; else { out.push(run.toString(36)); cur = v; run = 1; }
   }
@@ -2404,190 +1750,163 @@ let saveLocked = false;
 function save() {
   if (saveLocked) return;
   try {
-    const dm = [];
-    for (const e of dmg) { dm.push(e[0], Math.round(e[1])); }
-    const cr = [];
-    for (let i=0;i<chunkReady.length;i++) if (chunkReady[i]) cr.push(i);
-    // Hazards go in explicitly. The mined mask cannot describe them: one that
-    // spread is sitting on ground you cleared, so the mask calls that cell solid
-    // and the generator refills it with the rock that was there originally.
-    const hz = [];
-    for (const i of hazCells) hz.push(i, tier[i]);
+    const dm = []; for (const e of dmg) dm.push(e[0], e[1]);
+    const cr = []; for (let i = 0; i < chunkReady.length; i++) if (chunkReady[i]) cr.push(i);
+    const bl = [];
+    for (const b of balls) if (!b.dying) bl.push(b.k, +b.x.toFixed(3), +b.y.toFixed(3), +b.vx.toFixed(3), +b.vy.toFixed(3),
+                                                 b.k === GRAY ? +b.gx.toFixed(4) : 0, b.k === GRAY ? +b.gy.toFixed(4) : 0);
     localStorage.setItem(SAVEKEY, JSON.stringify({
-      v:1, px:S.px, tokens:S.tokens, tokensFound:S.tokensFound,
-      owned:S.owned, perks:S.perks, nodes:S.nodes, refine:S.refine, seed:RUNSEED,
-      mc:S.minedCount, md:S.maxDepth, rate:S.rate, br:S.bestRate, pt:S.playtime,
-      shots:S.shots, auto:S.auto, gold:S.goldFound, objs:S.objectsFound,
-      t:Date.now(), cr, mined:rleMined(), dm, hz
+      v:2, seed:RUNSEED, px:S.px, points:S.points, pf:S.pointsFound, golden:S.golden, gf:S.goldenFound,
+      bought:Object.keys(S.bought).map(Number), bench:S.bench, cost:S.cost, free:S.free, recallT:S.recallT,
+      mc:S.minedCount, pt:S.playtime, shots:S.shots, gold:S.goldFound, seen:S.goldSeen, ext:S.ext,
+      t:Date.now(), cr, mined:rleMined(), dm, bc:[...beacon], balls:bl
     }));
   } catch (err) { console.warn("save failed", err); }
 }
-let retiredSave = false;
-function readSave() {
+let retiredSave = false, SAVED = null;
+function loadSaveData() {
   try {
     const raw = localStorage.getItem(SAVEKEY);
-    if (raw) return raw;
-    for (const k of RETIRED)
-      if (localStorage.getItem(k)) { localStorage.removeItem(k); retiredSave = true; }
-  } catch (err) {}
-  return null;
-}
-// Parsed once. The seed has to be read BEFORE the world is built and the rest of
-// the save after it, and re-reading localStorage for each of those invited them to
-// disagree about which save they were looking at.
-let SAVED = null;
-function loadSaveData() {
-  const raw = readSave();
-  if (!raw) return null;
-  try { SAVED = JSON.parse(raw); } catch (err) { console.warn("save unreadable", err); SAVED = null; }
+    if (!raw) { for (const k of RETIRED) if (localStorage.getItem(k)) { localStorage.removeItem(k); retiredSave = true; } return null; }
+    SAVED = JSON.parse(raw);
+  } catch (err) { console.warn("save unreadable", err); SAVED = null; }
   return SAVED;
-}
-function savedAway() {
-  if (!SAVED) return 0;
-  return Math.max(0, (Date.now()-(SAVED.t||Date.now()))/1000);
 }
 function load() {
   const d = SAVED;
-  if (!d) return;
+  if (!d) return false;
   try {
-    S.px = d.px||0; S.tokens = d.tokens||0; S.tokensFound = d.tokensFound||0;
-    if (d.owned) S.owned = d.owned;
-    if (d.perks) S.perks = d.perks;
-    if (d.nodes) S.nodes = d.nodes;
-    if (typeof d.refine === 'number') S.refine = d.refine;
-    S.minedCount = d.mc||0; S.maxDepth = d.md||0; S.rate = d.rate||0;
-    S.bestRate = d.br||0; S.playtime = d.pt||0; S.shots = d.shots||0;
-    S.auto = !!d.auto; S.goldFound = !!d.gold; S.objectsFound = d.objs||{};
+    S.px = d.px||0; S.points = d.points||0; S.pointsFound = d.pf||0; S.golden = d.golden||0; S.goldenFound = d.gf||0;
+    S.bench = [ORANGE]; ST = freshStats(); S.bought = {};
+    for (const id of (d.bought||[])) if (TREE[id]) { S.bought[id] = 1; applyNode(TREE[id]); }
+    if (Array.isArray(d.bench)) S.bench = d.bench.filter(k => k >= 0 && k < GOLDEN);
+    if (d.cost) S.cost = d.cost; if (d.free) S.free = d.free; if (d.recallT) S.recallT = d.recallT;
+    S.minedCount = d.mc||0; S.playtime = d.pt||0; S.shots = d.shots||0;
+    S.goldFound = !!d.gold; S.goldSeen = !!d.seen; if (d.ext) S.ext = d.ext;
     for (const ci of (d.cr||[])) ensureChunk(ci % CW, (ci / CW) | 0);
     let i = 0, cur = 0;
     for (const tok of (d.mined||"").split(".")) {
-      const run = parseInt(tok,36);
+      const run = parseInt(tok, 36);
       if (!isFinite(run)) break;
-      if (cur) for (let k=0;k<run;k++) tier[i+k] = 0;
+      if (cur) tier.fill(0, i, i + run);
       i += run; cur ^= 1;
     }
     dmg.clear();
-    for (let k=0;k<(d.dm||[]).length;k+=2) dmg.set(d.dm[k], d.dm[k+1]);
-    // Hazards, in this order and no other. ensureChunk above logged every hazard
-    // the GENERATOR makes, mask or no mask, so drop the ones the mask has just
-    // mined out before laying the saved list back down.
-    for (const i of hazCells) if (!tier[i]) hazCells.delete(i);
-    for (let k=0;k<(d.hz||[]).length;k+=2) {
-      const i = d.hz[k], t = d.hz[k+1];
-      if (i >= 0 && i < TOTAL && isHazard(t)) { tier[i] = t; hazCells.add(i); }
+    for (let k = 0; k < (d.dm||[]).length; k += 2) dmg.set(d.dm[k], d.dm[k+1]);
+    beacon.clear(); for (const b of (d.bc||[])) if (tier[b] === K_UPG || tier[b] === K_GBALL) beacon.add(b);
+    balls = [];
+    const bl = d.balls || [];
+    for (let k = 0; k + 6 < bl.length; k += 7) {
+      const b = { k:bl[k], x:bl[k+1], y:bl[k+2], vx:bl[k+3], vy:bl[k+4], tsc:0, trail:[], rx:bl[k+1], ry:bl[k+2], rt:0 };
+      if (b.k === GRAY) { b.gx = bl[k+5]; b.gy = bl[k+6]; }
+      if (b.k === BLUE) { if (b.vy === 0) b.lockY = b.y; else b.lockX = b.x; }
+      if (b.k >= 0 && b.k < NB) balls.push(b);
     }
-  } catch (err) { console.warn("load failed", err); }
+    return true;
+  } catch (err) { console.warn("load failed", err); return false; }
 }
 
-//================================================================= start menu
+//================================================================= world init
 function freshWorld() {
   tier = new Uint8Array(TOTAL);
   lit  = new Uint8Array(TOTAL);
   chunkReady = new Uint8Array(CW*CW);
-  dmg.clear(); poison.clear(); hazSpread.clear(); hazCells.clear();
-  placeGolden();
-  ensureAround(CX, CY);
-  for (let r = 0; r < 3; r++) ensureChunk((CX/CHUNK|0)+r, CY/CHUNK|0);
+  dmg.clear(); poison.clear(); beacon.clear();
+  placeSpecials();
+  ensureAround(SX, SY);
+}
+function relight() {
+  lit = new Uint8Array(TOTAL);
+  let x0 = WORLD, y0 = WORLD, x1 = -1, y1 = -1;
+  for (let cy = 0; cy < CW; cy++) for (let cx = 0; cx < CW; cx++) {
+    if (!chunkReady[cy*CW+cx]) continue;
+    const bx0 = cx*CHUNK, by0 = cy*CHUNK, bx1 = Math.min(WORLD, bx0+CHUNK), by1 = Math.min(WORLD, by0+CHUNK);
+    for (let y = by0; y < by1; y++) {
+      const row = y*WORLD;
+      for (let x = bx0; x < bx1; x++) {
+        if (tier[row+x]) continue;
+        growBounds(x, y);
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+    }
+  }
+  if (x1 >= 0) relightBox(x0-LIT_R, y0-LIT_R, x1+LIT_R, y1+LIT_R);
+}
+// WorldManager.IntroBreak: the run opens by cracking the 3x3 around spawn, which
+// is also the starting money -- enough for the first two balls.
+function introBreak() {
+  for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
+    const x = SX+ox, y = SY+oy;
+    if (tier[y*WORLD + x] && tier[y*WORLD + x] !== K_WALL) breakCell(x, y);
+  }
+  // extend() only scans the strip each break ADDS; the box the dig starts in has
+  // to be swept once, as the demo's first UpdateFurthest calls do.
+  const e = S.ext;
+  revealStrip(e.x0 - BEACON_R, e.x1 + BEACON_R, e.y0 - BEACON_R, e.y1 + BEACON_R);
 }
 function resetGame() {
   saveLocked = true;
   try { localStorage.removeItem(SAVEKEY); for (const k of RETIRED) localStorage.removeItem(k); } catch (err) {}
-  S.px = START_PX; S.tokens = 0; S.tokensFound = 0;
-  S.owned = [1,0,0,0,0,0,0]; S.perks = {}; S.nodes = {root:1}; S.refine = 0;
-  RUNSEED = (Math.random() * 0x7ffffff) | 0;   // a new world hides the pixel elsewhere
-  S.minedCount = 0; S.maxDepth = 0; S.rate = 0; S.bestRate = 0; S.playtime = 0;
-  S.shots = 0; S.auto = false; S.goldFound = false; S.objectsFound = {};
+  RUNSEED = (Math.random() * 0x7ffffff) | 0;
+  Object.assign(S, { px:0, points:0, pointsFound:0, golden:0, goldenFound:0, bought:{}, bench:[ORANGE],
+    cost: BALLS.map(B => B.cost), free: new Array(NB).fill(0), recallT: new Array(NB).fill(RECALL_CD),
+    minedCount:0, playtime:0, shots:0, goldFound:false, goldSeen:false, ext:{ x0:SX, x1:SX, y0:SY, y1:SY } });
+  ST = freshStats();
   freshWorld();
-  sparks.length = 0; bolts.length = 0; dirty.length = 0; balls = []; selKind = 0; dockSig = "";
-  bb.x0 = CX-8; bb.y0 = CY-8; bb.x1 = CX+8; bb.y1 = CY+8;
-  relight(); repaintReady();
-  cam.manual = false; focusX = CX; focusY = CY;
+  sparks.length = 0; bolts.length = 0; flashes.length = 0; dirty.length = 0; balls = []; selKind = ORANGE; dockSig = "";
+  bb.x0 = SX-12; bb.y0 = SY-12; bb.x1 = SX+12; bb.y1 = SY+12;
+  relight(); introBreak(); repaintReady();
+  cam.manual = false; focusX = SX; focusY = SY;
   fitCamera(); cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz;
-  rateT = 0; rateMark = 0; pxMark = 0; pxRate = 0; autoT = 0;
-  aim = null; hudAcc = 0;
-  treeBuilt = false;
+  pxTick = 0; pxShown = 0; pxWin = 3; simT = 0; lightningAt = 0; goldShake = 0; goldBreak = 0; blackout = 0;
+  aim = null; aimFrom = null; hudAcc = 0; treeBuilt = false; treeSel = null;
   try { refreshUpg(); } catch (err) { console.warn("panel refresh failed", err); }
   finally { saveLocked = false; save(); }
 }
 
 let paused = true, armed = 0, sessionStarted = false;
 function openMenu() {
-  paused = true; armed = 0;
-  $("mnew").classList.remove("armed");
-  $("mnew").textContent = "NEW GAME";
-  $("mnote").textContent = "";
-  const has = S.minedCount > 0 || S.playtime > 0;
-  $("mcont").disabled = !(has || sessionStarted);
-  $("mcont").textContent = sessionStarted ? "RESUME" : "CONTINUE";
-  if (retiredSave) $("mnote").textContent =
-    "A save from an older version was retired — the world was rebuilt.";
+  paused = true; armed = 0; aimFrom = null;
+  $("mnew").classList.remove("armed"); $("mnew").textContent = "NEW GAME"; $("mnote").textContent = "";
+  const has = S.minedCount > 9 || S.shots > 0;
+  $("mcont").disabled = false;
+  $("mcont").textContent = sessionStarted ? "RESUME" : has ? "CONTINUE" : "START";
+  if (retiredSave) $("mnote").textContent = "A save from an older version was retired — the world was rebuilt.";
   $("msave").innerHTML = has
     ? '<div class="r"><span>Pixels mined</span><b>'+fmt(S.minedCount)+'</b></div>'
-      + '<div class="r"><span>Of the world</span><b>'+(S.minedCount/TOTAL*100).toFixed(4)+'%</b></div>'
-      + '<div class="r"><span>Upgrade pixels</span><b>◆ '+S.tokensFound+'</b></div>'
-      + '<div class="r"><span>Golden pixel</span><b>'+(S.goldFound?"FOUND":"buried")+'</b></div>'
-      + '<div class="r"><span>Playtime</span><b>'+Math.floor(S.playtime/3600)+'h '
-        + Math.floor(S.playtime%3600/60)+'m</b></div>'
-    : '<div class="none">NO SAVED RUN</div>';
+      + '<div class="r"><span>Balls bouncing</span><b>'+balls.length+'</b></div>'
+      + '<div class="r"><span>Upgrade pixels</span><b>&#9670; '+S.pointsFound+' / '+UPG_TOTAL+'</b></div>'
+      + '<div class="r"><span>Golden pixel</span><b>'+(S.goldFound ? "FOUND" : S.goldSeen ? "seen" : "buried")+'</b></div>'
+      + '<div class="r"><span>Playtime</span><b>'+Math.floor(S.playtime/3600)+'h '+Math.floor(S.playtime%3600/60)+'m</b></div>'
+    : '<div class="none">A NEW WORLD</div>';
   $("menu").classList.add("on");
 }
-function closeMenu() {
-  $("menu").classList.remove("on");
-  paused = false; sessionStarted = true;
-  last = performance.now();
-}
-$("mcont").onclick = () => {
-  if ($("mcont").disabled) return;
-  closeMenu();
-  if (pendingOffline) { showWelcome(pendingOffline); pendingOffline = null; }
-};
+function closeMenu() { $("menu").classList.remove("on"); paused = false; sessionStarted = true; last = performance.now(); }
+$("mcont").onclick = () => { if (!$("mcont").disabled) closeMenu(); };
 $("mnew").onclick = () => {
   if (!armed) {
-    armed = 1;
-    $("mnew").classList.add("armed");
-    $("mnew").textContent = "ERASE EVERYTHING?";
+    armed = 1; $("mnew").classList.add("armed"); $("mnew").textContent = "ERASE EVERYTHING?";
     $("mnote").textContent = "All progress and the current world will be destroyed.";
-    setTimeout(() => { if (armed === 1) {
-      armed = 0; $("mnew").classList.remove("armed");
-      $("mnew").textContent = "NEW GAME"; $("mnote").textContent = "";
-    } }, 4000);
+    setTimeout(() => { if (armed === 1) { armed = 0; $("mnew").classList.remove("armed"); $("mnew").textContent = "NEW GAME"; $("mnote").textContent = ""; } }, 4000);
     return;
   }
-  armed = 0;
-  $("mnew").classList.remove("armed");
-  $("mnew").textContent = "NEW GAME";
-  $("mnote").textContent = "";
-  pendingOffline = null;
-  resetGame();
-  closeMenu();
-  toast("NEW WORLD GENERATED");
+  armed = 0; $("mnew").classList.remove("armed"); $("mnew").textContent = "NEW GAME"; $("mnote").textContent = "";
+  resetGame(); closeMenu(); toast("NEW WORLD GENERATED");
 };
 
 //====================================================================== boot
-// Order matters, and it did not used to.
-//
-// 1. Read the save first, and take the SEED off it before a single chunk is
-//    generated. The seed was written on every save and never once read back, so
-//    every reload re-rolled the world: terrain regenerated differently under the
-//    saved mined-mask, relics and monuments moved, the damage map pointed at
-//    cells that were now a different kind of rock, and the golden pixel hid
-//    somewhere else. A run was only ever coherent within one page load.
-// 2. Build the world, then apply the save over it.
-// 3. Credit the away time LAST, so offline erosion lights and paints the cells
-//    it clears. Running it before relight() left every cell mined while you were
-//    gone reading as unlit black.
+// Seed first, then the world, then the save over it.
+document.addEventListener("visibilitychange", () => { if (document.hidden) save(); else last = performance.now(); });
 loadSaveData();
 if (SAVED && typeof SAVED.seed === "number") RUNSEED = SAVED.seed | 0;
 freshWorld();
-const away = savedAway();
-load();
+const loaded = load();
 relight();
-pendingOffline = runOffline(away);
+if (!loaded) introBreak();
 repaintReady();
 resize();
 drawDock();
 fitCamera(); cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz;
-$("wok").onclick = () => { $("welcome").style.display = "none"; };
 $("gok").onclick = () => { $("gold").style.display = "none"; };
 openMenu();
 setInterval(save, 15000);
