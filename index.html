@@ -211,7 +211,7 @@
 <div class="hud" id="prompt">PRESS IN OPEN GROUND &middot; DRAG BACK &middot; RELEASE</div>
 <div id="dock"></div>
 <div class="hud" id="toast"></div>
-<div class="hud" id="hint">[press+drag back] shoot &middot; [right-drag] pan &middot; [right-click a ball] recycle &middot; [1-7] ball &middot; [G] golden &middot; [wheel] zoom &middot; [F] refit &middot; [U / Tab] skill tree &middot; [S] stats &middot; [Esc] menu</div>
+<div class="hud" id="hint">[press+drag back] shoot &middot; [right-drag / drag rock] pan &middot; [right-click a ball] recycle &middot; [1-7] ball &middot; [G] golden &middot; [wheel] zoom &middot; [F] refit &middot; [U / Tab] skill tree &middot; [S] stats &middot; [Esc] menu</div>
 
 <div id="mobibar">
   <button data-a="upg">TREE</button>
@@ -1995,27 +1995,45 @@ function worldAt(e) {
   return [cam.x-sw/2 + e.clientX/cam.z, cam.y-sh/2 + e.clientY/cam.z];
 }
 const ptrs = new Map();
-let pinchLen = 0, panning = false, aimFrom = null, recallMode = false;
+let pinchLen = 0, pinchMid = null, panning = false, aimFrom = null, recallMode = false, tapNote = null;
 const DRAG_MIN = 0.1;                     // BallShooting: shorter than this cancels
+const TAP_SLOP = 10;                      // screen px a press can wander and still count as a tap
 const setZoom = z => { cam.tz = Math.max(1.0, Math.min(ZOOM_MAX, z)); };
 function pinchSpan() {
   const a = [...ptrs.values()];
   return a.length < 2 ? 0 : Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y);
+}
+function pinchCentre() {
+  const a = [...ptrs.values()];
+  return a.length < 2 ? null : [(a[0].x+a[1].x)/2, (a[0].y+a[1].y)/2];
+}
+// Move the camera so the world point under screen point `from` (at the current
+// zoom) ends up under screen point `to` at zoom z.
+function dragCamera(from, to, z) {
+  const wx = cam.x + (from[0] - W/2)/cam.z, wy = cam.y + (from[1] - H/2)/cam.z;
+  cam.manual = true;
+  cam.z = cam.tz = z;
+  cam.x = cam.tx = wx - (to[0] - W/2)/z;
+  cam.y = cam.ty = wy - (to[1] - H/2)/z;
 }
 cv.addEventListener("contextmenu", e => e.preventDefault());
 cv.addEventListener("pointerdown", e => {
   if (paused) return;
   try { cv.setPointerCapture(e.pointerId); } catch (err) {}
   ptrs.set(e.pointerId, { x:e.clientX, y:e.clientY, moved:0, btn:e.button });
-  if (ptrs.size === 2) { panning = true; aimFrom = null; pinchLen = pinchSpan(); return; }
+  tapNote = null;
+  // two fingers: drag pans, spreading them zooms about the point between them
+  if (ptrs.size >= 2) { panning = true; aimFrom = null; pinchLen = pinchSpan(); pinchMid = pinchCentre(); return; }
   if (e.button === 2 || e.button === 1) { panning = true; aimFrom = null; return; }
   panning = false;
   const at = worldAt(e);
+  // A press that cannot shoot -- in rock, or with nothing to shoot -- drags the
+  // view instead. Its reason only shows if the finger lifts without dragging.
   if (!canShoot(selKind)) {
-    toast(selKind === GOLDEN ? "NO GOLDEN BALLS" : "NEED " + fmt(S.cost[selKind]) + " PX");
+    panning = true; tapNote = selKind === GOLDEN ? "NO GOLDEN BALLS" : "NEED " + fmt(S.cost[selKind]) + " PX";
     return;
   }
-  if (solid(Math.floor(at[0]), Math.floor(at[1]))) { toast("PRESS IN OPEN GROUND"); return; }
+  if (solid(Math.floor(at[0]), Math.floor(at[1]))) { panning = true; tapNote = "PRESS IN OPEN GROUND — OR DRAG ROCK TO PAN"; return; }
   aimFrom = at; aim = at.slice();
 });
 cv.addEventListener("pointermove", e => {
@@ -2024,29 +2042,33 @@ cv.addEventListener("pointermove", e => {
   const dx = e.clientX-p.x, dy = e.clientY-p.y;
   p.moved += Math.abs(dx)+Math.abs(dy);
   p.x = e.clientX; p.y = e.clientY;
-  if (ptrs.size === 2) {
-    const d = pinchSpan();
-    if (pinchLen > 0 && d > 0) { cam.manual = true; setZoom(cam.tz * d/pinchLen); cam.z = cam.tz; }
-    pinchLen = d; return;
+  if (ptrs.size >= 2) {
+    const d = pinchSpan(), m = pinchCentre();
+    if (pinchMid && m) {
+      const z = pinchLen > 0 && d > 0 ? Math.max(1.0, Math.min(ZOOM_MAX, cam.z * d/pinchLen)) : cam.z;
+      dragCamera(pinchMid, m, z);
+    }
+    pinchLen = d; pinchMid = m; return;
   }
-  if (panning) { cam.manual = true; cam.tx -= dx/cam.z; cam.ty -= dy/cam.z; cam.x -= dx/cam.z; cam.y -= dy/cam.z; }
+  if (panning) dragCamera([p.x - dx, p.y - dy], [p.x, p.y], cam.z);
   else if (aimFrom) aim = worldAt(e);
 });
 function endPointer(e) {
   const p = ptrs.get(e.pointerId);
   if (!p) return;
   ptrs.delete(e.pointerId);
-  if (ptrs.size < 2) pinchLen = 0;
+  if (ptrs.size < 2) { pinchLen = 0; pinchMid = null; }
   if (paused) { aimFrom = null; return; }
+  if (tapNote && ptrs.size === 0 && p.moved < TAP_SLOP) toast(tapNote);
   if (!panning && aimFrom && ptrs.size === 0) {
     const dx = aim[0]-aimFrom[0], dy = aim[1]-aimFrom[1];
     if (Math.hypot(dx, dy) >= DRAG_MIN) fire(selKind, Math.atan2(-dy, -dx), aimFrom[0], aimFrom[1]);
     else toast("DRAG BACK TO AIM — THE BALL FLIES THE OTHER WAY");
   }
-  if (ptrs.size === 0) { panning = false; aimFrom = null; }
+  if (ptrs.size === 0) { panning = false; aimFrom = null; tapNote = null; }
 }
 cv.addEventListener("pointerup", endPointer);
-cv.addEventListener("pointercancel", e => { ptrs.delete(e.pointerId); pinchLen = 0; panning = false; aimFrom = null; });
+cv.addEventListener("pointercancel", e => { ptrs.delete(e.pointerId); pinchLen = 0; pinchMid = null; panning = false; aimFrom = null; tapNote = null; });
 addEventListener("wheel", e => {
   if (panelOpen || paused) return;
   cam.manual = true;

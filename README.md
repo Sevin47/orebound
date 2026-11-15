@@ -44,9 +44,9 @@ nodes it has bought.
 |---|---|
 | Press in open ground, drag back, release | Shoot. The ball flies opposite the drag |
 | Right-click a ball on the dock | Recycle one of that ball (once unlocked) |
-| Right-drag / two fingers | Pan |
+| Drag from rock / right-drag / two fingers | Pan |
 | `1`–`7` / dock | Select ball · `G` golden ball |
-| Wheel / pinch | Zoom |
+| Wheel / pinch | Zoom (a pinch zooms about the point between your fingers) |
 | `F` / Space | Return camera to auto-fit |
 | `U` / `Tab` | Skill tree · `S` Stats |
 | `Esc` / `R` | Start menu (pauses) |
