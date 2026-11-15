@@ -126,6 +126,9 @@
   #gold .wcard { border-color:#ffd75e; box-shadow:0 0 70px -6px #ffd75e; background:#141005 }
   #gold .wtitle { color:#ffd75e; font-size:19px; letter-spacing:6px }
   #gok { border-color:#ffd75e; color:#ffd75e } #gok:hover { background:#ffd75e2a }
+  #gnew { margin-top:10px; width:100%; background:none; border:1px solid #ffd75e88; color:#ffd75ecc;
+    padding:8px; font-family:inherit; font-size:11px; letter-spacing:2px; cursor:pointer }
+  #gnew:hover { background:#ffd75e1a } #gnew.armed { background:#ffd75e; color:#141005; border-color:#ffd75e }
 
   #boot { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     background:#000803; z-index:99; font-size:13px; letter-spacing:3px; color:#7ce8ff }
@@ -237,7 +240,9 @@
 
 <div id="gold"><div class="wcard">
   <div class="wtitle">THE GOLDEN PIXEL</div><div id="gbody"></div>
-  <button id="gok">CONTINUE DIGGING</button>
+  <button id="gok">KEEP DIGGING</button>
+  <button id="gnew">NEW GAME</button>
+  <div class="mnote" id="gnote"></div>
 </div></div>
 
 <div id="boot">GENERATING WORLD&hellip;</div>
@@ -1978,7 +1983,8 @@ function showGolden() {
       '<div class="wrow"><span>Pixels mined</span><b>'+fmt(S.minedCount)+'</b></div>'
     + '<div class="wrow"><span>Shots fired</span><b>'+fmt(S.shots)+'</b></div>'
     + '<div class="wrow"><span>Playtime</span><b>'+Math.floor(S.playtime/3600)+'h '+Math.floor(S.playtime%3600/60)+'m</b></div>'
-    + '<div class="wnote">But there are still about '+fmt(left)+' pixels left&hellip;</div>';
+    + '<div class="wnote">There are still about '+fmt(left)+' pixels left. Keep digging this world, or start a new one in a new cave.</div>';
+  gnewArmed = false; $("gnew").classList.remove("armed"); $("gnew").textContent = "NEW GAME"; $("gnote").textContent = "";
   $("gold").style.display = "flex";
   save();
 }
@@ -2258,7 +2264,21 @@ repaintReady();
 resize();
 drawDock();
 fitCamera(); cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz;
+// The win screen: keep digging this world, or start a new one. A new game
+// erases this world, so like the menu's it takes a second press to confirm.
+let gnewArmed = false;
 $("gok").onclick = () => { $("gold").style.display = "none"; };
+$("gnew").onclick = () => {
+  if (!gnewArmed) {
+    gnewArmed = true; $("gnew").classList.add("armed"); $("gnew").textContent = "ERASE THIS WORLD?";
+    $("gnote").textContent = "This world and everything in it will be gone. Press again to start fresh.";
+    setTimeout(() => { if (gnewArmed) { gnewArmed = false; $("gnew").classList.remove("armed"); $("gnew").textContent = "NEW GAME"; $("gnote").textContent = ""; } }, 4000);
+    return;
+  }
+  gnewArmed = false;
+  $("gold").style.display = "none";
+  resetGame(); toast("NEW WORLD — " + picName(PIC_ID).toUpperCase());
+};
 openMenu();
 setInterval(save, 15000);
 addEventListener("beforeunload", save);

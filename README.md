@@ -111,7 +111,8 @@ those 9 pixels are your starting money. That's enough for two balls.
   and fizzles out after a second and a half or on the first wall or rock it
   touches. Where it goes out, an arrow pointing at the pixel lingers for a few
   seconds, so you know which way to dig. The world goes dark while one is out. Breaking the pixel
-  takes three seconds. After that you can keep digging.
+  takes three seconds. Then you choose: keep digging the same world, or start a
+  new game in a new cave.
 
 ## The balls
 
