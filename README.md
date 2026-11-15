@@ -78,13 +78,15 @@ softer rock. Visibility is the demo's: breaking a pixel fully reveals its four
 neighbours, half-reveals the next ring, dimly reveals the one after, and shows
 nothing further out.
 
-**The opening is the demo's world.** The demo's playable area is one
-hand-drawn mask: two head silhouettes, a halo, a balloon on a fishing line, and
-a fish skeleton in the spawn chamber. Its 11,118 interior cells are stamped at
-world centre, unbreakable, exactly where the demo puts them. The mask's outer
-border, which seals the demo into a 50k-pixel disc, is dropped, so the picture
-opens into the full ten-million-pixel world. Further out, unbreakable monuments
-stand in for the silhouettes the full game's trailer masks show buried deeper.
+**The opening is a cave picture.** Like the demo's hand-drawn world, an
+unbreakable picture is stamped around spawn. Every new game picks one of ten at
+random: the Anchor, the Ammonite, the Hourglass, the Web, the Kraken, the Old
+Tree, the Crown, the Eye, the Lantern and the Labyrinth. Each is drawn from
+simple shapes in code and always leaves a way out of the spawn chamber. Rock a
+picture seals off completely never holds a special pixel. Worlds saved before
+the pictures existed keep the demo's fishbone. Further out, unbreakable
+monuments stand in for the silhouettes the full game's trailer masks show
+buried deeper.
 
 The run opens the way the demo's does: the 3×3 around spawn cracks open, and
 those 9 pixels are your starting money. That's enough for two balls.
@@ -95,18 +97,21 @@ those 9 pixels are your starting money. That's enough for two balls.
   point the tree costs. The first 38 use `SetSpecialTiles` as written: two at
   12–13 cells from spawn, then a spiral whose radius blends linear and geometric
   growth. The other 40 carry that spiral out across the full world.
-- **Golden-ball pixels** (cyan, 1 HP, one golden ball each). These keep the
-  demo's density of about one per 680 cells of HP-1 rock, which comes to a few
-  thousand across the world.
+- **Golden-ball pixels** (cyan, 1 HP, one golden ball each). Only 12 in the
+  whole world, one per ring of a widening spiral from 60 to 1300 cells out, so
+  each one is a real find. (The demo's density would put thousands here.)
 - **Beacons.** When the dig pushes its bounding box outward, any hidden upgrade
   or golden-ball pixel within 15 cells of the new edge lights up from a distance
   (`UpdateFurthest`).
 - **The golden pixel.** It is placed uniformly in the world, outside a box
   around spawn (the demo's ±100 of ±176, scaled up). Its depth is a lottery,
   exactly as in the demo. Ordinary balls bounce off it, and **every bounce gives
-  you a golden ball.** Only a golden ball can break it. A golden ball homes in
-  only when close: the pull is 20000 · f¹⁸ over 500 cells. It dies on the first
-  thing it touches, and the world goes dark while one is out. Breaking the pixel
+  you a golden ball.** Only a golden ball can break it. A golden ball seeks it
+  from anywhere: it runs on rails through the ground you have dug to the spot
+  nearest the pixel, then bores on toward it in a straight tunnel, breaking up
+  to 150 cells of rock. If that reaches the pixel, the pixel breaks; if not, the
+  ball burns out and tells you how far short it fell, and the next golden ball
+  carries on from the end of its tunnel. The world goes dark while one is out. Breaking the pixel
   takes three seconds. After that you can keep digging.
 
 ## The balls

@@ -347,11 +347,313 @@ function perlin(x, y) {
 // Run-length encoded, base 36, alternating empty/wall, row-major from the top.
 const PICTURE = "h2w.7.9r.b.9n.f.9k.h.9i.j.9g.l.9f.l.9e.n.9d.n.9c.p.9b.p.9b.p.9b.p.9b.p.9b.p.9b.p.9c.n.9d.n.9d.n.9e.l.9f.l.9g.j.9h.j.9i.h.9k.f.9l.f.9m.d.9o.b.9p.b.9q.9.9s.7.9t.7.9u.5.9w.3.9x.3.9y.1.9z.1.84.n.17.3.7s.1a.u.5.7n.1i.8g.1m.8d.1o.8d.1m.q.1.7t.1a.uw.1.13z.1.13z.1.j6.3.1i.3.1n.1.6n.5.1g.5.1m.1.6n.5.p.1.q.5.1m.1.5n.m.e.5.1g.5.1l.2.5h.y.8.5.1g.5.1l.2.5h.1b.1g.6.1j.3.5e.1e.p.1.q.8.1g.4.5e.1e.1g.a.1d.4.5b.1h.1i.a.1c.4.5b.1f.1m.a.19.5.59.1f.u.1.v.l.v.6.59.1d.1u.p.o.6.5a.1b.1y.s.i.7.5a.1a.20.u.e.7.59.1a.11.1.12.u.b.8.59.19.26.w.6.a.59.18.28.x.2.b.5a.16.2c.18.5a.15.16.1.17.16.5b.14.2g.15.5b.13.2i.13.5d.11.2k.12.5e.z.1a.1.1b.10.5f.y.2o.y.5g.x.2q.w.5h.w.2s.v.5h.v.1e.1.1f.v.5g.u.2w.u.5g.t.2y.t.5f.u.2y.v.5c.u.1h.1.1i.u.5c.t.1h.3.1i.u.5a.t.1i.3.1j.t.5a.t.1j.1.1k.t.59.t.1k.1.1l.s.58.t.1l.1.1m.t.56.t.1m.1.1l.t.55.t.1o.1.1l.t.54.t.1p.1.1k.t.53.t.1k.1.5.1.1l.t.51.u.1k.1.5.1.1l.u.50.t.1m.1.3.1.1n.t.50.t.1n.3.1o.t.4z.t.3g.t.4y.t.3g.t.4x.u.3g.u.4w.t.3i.t.4w.t.3i.t.4w.s.3k.s.4v.t.3k.t.4u.t.3k.t.4u.t.3k.t.4u.s.3m.s.4u.s.3m.s.4t.t.3m.t.4r.u.3m.u.4q.t.3o.t.4q.t.3o.t.4q.t.3o.t.4r.s.3o.s.4t.r.3o.r.4u.r.3o.r.4u.q.3q.q.4t.r.3q.r.4s.r.3q.r.4r.s.1z.1.1q.s.4p.t.1q.2.6.2.8.1.1h.t.4n.u.1j.1.5.3.5.3.7.2.1h.u.4l.v.1i.2.5.3.5.3.6.3.6.2.19.v.4k.v.1i.2.5.3.4.4.6.2.6.5.17.v.4j.w.1i.2.5.3.4.4.5.3.5.8.15.w.4i.w.1i.2.5.3.4.3.6.3.5.9.14.w.4h.x.1h.3.5.2.5.3.5.3.5.b.13.x.4f.y.1h.3.5.2.5.3.5.3.5.c.12.y.4e.y.1b.1.5.3.5.2.5.3.5.3.4.e.11.y.4d.z.s.3.f.2.5.3.5.2.5.3.5.3.4.f.10.z.4b.10.u.4.c.2.5.3.4.3.5.3.5.3.4.g.z.10.49.11.v.5.a.2.5.3.4.3.5.2.6.3.4.h.y.11.47.13.v.5.8.3.5.3.4.3.5.2.6.3.4.i.w.13.45.14.w.5.7.3.5.3.4.3.5.2.5.4.4.i.w.14.43.15.x.5.6.3.5.3.4.3.4.3.5.4.4.j.v.15.41.16.x.6.5.3.5.3.4.3.4.3.5.4.4.k.u.16.40.16.y.6.4.3.5.3.4.3.4.3.5.4.4.k.u.16.40.16.z.6.3.3.5.3.4.3.4.10.u.16.41.16.y.1t.v.16.43.15.z.1q.x.15.45.14.z.1p.y.14.48.12.y.7.2.3.4.s.3.d.6.2.s.12.4c.11.x.6.3.3.5.3.4.3.4.3.6.3.4.d.5.3.r.11.4f.10.w.6.4.3.5.3.4.3.4.3.6.3.5.c.3.4.s.10.4i.y.v.6.5.3.5.3.4.3.4.3.6.3.5.i.t.y.4k.y.u.6.6.3.5.3.4.3.5.3.5.4.4.g.v.y.4k.z.s.5.9.2.5.3.5.2.5.3.5.4.4.f.v.z.4k.z.s.4.a.2.5.3.5.2.5.3.6.3.5.d.w.z.4k.10.p.4.c.3.5.2.5.2.5.3.6.3.5.c.w.10.4k.10.o.3.f.2.5.2.5.2.5.4.5.3.5.b.x.10.4k.10.16.2.5.2.5.3.4.4.5.3.6.9.y.10.4k.11.16.1.5.3.4.3.5.3.6.2.6.7.z.11.4k.11.1d.2.4.3.5.4.5.3.6.4.11.11.4l.11.1c.2.4.4.4.4.5.3.1a.11.4n.10.1c.2.5.3.5.3.6.2.1a.10.4m.13.1c.1.5.3.5.4.5.3.18.13.4j.14.1j.1.7.3.6.1.19.14.4i.15.1r.2.1f.15.4i.15.38.15.4i.16.36.16.4j.16.34.16.4m.14.34.14.4o.15.32.15.4p.15.30.15.4q.16.2y.16.4q.16.2y.16.4q.17.2w.17.4q.18.2u.18.4q.19.2s.19.4p.1b.2q.1b.4o.1c.2o.1c.4n.1e.2m.1e.4m.1f.2k.1f.4m.1g.2i.1g.4m.1h.2g.1h.4m.1i.2e.1i.4n.19.2.7.2c.7.2.19.4o.15.7.8.28.8.7.15.4p.z.d.8.26.8.d.z.4s.q.l.8.24.8.l.q.66.9.20.9.7k.a.1w.8.7n.e.1l.d.7p.f.1i.d.7s.e.1f.d.7w.c.1e.c.7z.b.1e.b.82.9.1e.9.86.7.1e.7.89.6.1e.6.8a.6.1e.6.8a.6.1e.6.8a.6.1e.6.8b.3.1.1.1e.1.1.3.8g.1.1e.1.8k.1.1e.1.8k.1.1e.1.12k.1.1e.1.8k.1.be.1.8k.1.tz.1.1e.1.9z.1.9z.1.1ck.1.le.1.1wk.1.kpp";
 const PIC = 360, PIC_X0 = CX - 180, PIC_Y0 = CY - 179;
-const picMask = (function () {
+function fishMask() {
   const m = new Uint8Array(PIC*PIC); let i = 0, cur = 0;
   for (const tok of PICTURE.split(".")) { const n = parseInt(tok, 36); if (cur) m.fill(1, i, i+n); i += n; cur ^= 1; }
   return m;
+}
+
+// Orebound's own pictures. A new game picks one of these ten at random; the
+// demo's fishbone (design -1) is kept only so worlds saved before the pictures
+// existed come back exactly as they were. Each is drawn from simple shapes in
+// cells around spawn (u right, v down, spawn at 0,0), then a small disc around
+// spawn is cleared. Every picture leaves a way out of the spawn chamber: walls
+// are unbreakable, so a closed outline around spawn would trap the run.
+// <pictures>
+const PK = (function () {
+  const D = Math.PI / 180;
+  const bx = (f, x0, y0, x1, y1) => { f.b = [x0, y0, x1, y1]; return f; };
+  const segDist = (u, v, ax, ay, bx_, by) => {
+    const dx = bx_ - ax, dy = by - ay, l = dx*dx + dy*dy;
+    let t = l ? ((u - ax)*dx + (v - ay)*dy) / l : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+    return [Math.hypot(u - ax - dx*t, v - ay - dy*t), t];
+  };
+  const K = {
+    disc: (cx, cy, r) => bx((u, v) => (u-cx)*(u-cx) + (v-cy)*(v-cy) <= r*r, cx-r, cy-r, cx+r, cy+r),
+    ell: (cx, cy, rx, ry, rot = 0) => {
+      const c = Math.cos(rot*D), s = Math.sin(rot*D), m = Math.max(rx, ry);
+      return bx((u, v) => { const x = u-cx, y = v-cy, a = (x*c + y*s)/rx, b = (-x*s + y*c)/ry; return a*a + b*b <= 1; },
+                cx-m, cy-m, cx+m, cy+m);
+    },
+    box: (cx, cy, hw, hh) => bx((u, v) => Math.abs(u-cx) <= hw && Math.abs(v-cy) <= hh, cx-hw, cy-hh, cx+hw, cy+hh),
+    // a ring of width w; angles in degrees, 0 = right, 90 = down
+    arc: (cx, cy, r, w, a0 = 0, a1 = 360) => {
+      const s0 = ((a0 % 360) + 360) % 360, s1 = s0 + (a1 - a0), h = w/2;
+      return bx((u, v) => {
+        const d = Math.hypot(u-cx, v-cy);
+        if (Math.abs(d - r) > h) return false;
+        const a = ((Math.atan2(v-cy, u-cx)/D) + 360) % 360;
+        return (a >= s0 && a <= s1) || (a + 360 >= s0 && a + 360 <= s1);
+      }, cx-r-h, cy-r-h, cx+r+h, cy+r+h);
+    },
+    // n dashes around a ring, each covering `fill` of its share; `skip` drops dashes
+    dashes: (cx, cy, r, w, n, fill, rot = 0, skip = []) => {
+      const out = [], step = 360/n;
+      for (let i = 0; i < n; i++) if (!skip.includes(i)) out.push(K.arc(cx, cy, r, w, rot + i*step, rot + i*step + step*fill));
+      return K.any(out);
+    },
+    // a polyline of capsules, tapering from w0 to w1
+    path: (pts, w0, w1 = w0) => {
+      const n = pts.length/2, cum = [0];
+      for (let i = 1; i < n; i++) cum.push(cum[i-1] + Math.hypot(pts[2*i]-pts[2*i-2], pts[2*i+1]-pts[2*i-1]));
+      const tot = cum[n-1] || 1, m = Math.max(w0, w1)/2;
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (let i = 0; i < n; i++) { x0 = Math.min(x0, pts[2*i]); x1 = Math.max(x1, pts[2*i]); y0 = Math.min(y0, pts[2*i+1]); y1 = Math.max(y1, pts[2*i+1]); }
+      return bx((u, v) => {
+        for (let i = 1; i < n; i++) {
+          const [d, t] = segDist(u, v, pts[2*i-2], pts[2*i-1], pts[2*i], pts[2*i+1]);
+          const w = w0 + (w1 - w0) * (cum[i-1] + t*(cum[i]-cum[i-1])) / tot;
+          if (d <= w/2) return true;
+        }
+        return false;
+      }, x0-m, y0-m, x1+m, y1+m);
+    },
+    line: (ax, ay, bx_, by, w) => K.path([ax, ay, bx_, by], w),
+    // a smooth curve through the points (Catmull-Rom)
+    curve: (pts, w0, w1 = w0, seg = 10) => {
+      const n = pts.length/2, P = i => [pts[2*Math.max(0, Math.min(n-1, i))], pts[2*Math.max(0, Math.min(n-1, i))+1]];
+      const out = [pts[0], pts[1]];
+      for (let i = 0; i < n-1; i++) {
+        const [p0x, p0y] = P(i-1), [p1x, p1y] = P(i), [p2x, p2y] = P(i+1), [p3x, p3y] = P(i+2);
+        for (let k = 1; k <= seg; k++) {
+          const t = k/seg, t2 = t*t, t3 = t2*t;
+          out.push(0.5*((2*p1x) + (-p0x+p2x)*t + (2*p0x-5*p1x+4*p2x-p3x)*t2 + (-p0x+3*p1x-3*p2x+p3x)*t3),
+                   0.5*((2*p1y) + (-p0y+p2y)*t + (2*p0y-5*p1y+4*p2y-p3y)*t2 + (-p0y+3*p1y-3*p2y+p3y)*t3));
+        }
+      }
+      return K.path(out, w0, w1);
+    },
+    poly: (pts) => {
+      const n = pts.length/2;
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (let i = 0; i < n; i++) { x0 = Math.min(x0, pts[2*i]); x1 = Math.max(x1, pts[2*i]); y0 = Math.min(y0, pts[2*i+1]); y1 = Math.max(y1, pts[2*i+1]); }
+      return bx((u, v) => {
+        let inside = false;
+        for (let i = 0, j = n-1; i < n; j = i++) {
+          const xi = pts[2*i], yi = pts[2*i+1], xj = pts[2*j], yj = pts[2*j+1];
+          if ((yi > v) !== (yj > v) && u < (xj - xi) * (v - yi) / (yj - yi) + xi) inside = !inside;
+        }
+        return inside;
+      }, x0, y0, x1, y1);
+    },
+    dots: (ax, ay, bx_, by, step, r) => {
+      const out = [], L = Math.hypot(bx_-ax, by-ay), n = Math.max(1, Math.round(L/step));
+      for (let i = 0; i <= n; i++) out.push(K.disc(ax + (bx_-ax)*i/n, ay + (by-ay)*i/n, r));
+      return K.any(out);
+    },
+    any: (fs) => {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const f of fs) { x0 = Math.min(x0, f.b[0]); y0 = Math.min(y0, f.b[1]); x1 = Math.max(x1, f.b[2]); y1 = Math.max(y1, f.b[3]); }
+      return bx((u, v) => { for (const f of fs) if (u >= f.b[0] && u <= f.b[2] && v >= f.b[1] && v <= f.b[3] && f(u, v)) return true; return false; },
+                x0, y0, x1, y1);
+    },
+    cut: (f, ...gs) => bx((u, v) => f(u, v) && !gs.some(g => g(u, v)), ...f.b),
+    flip: (f) => bx((u, v) => f(-u, v), -f.b[2], f.b[1], -f.b[0], f.b[3]),
+    both: (f) => K.any([f, K.flip(f)]),
+  };
+  return K;
 })();
+
+const PICTURES = [
+  { name: "The Anchor", draw: K => [
+    // the frame: a porthole, open at the top and bottom
+    K.arc(0, 0, 118, 11, 112, 248), K.arc(0, 0, 118, 11, -68, 68),
+    K.both(K.dots(-118, -112, -118, -60, 9, 3)), K.both(K.dots(-118, 60, -118, 112, 9, 3)),
+    // the anchor
+    K.arc(0, -74, 11, 5), K.line(0, -62, 0, 62, 7),
+    K.line(-30, -46, 30, -46, 6), K.disc(-33, -46, 5), K.disc(33, -46, 5),
+    K.arc(0, 18, 56, 7, 22, 158),
+    K.both(K.poly([44, 42, 70, 18, 64, 50])),
+    // its chain, up out of the porthole
+    K.any([...Array(9)].map((_, i) => K.ell((i % 2) * 3 - 1, -94 - i*10, i % 2 ? 3 : 4.5, 6, 0))),
+    // waves above, kelp below
+    K.curve([-170, -150, -140, -160, -110, -150, -80, -160, -50, -150], 5),
+    K.curve([50, -150, 80, -160, 110, -150, 140, -160, 170, -150], 5),
+    K.curve([-150, 175, -158, 150, -146, 125, -156, 100], 6, 2),
+    K.curve([-128, 175, -122, 155, -132, 135], 5, 2),
+    K.curve([150, 175, 158, 145, 146, 118, 156, 92], 6, 2),
+  ]},
+  { name: "The Ammonite", draw: K => {
+    const sp = [];
+    for (let t = 0; t <= 8.6; t += 0.08) { const r = 20 * Math.exp(0.188 * t); sp.push(Math.cos(t + 1.2) * r, Math.sin(t + 1.2) * r); }
+    const ribs = [];
+    for (let t = 2.2; t <= 8.6; t += 0.42) {
+      const r = 20 * Math.exp(0.188 * t), a = t + 1.2;
+      ribs.push(K.line(Math.cos(a)*(r - 4), Math.sin(a)*(r - 4), Math.cos(a)*(r - Math.min(16, r*0.22)), Math.sin(a)*(r - Math.min(16, r*0.22)), 3));
+    }
+    return [
+      K.path(sp, 4, 9), K.any(ribs),
+      // parentheses of stone, and bubbles rising past them
+      K.arc(0, 0, 150, 16, 122, 238), K.arc(0, 0, 150, 16, -58, 58),
+      K.disc(-112, -150, 7), K.disc(-100, -170, 5), K.disc(-120, -128, 4),
+      K.disc(118, -140, 6), K.disc(106, -162, 4),
+      K.curve([-180, 168, -90, 160, 0, 166, 90, 158, 180, 168], 6),
+    ];
+  }},
+  { name: "The Hourglass", draw: K => {
+    const ticks = [];
+    for (let i = 0; i < 12; i++) {
+      const a = i * 30 * Math.PI / 180, big = i % 3 === 0;
+      ticks.push(K.line(Math.cos(a)*(big ? 132 : 138), Math.sin(a)*(big ? 132 : 138), Math.cos(a)*156, Math.sin(a)*156, big ? 9 : 5));
+    }
+    return [
+      // a clock face broken into hours
+      K.dashes(0, 0, 146, 6, 12, 0.62, 9), K.any(ticks),
+      // the glass: caps, posts, and two curved sides that do not quite meet them
+      K.line(-52, -86, 52, -86, 9), K.line(-52, 86, 52, 86, 9),
+      K.both(K.line(-48, -72, -48, 72, 5)), K.both(K.disc(-52, -86, 7)), K.both(K.disc(-52, 86, 7)),
+      K.both(K.curve([-38, -74, -34, -40, -10, -10, -7, 0, -10, 10, -34, 40, -38, 74], 4)),
+      K.poly([-26, 76, 26, 76, 14, 62, 4, 52, -4, 52, -14, 62]),
+      K.poly([-20, -50, 20, -50, 4, -24, -4, -24]),
+      K.dots(0, 12, 0, 44, 6, 1.2),
+    ];
+  }},
+  { name: "The Web", draw: K => {
+    const out = [], N = 9, rings = [34, 60, 88, 118, 150];
+    const pt = (r, k) => { const a = (k * 360 / N + 14) * Math.PI / 180; return [Math.cos(a)*r, Math.sin(a)*r]; };
+    for (let k = 0; k < N; k++) { const [x0, y0] = pt(14, k), [x1, y1] = pt(170, k); out.push(K.line(x0, y0, x1, y1, 3)); }
+    // the threads sag toward the centre and stop just short of each spoke, so
+    // every cell of the web can be dug into; it is torn through one sector
+    rings.forEach((r, ri) => {
+      for (let k = 0; k < N; k++) {
+        if (k === 2 || (ri + k) % 7 === 4) continue;
+        const [x0, y0] = pt(r, k), [x1, y1] = pt(r, k + 1), [mx, my] = pt(r * 0.92, k + 0.5);
+        const g = 6 / Math.hypot(x1 - x0, y1 - y0);
+        out.push(K.curve([x0 + (mx-x0)*g*2, y0 + (my-y0)*g*2, mx, my, x1 + (mx-x1)*g*2, y1 + (my-y1)*g*2], 3, 3, 6));
+      }
+    });
+    // and a spider hangs off the top-left
+    out.push(K.line(-148, -182, -148, -146, 2), K.ell(-148, -128, 10, 13), K.disc(-148, -112, 6));
+    for (const s of [-1, 1]) for (let j = 0; j < 4; j++) {
+      const y = -132 + j * 7;
+      out.push(K.curve([-148 + s*7, y, -148 + s*(20 + j*2), y - 12 + j*5, -148 + s*(28 + j*3), y + 6 + j*6], 3, 2, 6));
+    }
+    return out;
+  }},
+  { name: "The Kraken", draw: K => [
+    K.cut(K.ell(0, -112, 50, 58), K.disc(-19, -100, 9), K.disc(19, -100, 9)),
+    K.disc(-17, -98, 3), K.disc(21, -98, 3),
+    K.curve([-40, -70, -105, -48, -142, 20, -116, 92, -76, 106, -66, 82], 16, 3),
+    K.curve([-18, -60, -56, -8, -58, 62, -28, 116, 0, 146, 16, 134], 14, 3),
+    K.curve([18, -60, 52, 4, 44, 72, 72, 118, 104, 122, 108, 100], 14, 3),
+    K.curve([40, -70, 112, -54, 150, 8, 128, 82, 148, 132, 174, 124], 16, 3),
+    K.curve([-46, -94, -92, -122, -102, -156, -80, -170], 10, 3),
+    K.curve([46, -94, 92, -120, 106, -152, 132, -160], 10, 3),
+    K.dots(-170, -40, -170, 60, 12, 2), K.dots(176, -60, 176, 40, 12, 2),
+  ]},
+  { name: "The Old Tree", draw: K => [
+    // canopy
+    K.disc(-62, -108, 40), K.disc(0, -134, 46), K.disc(62, -108, 40), K.disc(-30, -84, 26), K.disc(30, -84, 26),
+    K.disc(-104, -128, 22), K.disc(104, -128, 22),
+    // a hollow trunk, open between the roots
+    K.poly([-30, -72, -14, -72, -22, 40, -32, 72, -48, 72, -38, 40]),
+    K.poly([30, -72, 14, -72, 22, 40, 32, 72, 48, 72, 38, 40]),
+    K.curve([-44, 68, -84, 86, -136, 92, -174, 118], 12, 3),
+    K.curve([-36, 70, -58, 112, -46, 152, -60, 176], 9, 3),
+    K.curve([44, 68, 90, 82, 128, 112, 150, 158], 12, 3),
+    K.curve([36, 70, 64, 116, 58, 150], 9, 3),
+    // a crescent moon
+    K.cut(K.disc(132, -40, 20), K.disc(142, -46, 18)),
+    K.dots(-150, -40, -150, -10, 10, 1.5), K.disc(-150, 2, 3),
+  ]},
+  { name: "The Crown", draw: K => {
+    const leaves = [];
+    for (let a = 112; a <= 238; a += 14) {
+      const r = a * Math.PI / 180, x = Math.cos(r)*128, y = Math.sin(r)*128 + 14;
+      leaves.push(K.ell(x + Math.cos(r)*8, y + Math.sin(r)*8, 9, 4, a - 40), K.ell(x - Math.cos(r)*8, y - Math.sin(r)*8, 9, 4, a + 40));
+    }
+    const laurel = K.any([K.arc(0, 14, 128, 5, 108, 242), ...leaves]);
+    return [
+      K.cut(K.poly([-62, -88, -62, -152, -46, -118, -31, -140, -16, -118, 0, -172, 16, -118, 31, -140, 46, -118, 62, -152, 62, -88]),
+            K.disc(-34, -100, 5), K.disc(0, -100, 6), K.disc(34, -100, 5)),
+      K.disc(-62, -158, 6), K.disc(0, -178, 4), K.disc(62, -158, 6),
+      // the gem around spawn, open at its point
+      K.line(-22, -34, 22, -34, 4), K.line(-22, -34, -42, -14, 4), K.line(22, -34, 42, -14, 4),
+      K.line(-42, -14, 42, -14, 4), K.line(-42, -14, -8, 36, 4), K.line(42, -14, 8, 36, 4),
+      K.line(-10, -34, -18, -14, 3), K.line(10, -34, 18, -14, 3),
+      laurel, K.flip(laurel),
+      K.line(0, 130, 0, 176, 6), K.both(K.line(-34, 152, 34, 152, 6)),
+    ];
+  }},
+  { name: "The Eye", draw: K => {
+    const lid = (c) => { const p = []; for (let t = 0.07; t <= 0.93; t += 0.02) { const x = -150 + 300*t, y = 2*(1-t)*t*c; p.push(x, y); } return p; };
+    const lashes = [];
+    for (let i = 0; i < 7; i++) {
+      const t = 0.2 + i * 0.1, x = -150 + 300*t, y = 2*(1-t)*t*-130, L = Math.hypot(x, y + 40);
+      lashes.push(K.line(x, y - 4, x + x/L*26, y - 4 + (y + 40)/L*26, 3));
+    }
+    return [
+      K.path(lid(-130), 9), K.path(lid(120), 9), K.any(lashes),
+      K.dashes(0, 0, 46, 7, 3, 0.86, -60),
+      K.dashes(0, 0, 17, 5, 2, 0.8, 120),
+      K.any([...Array(16)].map((_, i) => { const a = i * 22.5 * Math.PI / 180; return K.line(Math.cos(a)*24, Math.sin(a)*24, Math.cos(a)*36, Math.sin(a)*36, 2.5); })),
+      K.disc(-30, -30, 6),
+      K.arc(0, 190, 315, 11, 252, 288),
+      K.disc(90, 92, 9), K.poly([82, 88, 98, 88, 90, 70]),
+    ];
+  }},
+  { name: "The Lantern", draw: K => {
+    const pick = (x) => [K.line(x, 150, x, -40, 8), K.arc(x, 2, 70, 11, 232, 308), K.disc(x - 43, -51, 6), K.disc(x + 43, -51, 6)];
+    return [
+      K.line(0, -182, 0, -128, 3), K.arc(0, -110, 18, 5, 180, 360),
+      K.poly([-30, -102, 30, -102, 48, -80, -48, -80]),
+      K.poly([-48, 80, 48, 80, 34, 98, -34, 98]), K.line(-18, 98, 18, 98, 8), K.disc(0, 108, 5),
+      // the cage: bulging sides with a door, and two inner bars
+      K.curve([-48, -80, -58, -40, -60, 0], 5), K.curve([-58, 34, -56, 56, -48, 80], 5),
+      K.curve([48, -80, 58, -40, 60, 0, 58, 40, 48, 80], 5),
+      K.both(K.line(-18, -64, -20, 64, 3)),
+      // the flame
+      K.cut(K.poly([0, -58, 12, -34, 9, -20, 0, -14, -9, -20, -12, -34]), K.poly([0, -44, 5, -30, 0, -24, -5, -30])),
+      ...pick(-128), ...pick(128),
+      K.both(K.poly([-160, 130, -150, 120, -140, 130, -150, 140])), K.both(K.poly([-96, 160, -88, 152, -80, 160, -88, 168])),
+    ];
+  }},
+  { name: "The Labyrinth", draw: K => {
+    const ring = (r, gap) => K.arc(0, 0, r, 6, gap + 26, gap + 360);
+    const wall = (r0, r1, a) => { const t = a * Math.PI / 180; return K.line(Math.cos(t)*r0, Math.sin(t)*r0, Math.cos(t)*r1, Math.sin(t)*r1, 6); };
+    const torch = (x, y) => [K.line(x, y, x, y + 26, 5), K.poly([x - 7, y - 2, x + 7, y - 2, x, y - 18])];
+    return [
+      ring(34, 250), ring(60, 70), ring(86, 200), ring(112, 10), ring(138, 140),
+      wall(36, 58, 150), wall(62, 84, 300), wall(88, 110, 110), wall(114, 136, 250),
+      wall(140, 170, 45), wall(140, 170, 225),
+      ...torch(-160, -160), ...torch(160, -160), ...torch(-160, 150), ...torch(160, 150),
+    ];
+  }},
+];
+// </pictures>
+
+// picSealed marks rock the picture walls off completely (a jewel's socket, an
+// eye's pupil): no ball can ever reach it, so no special tile goes there.
+let PIC_ID = 0, picMask = null, picSealed = null;
+const randomPicture = (not) => { let id; do { id = (Math.random() * PICTURES.length) | 0; } while (id === not && PICTURES.length > 1); return id; };
+function buildPicture(id) {
+  PIC_ID = id; picSealed = null;
+  if (id < 0 || !PICTURES[id]) { picMask = fishMask(); return; }
+  const shapes = PK.any(PICTURES[id].draw(PK));
+  const m = new Uint8Array(PIC*PIC);
+  for (let py = 0; py < PIC; py++) for (let px = 0; px < PIC; px++) {
+    const u = px - 180, v = py - 182;
+    if (u*u + v*v <= 20) continue;                      // spawn stays open
+    if (shapes(u + 0.5, v + 0.5)) m[py*PIC + px] = 1;
+  }
+  picMask = m;
+  // flood the open rock from spawn and from the picture's border
+  const seen = new Uint8Array(PIC*PIC), q = [];
+  const push = j => { if (!m[j] && !seen[j]) { seen[j] = 1; q.push(j); } };
+  push(182*PIC + 180);
+  for (let k = 0; k < PIC; k++) { push(k); push((PIC-1)*PIC + k); push(k*PIC); push(k*PIC + PIC-1); }
+  while (q.length) {
+    const j = q.pop(), x = j % PIC, y = (j / PIC) | 0;
+    if (x > 0) push(j-1); if (x < PIC-1) push(j+1); if (y > 0) push(j-PIC); if (y < PIC-1) push(j+PIC);
+  }
+  picSealed = new Uint8Array(PIC*PIC);
+  for (let j = 0; j < PIC*PIC; j++) if (!m[j] && !seen[j]) picSealed[j] = 1;
+}
+function sealed(x, y) {
+  const px = x - PIC_X0, py = y - PIC_Y0;
+  return !!picSealed && px >= 0 && py >= 0 && px < PIC && py < PIC && picSealed[py*PIC + px] === 1;
+}
+function picName(id) { return id >= 0 && PICTURES[id] ? PICTURES[id].name : "The Fishbone"; }
 function inPicture(x, y) {
   const px = x - PIC_X0, py = y - PIC_Y0;
   return px >= 0 && py >= 0 && px < PIC && py < PIC && picMask[py*PIC + px] === 1;
@@ -433,25 +735,18 @@ function baseType(x, y) {
 // rest walk outward on a blend of linear and geometric radius growth. Found in a
 // real demo world at radii 55-130 with the picture's walls in the way.
 //
-// Golden-ball pixels: the demo scatters 30 uniformly over its playable square on
-// HP-1 rock, about one per 680 such cells. Kept at that DENSITY here, so the
-// world holds a few thousand. Each gives one golden ball.
+// Golden-ball pixels: Orebound's own rule. The demo scatters them at a density
+// that would put thousands in this world; here there are only GBALL_TOTAL, one
+// per ring of a widening spiral, so each is a real find. Each gives one golden
+// ball, and a golden ball now goes and finds the golden pixel (homeGolden).
 //
 // The golden pixel: uniform over the playable square, outside a box around spawn
 // that the demo sets at +/-100 of +/-176 (scaled to this world), never on a wall.
 // Its depth is a lottery, exactly as in the demo.
 const DEMO_UPG = 38, UPG_TOTAL = 78;
-const GBALL_P = 30 / 20500;
+const GBALL_TOTAL = 12, GBALL_R0 = 60, GBALL_R1 = 1300;
 const GOLD_EXCL = Math.round(100 * GEO);
-let UPG = [], UPG_SET = new Set(), GOLD_I = -1;
-
-function gballAt(x, y) {
-  if (Math.abs(x - SX) <= 20 && Math.abs(y - SY) <= 20) return false;
-  if (hash2(x, y, RUNSEED + 6061) >= GBALL_P) return false;
-  const i = y*WORLD + x;
-  if (UPG_SET.has(i) || i === GOLD_I) return false;
-  return baseType(x, y) === 1;
-}
+let UPG = [], UPG_SET = new Set(), GOLD_I = -1, GBALLS = [], GBALL_SET = new Set();
 function placeSpecials() {
   const rng = mulberry32(RUNSEED ^ 0x5eed);
   // the demo re-rolls the noise offset until spawn is soft rock (HP 3 or less)
@@ -461,7 +756,7 @@ function placeSpecials() {
   UPG = []; UPG_SET = new Set();
   const add = (x, y) => { const i = y*WORLD + x; UPG.push(i); UPG_SET.add(i); };
   const ok = (x, y) => x > 3 && y > 3 && x < WORLD-4 && y < WORLD-4
-                       && !UPG_SET.has(y*WORLD + x) && baseType(x, y) === 1;
+                       && !UPG_SET.has(y*WORLD + x) && baseType(x, y) === 1 && !sealed(x, y);
   let near = 0, num2 = 1;
   for (let i = 0; i < UPG_TOTAL; i++) {
     for (let tries = 0; tries < 20000; tries++) {
@@ -500,6 +795,18 @@ function placeSpecials() {
     if (!isRock(baseType(x, y)) || UPG_SET.has(y*WORLD + x)) continue;
     GOLD_I = y*WORLD + x; break;
   }
+
+  // golden-ball pixels: one per ring, 60 cells out to 1300, at random bearings
+  GBALLS = []; GBALL_SET = new Set();
+  for (let i = 0; i < GBALL_TOTAL; i++) {
+    const r0 = GBALL_R0 * Math.pow(GBALL_R1 / GBALL_R0, i / (GBALL_TOTAL - 1));
+    for (let tries = 0; tries < 20000; tries++) {
+      const a = rng() * Math.PI * 2, r = r0 + rng() * r0 * 0.15;
+      const x = Math.round(SX + Math.cos(a)*r), y = Math.round(SY + Math.sin(a)*r), j = y*WORLD + x;
+      if (!ok(x, y) || j === GOLD_I || GBALL_SET.has(j)) continue;
+      GBALLS.push(j); GBALL_SET.add(j); break;
+    }
+  }
 }
 
 function genCell(x, y) {
@@ -508,7 +815,7 @@ function genCell(x, y) {
   const i = y*WORLD + x;
   if (UPG_SET.has(i)) return K_UPG;
   if (i === GOLD_I) return K_GOLD;
-  if (t === 1 && gballAt(x, y)) return K_GBALL;
+  if (GBALL_SET.has(i)) return K_GBALL;
   return t;
 }
 
@@ -565,13 +872,16 @@ const BALLS = [
   { k:6, name:"Speed",       col:"#ff6fd8", cost:120, step:20, mult:4.0,
     desc:"Five times faster than the basic ball." },
   { k:7, name:"Golden",      col:"#ffd75e", cost:0,   step:0,  mult:1.5,
-    desc:"The only thing that can break the golden pixel. It homes in when close, and dies on the first thing it touches." },
+    desc:"The only thing that can break the golden pixel. It finds its own way there through your tunnels, then bores through rock toward it until its strength runs out." },
 ];
 const NB = BALLS.length;
 const BASE_SPEED = 8;
 const R_BALL = 0.15, R_GOLDEN = 0.3;      // CircleCollider2D r 0.5 at scale 0.3 / 0.6
 const FIXED = 0.01;                        // TimeManager: 100 physics steps a second
 const GOLDEN_MAX = 30, GOLDEN_LAUNCH = 18; // GoldenBall.maxSpeed; launch impulse / mass
+// Orebound's seeker (see seekGolden): how many cells of rock one golden ball can
+// bore through, and how fast it bores.
+const GOLDEN_DRILL = 150, GOLDEN_BORE = 24;
 const RECALL_CD = 30, RECALL_CAP = 1;      // BallData.recallCooldown / recallMaxCapacity
 
 // BallData, one per ball. Starts at the demo's defaults; the skill tree adds to it.
@@ -717,8 +1027,9 @@ function fire(k, ang, ox, oy) {
   const sp = k === GOLDEN ? GOLDEN_LAUNCH : ballSpeed(k);
   b.vx = vx * sp; b.vy = vy * sp;
   if (k === GRAY) { b.gx = vx; b.gy = vy; }
+  if (k === GOLDEN && GOLD_I >= 0 && !S.goldFound) { b.seek = true; b.drill = GOLDEN_DRILL; }
   balls.push(b);
-  if (k === GOLDEN) toast("GOLDEN BALL — FIND THE GOLDEN PIXEL");
+  if (k === GOLDEN) toast(b.seek ? "GOLDEN BALL — SEEKING THE GOLDEN PIXEL" : "GOLDEN BALL");
   return true;
 }
 
@@ -797,8 +1108,10 @@ function revealStrip(x0, x1, y0, y1) {
     const ux = i % WORLD, uy = (i / WORLD) | 0;
     if (ux >= x0 && ux <= x1 && uy >= y0 && uy <= y1) showBeacon(ux, uy);
   }
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++)
-    if (hash2(x, y, RUNSEED + 6061) < GBALL_P && gballAt(x, y)) showBeacon(x, y);
+  for (const i of GBALLS) {
+    const gx = i % WORLD, gy = (i / WORLD) | 0;
+    if (gx >= x0 && gx <= x1 && gy >= y0 && gy <= y1) showBeacon(gx, gy);
+  }
 }
 function showBeacon(x, y) {
   const i = y*WORLD + x;
@@ -879,6 +1192,7 @@ function ballR(b) { return b.k === GOLDEN ? R_GOLDEN : R_BALL; }
 function stepBall(b, dt) {
   if (b.dying) { b.dying -= dt; return; }
   b.tsc += dt;
+  if (b.seek) { seekGolden(b, dt); return; }
   if (b.k === GOLDEN) homeGolden(b, dt);
   else if (b.k === GRAY) {
     b.vx += b.gx * gravAccel() * dt; b.vy += b.gy * gravAccel() * dt;
@@ -958,6 +1272,135 @@ function stuckNudge(b, dt) {
   b.rt = 0; b.rx = b.x; b.ry = b.y;
 }
 
+// The golden ball as a seeker. The demo's golden ball only feels the pixel's
+// pull within a few dozen cells (homeGolden, below), so fired from anywhere else
+// it flew straight and died on the first rock. Here it is guided instead: it
+// runs through the open ground you have dug to the spot nearest the golden
+// pixel, then bores on toward it, breaking up to GOLDEN_DRILL cells of rock (each
+// one paid out like any other break). If that reaches the pixel, the pixel
+// breaks; if not, the ball burns out and leaves a tunnel pointing at it. It
+// moves on rails, so it never touches a wall on the way.
+function goldenRoute(sx, sy) {
+  const gx = GOLD_I % WORLD, gy = (GOLD_I / WORLD) | 0, e = S.ext;
+  const x0 = Math.max(0, Math.min(e.x0, sx) - 2), y0 = Math.max(0, Math.min(e.y0, sy) - 2);
+  const x1 = Math.min(WORLD-1, Math.max(e.x1, sx) + 2), y1 = Math.min(WORLD-1, Math.max(e.y1, sy) + 2);
+  const w = x1 - x0 + 1, h = y1 - y0 + 1;
+  const open = (x, y) => x >= x0 && y >= y0 && x <= x1 && y <= y1 && !solid(x, y);
+  if (!open(sx, sy)) return [];
+  const prev = new Int32Array(w*h).fill(-1), start = (sy-y0)*w + (sx-x0);
+  const q = new Int32Array(w*h); let qh = 0, qt = 0;
+  prev[start] = start; q[qt++] = start;
+  let best = start, bestD = Infinity;
+  while (qh < qt) {
+    const j = q[qh++], x = j % w + x0, y = ((j / w) | 0) + y0;
+    const d = (x - gx)*(x - gx) + (y - gy)*(y - gy);
+    if (d < bestD) { bestD = d; best = j; }
+    for (const [dx, dy] of OFF8) {
+      const nx = x + dx, ny = y + dy;
+      if (!open(nx, ny)) continue;
+      if (dx && dy && (!open(x + dx, y) || !open(x, y + dy))) continue;   // no squeezing past a corner
+      const k = (ny-y0)*w + (nx-x0);
+      if (prev[k] !== -1) continue;
+      prev[k] = j; q[qt++] = k;
+    }
+  }
+  const back = [];
+  for (let j = best; ; j = prev[j]) { back.push(j); if (j === start) break; }
+  const cells = [];
+  for (let k = back.length - 1; k >= 0; k--) cells.push(back[k] % w + x0 + .5, ((back[k] / w) | 0) + y0 + .5);
+  // pull the string tight: skip waypoints the ball can see past
+  const clear = (ax, ay, bx_, by) => {
+    const n = Math.ceil(Math.hypot(bx_ - ax, by - ay) * 3);
+    for (let i = 1; i < n; i++) if (solid(Math.floor(ax + (bx_ - ax)*i/n), Math.floor(ay + (by - ay)*i/n))) return false;
+    return true;
+  };
+  const route = [], n = cells.length / 2;
+  let i = 0;
+  while (i < n - 1) {
+    let j = i + 1;
+    for (let k = Math.min(n - 1, i + 48); k > i + 1; k--)
+      if (clear(cells[2*i], cells[2*i+1], cells[2*k], cells[2*k+1])) { j = k; break; }
+    route.push(cells[2*j], cells[2*j+1]); i = j;
+  }
+  return route;
+}
+// The next cell to bore into, of the eight around the ball that are not walls
+// and not bored already: the one that moves toward the golden pixel while
+// staying closest to the straight line from where the bore began, so the tunnel
+// runs straight and bends only to get round a wall. Boxed in going forward, it
+// takes whichever cell is nearest the pixel.
+function nextBore(b) {
+  const gx = GOLD_I % WORLD + .5, gy = ((GOLD_I / WORLD) | 0) + .5;
+  if (b.ox === undefined) { b.ox = b.x; b.oy = b.y; }
+  const L = Math.hypot(gx - b.ox, gy - b.oy) || 1, ux = (gx - b.ox) / L, uy = (gy - b.oy) / L;
+  const cx = Math.floor(b.x), cy = Math.floor(b.y);
+  let best = null, bestS = Infinity, near = null, nearD = Infinity;
+  // four ways only, so the tunnel is one every other ball can follow too
+  for (const [dx, dy] of OFF4) {
+    const x = cx + dx, y = cy + dy;
+    if (x < 2 || y < 2 || x >= WORLD-2 || y >= WORLD-2) continue;
+    const i = y*WORLD + x;
+    if (b.bored.has(i)) continue;
+    solid(x, y);                                       // generates the chunk if needed
+    if (tier[i] === K_WALL) continue;
+    if (tier[i] === K_GOLD) return [x, y];
+    const d = Math.hypot(x + .5 - gx, y + .5 - gy);
+    if (d < nearD) { nearD = d; near = [x, y]; }
+    if (dx*ux + dy*uy <= 0.1) continue;                // must make headway
+    const perp = Math.abs((x + .5 - b.ox)*uy - (y + .5 - b.oy)*ux);
+    const s = perp - 0.01 * (dx*ux + dy*uy);
+    if (s < bestS) { bestS = s; best = [x, y]; }
+  }
+  return best || near;
+}
+function burnOut(b, msg) {
+  b.seek = false; b.dying = 0.5; b.vx = b.vy = 0;
+  spawnSpark(Math.floor(b.x), Math.floor(b.y), [255, 215, 94], 10);
+  if (msg) toast(msg);
+}
+function seekGolden(b, dt) {
+  if (GOLD_I < 0 || S.goldFound) { burnOut(b); return; }
+  if (!b.route) {
+    b.route = goldenRoute(Math.floor(b.x), Math.floor(b.y)); b.ri = 0; b.bored = new Set([Math.floor(b.y)*WORLD + Math.floor(b.x)]);
+    let L = 0, px = b.x, py = b.y;
+    for (let k = 0; k < b.route.length; k += 2) { L += Math.hypot(b.route[k] - px, b.route[k+1] - py); px = b.route[k]; py = b.route[k+1]; }
+    b.runSpeed = Math.max(GOLDEN_LAUNCH, Math.min(220, L / 4));   // a long run still takes only a few seconds
+  }
+  let left = (b.ri < b.route.length ? b.runSpeed : GOLDEN_BORE) * dt;
+  b.trail.push(b.x, b.y);
+  if (b.trail.length > 16) b.trail.splice(0, 2);
+  while (left > 1e-6 && b.seek) {
+    if (b.ri < b.route.length) {
+      const tx = b.route[b.ri], ty = b.route[b.ri+1], d = Math.hypot(tx - b.x, ty - b.y);
+      if (d <= left) {
+        b.x = tx; b.y = ty; left -= d; b.ri += 2;
+        if (b.ri >= b.route.length) left = Math.min(left, GOLDEN_BORE * dt);
+      } else { b.x += (tx - b.x) / d * left; b.y += (ty - b.y) / d * left; left = 0; }
+      continue;
+    }
+    // boring: pick the next cell, break into it, then move onto it
+    if (!b.bore) {
+      const nb = nextBore(b);
+      if (!nb) { burnOut(b, "THE GOLDEN BALL IS WALLED IN"); return; }
+      const i = nb[1]*WORLD + nb[0], t = tier[i];
+      if (t === K_GOLD) b.hitGold = true;
+      else if (t) {
+        if (b.drill <= 0) {
+          const gx = GOLD_I % WORLD + .5, gy = ((GOLD_I / WORLD) | 0) + .5;
+          burnOut(b, "THE GOLDEN BALL BURNED OUT — " + Math.round(Math.hypot(gx - b.x, gy - b.y)) + " CELLS SHORT");
+          return;
+        }
+        b.drill--; breakCell(nb[0], nb[1]); flash(nb[0], nb[1], 0);
+      }
+      b.bore = nb; b.bored.add(i);
+    }
+    const tx = b.bore[0] + .5, ty = b.bore[1] + .5, d = Math.hypot(tx - b.x, ty - b.y);
+    if (b.hitGold && d <= 0.6 + left) { collectGold(b.bore[0], b.bore[1]); burnOut(b); return; }
+    if (d <= left) { b.x = tx; b.y = ty; left -= d; b.bore = null; }
+    else { b.x += (tx - b.x) / d * left; b.y += (ty - b.y) / d * left; left = 0; }
+  }
+}
+
 // GoldenBall.GravitateTowardsGoldenPixel: pull = lerp(0, 20000, f^18) where f
 // runs 0 at 500 cells to 1 at the pixel, applied as a per-step force at mass 0.5.
 // The eighteenth power means it does almost nothing until it is close.
@@ -1007,6 +1450,7 @@ function impact(b, x, y) {
 // PhysicsTile.SmashNearbyTiles: walk the eight neighbours in shuffled order and
 // strike visible rock until hitSpread pixels have been hit.
 const OFF8 = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
+const OFF4 = [[0,-1],[-1,0],[1,0],[0,1]];
 function shuffled8() {
   const a = OFF8.slice();
   for (let i = a.length-1; i > 0; i--) { const j = (Math.random()*(i+1))|0; const t = a[i]; a[i] = a[j]; a[j] = t; }
@@ -1754,9 +2198,9 @@ function save() {
     const cr = []; for (let i = 0; i < chunkReady.length; i++) if (chunkReady[i]) cr.push(i);
     const bl = [];
     for (const b of balls) if (!b.dying) bl.push(b.k, +b.x.toFixed(3), +b.y.toFixed(3), +b.vx.toFixed(3), +b.vy.toFixed(3),
-                                                 b.k === GRAY ? +b.gx.toFixed(4) : 0, b.k === GRAY ? +b.gy.toFixed(4) : 0);
+                                                 b.k === GRAY ? +b.gx.toFixed(4) : b.seek ? b.drill : 0, b.k === GRAY ? +b.gy.toFixed(4) : b.seek ? 1 : 0);
     localStorage.setItem(SAVEKEY, JSON.stringify({
-      v:2, seed:RUNSEED, px:S.px, points:S.points, pf:S.pointsFound, golden:S.golden, gf:S.goldenFound,
+      v:2, seed:RUNSEED, pic:PIC_ID, px:S.px, points:S.points, pf:S.pointsFound, golden:S.golden, gf:S.goldenFound,
       bought:Object.keys(S.bought).map(Number), bench:S.bench, cost:S.cost, free:S.free, recallT:S.recallT,
       mc:S.minedCount, pt:S.playtime, shots:S.shots, gold:S.goldFound, seen:S.goldSeen, ext:S.ext,
       t:Date.now(), cr, mined:rleMined(), dm, bc:[...beacon], balls:bl
@@ -1800,6 +2244,7 @@ function load() {
       const b = { k:bl[k], x:bl[k+1], y:bl[k+2], vx:bl[k+3], vy:bl[k+4], tsc:0, trail:[], rx:bl[k+1], ry:bl[k+2], rt:0 };
       if (b.k === GRAY) { b.gx = bl[k+5]; b.gy = bl[k+6]; }
       if (b.k === BLUE) { if (b.vy === 0) b.lockY = b.y; else b.lockX = b.x; }
+      if (b.k === GOLDEN && bl[k+6] === 1 && !S.goldFound) { b.seek = true; b.drill = bl[k+5]; }  // re-plans its route
       if (b.k >= 0 && b.k < NB) balls.push(b);
     }
     return true;
@@ -1812,6 +2257,7 @@ function freshWorld() {
   lit  = new Uint8Array(TOTAL);
   chunkReady = new Uint8Array(CW*CW);
   dmg.clear(); poison.clear(); beacon.clear();
+  buildPicture(PIC_ID);
   placeSpecials();
   ensureAround(SX, SY);
 }
@@ -1848,6 +2294,7 @@ function resetGame() {
   saveLocked = true;
   try { localStorage.removeItem(SAVEKEY); for (const k of RETIRED) localStorage.removeItem(k); } catch (err) {}
   RUNSEED = (Math.random() * 0x7ffffff) | 0;
+  PIC_ID = randomPicture(PIC_ID);
   Object.assign(S, { px:0, points:0, pointsFound:0, golden:0, goldenFound:0, bought:{}, bench:[ORANGE],
     cost: BALLS.map(B => B.cost), free: new Array(NB).fill(0), recallT: new Array(NB).fill(RECALL_CD),
     minedCount:0, playtime:0, shots:0, goldFound:false, goldSeen:false, ext:{ x0:SX, x1:SX, y0:SY, y1:SY } });
@@ -1873,7 +2320,8 @@ function openMenu() {
   $("mcont").textContent = sessionStarted ? "RESUME" : has ? "CONTINUE" : "START";
   if (retiredSave) $("mnote").textContent = "A save from an older version was retired — the world was rebuilt.";
   $("msave").innerHTML = has
-    ? '<div class="r"><span>Pixels mined</span><b>'+fmt(S.minedCount)+'</b></div>'
+    ? '<div class="r"><span>Cave</span><b>'+picName(PIC_ID)+'</b></div>'
+      + '<div class="r"><span>Pixels mined</span><b>'+fmt(S.minedCount)+'</b></div>'
       + '<div class="r"><span>Balls bouncing</span><b>'+balls.length+'</b></div>'
       + '<div class="r"><span>Upgrade pixels</span><b>&#9670; '+S.pointsFound+' / '+UPG_TOTAL+'</b></div>'
       + '<div class="r"><span>Golden pixel</span><b>'+(S.goldFound ? "FOUND" : S.goldSeen ? "seen" : "buried")+'</b></div>'
@@ -1891,7 +2339,7 @@ $("mnew").onclick = () => {
     return;
   }
   armed = 0; $("mnew").classList.remove("armed"); $("mnew").textContent = "NEW GAME"; $("mnote").textContent = "";
-  resetGame(); closeMenu(); toast("NEW WORLD GENERATED");
+  resetGame(); closeMenu(); toast("NEW WORLD — " + picName(PIC_ID).toUpperCase());
 };
 
 //====================================================================== boot
@@ -1899,6 +2347,8 @@ $("mnew").onclick = () => {
 document.addEventListener("visibilitychange", () => { if (document.hidden) save(); else last = performance.now(); });
 loadSaveData();
 if (SAVED && typeof SAVED.seed === "number") RUNSEED = SAVED.seed | 0;
+// a save from before the pictures existed keeps the demo's fishbone
+PIC_ID = SAVED ? (typeof SAVED.pic === "number" ? SAVED.pic | 0 : -1) : randomPicture(-1);
 freshWorld();
 const loaded = load();
 relight();
