@@ -106,12 +106,11 @@ those 9 pixels are your starting money. That's enough for two balls.
 - **The golden pixel.** It is placed uniformly in the world, outside a box
   around spawn (the demo's ±100 of ±176, scaled up). Its depth is a lottery,
   exactly as in the demo. Ordinary balls bounce off it, and **every bounce gives
-  you a golden ball.** Only a golden ball can break it. A golden ball seeks it
-  from anywhere: it runs on rails through the ground you have dug to the spot
-  nearest the pixel, then bores on toward it in a straight tunnel, breaking up
-  to 150 cells of rock. If that reaches the pixel, the pixel breaks; if not, the
-  ball burns out and tells you how far short it fell, and the next golden ball
-  carries on from the end of its tunnel. The world goes dark while one is out. Breaking the pixel
+  you a golden ball.** Only a golden ball can break it. A golden ball is a hint,
+  not a digger: fired from anywhere, it curves toward the pixel, breaks nothing,
+  and fizzles out after a second and a half or on the first wall or rock it
+  touches. Where it goes out, an arrow pointing at the pixel lingers for a few
+  seconds, so you know which way to dig. The world goes dark while one is out. Breaking the pixel
   takes three seconds. After that you can keep digging.
 
 ## The balls
@@ -129,7 +128,7 @@ ball layer is masked off from itself.
 | **Smash** | 70, +12 | 9.6 | Also hits *Hit spread* random visible neighbours for *Spread damage* |
 | **Directional** | 90, +14 | 9.6 | Locked to the axis it was fired along. Drills one line back and forth forever |
 | **Speed** | 120, +20 | 32 | Fast |
-| **Golden** | free | 18, capped at 30 | See above |
+| **Golden** | free | 18 | See above |
 
 **Ball recycling.** You unlock it per ball in the tree. Right-click that ball's
 dock button to pull back the ball that has gone longest without touching

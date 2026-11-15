@@ -738,7 +738,7 @@ function baseType(x, y) {
 // Golden-ball pixels: Orebound's own rule. The demo scatters them at a density
 // that would put thousands in this world; here there are only GBALL_TOTAL, one
 // per ring of a widening spiral, so each is a real find. Each gives one golden
-// ball, and a golden ball now goes and finds the golden pixel (homeGolden).
+// ball, and a golden ball shows which way the golden pixel lies (homeGolden).
 //
 // The golden pixel: uniform over the playable square, outside a box around spawn
 // that the demo sets at +/-100 of +/-176 (scaled to this world), never on a wall.
@@ -872,16 +872,16 @@ const BALLS = [
   { k:6, name:"Speed",       col:"#ff6fd8", cost:120, step:20, mult:4.0,
     desc:"Five times faster than the basic ball." },
   { k:7, name:"Golden",      col:"#ffd75e", cost:0,   step:0,  mult:1.5,
-    desc:"The only thing that can break the golden pixel. It finds its own way there through your tunnels, then bores through rock toward it until its strength runs out." },
+    desc:"A hint, not a digger. It curves toward the golden pixel, breaks nothing, and fizzles out within moments, leaving an arrow pointing the way. Only it can break the golden pixel." },
 ];
 const NB = BALLS.length;
 const BASE_SPEED = 8;
 const R_BALL = 0.15, R_GOLDEN = 0.3;      // CircleCollider2D r 0.5 at scale 0.3 / 0.6
 const FIXED = 0.01;                        // TimeManager: 100 physics steps a second
-const GOLDEN_MAX = 30, GOLDEN_LAUNCH = 18; // GoldenBall.maxSpeed; launch impulse / mass
-// Orebound's seeker (see seekGolden): how many cells of rock one golden ball can
-// bore through, and how fast it bores.
-const GOLDEN_DRILL = 150, GOLDEN_BORE = 24;
+const GOLDEN_LAUNCH = 18;                  // GoldenBall launch impulse / mass
+// Orebound's golden ball is a short-lived hint (see homeGolden): how long it
+// flies, and how fast it turns toward the golden pixel, in radians a second.
+const GOLDEN_LIFE = 1.5, GOLDEN_TURN = 7;
 const RECALL_CD = 30, RECALL_CAP = 1;      // BallData.recallCooldown / recallMaxCapacity
 
 // BallData, one per ball. Starts at the demo's defaults; the skill tree adds to it.
@@ -1027,9 +1027,9 @@ function fire(k, ang, ox, oy) {
   const sp = k === GOLDEN ? GOLDEN_LAUNCH : ballSpeed(k);
   b.vx = vx * sp; b.vy = vy * sp;
   if (k === GRAY) { b.gx = vx; b.gy = vy; }
-  if (k === GOLDEN && GOLD_I >= 0 && !S.goldFound) { b.seek = true; b.drill = GOLDEN_DRILL; }
+  if (k === GOLDEN) b.life = GOLDEN_LIFE;
   balls.push(b);
-  if (k === GOLDEN) toast(b.seek ? "GOLDEN BALL — SEEKING THE GOLDEN PIXEL" : "GOLDEN BALL");
+  if (k === GOLDEN) toast("GOLDEN BALL — WATCH WHERE IT TURNS");
   return true;
 }
 
@@ -1192,8 +1192,7 @@ function ballR(b) { return b.k === GOLDEN ? R_GOLDEN : R_BALL; }
 function stepBall(b, dt) {
   if (b.dying) { b.dying -= dt; return; }
   b.tsc += dt;
-  if (b.seek) { seekGolden(b, dt); return; }
-  if (b.k === GOLDEN) homeGolden(b, dt);
+  if (b.k === GOLDEN) { homeGolden(b, dt); if (b.dying) return; }
   else if (b.k === GRAY) {
     b.vx += b.gx * gravAccel() * dt; b.vy += b.gy * gravAccel() * dt;
     const m = Math.hypot(b.vx, b.vy), mx = ballSpeed(GRAY);
@@ -1272,150 +1271,39 @@ function stuckNudge(b, dt) {
   b.rt = 0; b.rx = b.x; b.ry = b.y;
 }
 
-// The golden ball as a seeker. The demo's golden ball only feels the pixel's
-// pull within a few dozen cells (homeGolden, below), so fired from anywhere else
-// it flew straight and died on the first rock. Here it is guided instead: it
-// runs through the open ground you have dug to the spot nearest the golden
-// pixel, then bores on toward it, breaking up to GOLDEN_DRILL cells of rock (each
-// one paid out like any other break). If that reaches the pixel, the pixel
-// breaks; if not, the ball burns out and leaves a tunnel pointing at it. It
-// moves on rails, so it never touches a wall on the way.
-function goldenRoute(sx, sy) {
-  const gx = GOLD_I % WORLD, gy = (GOLD_I / WORLD) | 0, e = S.ext;
-  const x0 = Math.max(0, Math.min(e.x0, sx) - 2), y0 = Math.max(0, Math.min(e.y0, sy) - 2);
-  const x1 = Math.min(WORLD-1, Math.max(e.x1, sx) + 2), y1 = Math.min(WORLD-1, Math.max(e.y1, sy) + 2);
-  const w = x1 - x0 + 1, h = y1 - y0 + 1;
-  const open = (x, y) => x >= x0 && y >= y0 && x <= x1 && y <= y1 && !solid(x, y);
-  if (!open(sx, sy)) return [];
-  const prev = new Int32Array(w*h).fill(-1), start = (sy-y0)*w + (sx-x0);
-  const q = new Int32Array(w*h); let qh = 0, qt = 0;
-  prev[start] = start; q[qt++] = start;
-  let best = start, bestD = Infinity;
-  while (qh < qt) {
-    const j = q[qh++], x = j % w + x0, y = ((j / w) | 0) + y0;
-    const d = (x - gx)*(x - gx) + (y - gy)*(y - gy);
-    if (d < bestD) { bestD = d; best = j; }
-    for (const [dx, dy] of OFF8) {
-      const nx = x + dx, ny = y + dy;
-      if (!open(nx, ny)) continue;
-      if (dx && dy && (!open(x + dx, y) || !open(x, y + dy))) continue;   // no squeezing past a corner
-      const k = (ny-y0)*w + (nx-x0);
-      if (prev[k] !== -1) continue;
-      prev[k] = j; q[qt++] = k;
-    }
-  }
-  const back = [];
-  for (let j = best; ; j = prev[j]) { back.push(j); if (j === start) break; }
-  const cells = [];
-  for (let k = back.length - 1; k >= 0; k--) cells.push(back[k] % w + x0 + .5, ((back[k] / w) | 0) + y0 + .5);
-  // pull the string tight: skip waypoints the ball can see past
-  const clear = (ax, ay, bx_, by) => {
-    const n = Math.ceil(Math.hypot(bx_ - ax, by - ay) * 3);
-    for (let i = 1; i < n; i++) if (solid(Math.floor(ax + (bx_ - ax)*i/n), Math.floor(ay + (by - ay)*i/n))) return false;
-    return true;
-  };
-  const route = [], n = cells.length / 2;
-  let i = 0;
-  while (i < n - 1) {
-    let j = i + 1;
-    for (let k = Math.min(n - 1, i + 48); k > i + 1; k--)
-      if (clear(cells[2*i], cells[2*i+1], cells[2*k], cells[2*k+1])) { j = k; break; }
-    route.push(cells[2*j], cells[2*j+1]); i = j;
-  }
-  return route;
-}
-// The next cell to bore into, of the eight around the ball that are not walls
-// and not bored already: the one that moves toward the golden pixel while
-// staying closest to the straight line from where the bore began, so the tunnel
-// runs straight and bends only to get round a wall. Boxed in going forward, it
-// takes whichever cell is nearest the pixel.
-function nextBore(b) {
-  const gx = GOLD_I % WORLD + .5, gy = ((GOLD_I / WORLD) | 0) + .5;
-  if (b.ox === undefined) { b.ox = b.x; b.oy = b.y; }
-  const L = Math.hypot(gx - b.ox, gy - b.oy) || 1, ux = (gx - b.ox) / L, uy = (gy - b.oy) / L;
-  const cx = Math.floor(b.x), cy = Math.floor(b.y);
-  let best = null, bestS = Infinity, near = null, nearD = Infinity;
-  // four ways only, so the tunnel is one every other ball can follow too
-  for (const [dx, dy] of OFF4) {
-    const x = cx + dx, y = cy + dy;
-    if (x < 2 || y < 2 || x >= WORLD-2 || y >= WORLD-2) continue;
-    const i = y*WORLD + x;
-    if (b.bored.has(i)) continue;
-    solid(x, y);                                       // generates the chunk if needed
-    if (tier[i] === K_WALL) continue;
-    if (tier[i] === K_GOLD) return [x, y];
-    const d = Math.hypot(x + .5 - gx, y + .5 - gy);
-    if (d < nearD) { nearD = d; near = [x, y]; }
-    if (dx*ux + dy*uy <= 0.1) continue;                // must make headway
-    const perp = Math.abs((x + .5 - b.ox)*uy - (y + .5 - b.oy)*ux);
-    const s = perp - 0.01 * (dx*ux + dy*uy);
-    if (s < bestS) { bestS = s; best = [x, y]; }
-  }
-  return best || near;
-}
-function burnOut(b, msg) {
-  b.seek = false; b.dying = 0.5; b.vx = b.vy = 0;
-  spawnSpark(Math.floor(b.x), Math.floor(b.y), [255, 215, 94], 10);
-  if (msg) toast(msg);
-}
-function seekGolden(b, dt) {
-  if (GOLD_I < 0 || S.goldFound) { burnOut(b); return; }
-  if (!b.route) {
-    b.route = goldenRoute(Math.floor(b.x), Math.floor(b.y)); b.ri = 0; b.bored = new Set([Math.floor(b.y)*WORLD + Math.floor(b.x)]);
-    let L = 0, px = b.x, py = b.y;
-    for (let k = 0; k < b.route.length; k += 2) { L += Math.hypot(b.route[k] - px, b.route[k+1] - py); px = b.route[k]; py = b.route[k+1]; }
-    b.runSpeed = Math.max(GOLDEN_LAUNCH, Math.min(220, L / 4));   // a long run still takes only a few seconds
-  }
-  let left = (b.ri < b.route.length ? b.runSpeed : GOLDEN_BORE) * dt;
-  b.trail.push(b.x, b.y);
-  if (b.trail.length > 16) b.trail.splice(0, 2);
-  while (left > 1e-6 && b.seek) {
-    if (b.ri < b.route.length) {
-      const tx = b.route[b.ri], ty = b.route[b.ri+1], d = Math.hypot(tx - b.x, ty - b.y);
-      if (d <= left) {
-        b.x = tx; b.y = ty; left -= d; b.ri += 2;
-        if (b.ri >= b.route.length) left = Math.min(left, GOLDEN_BORE * dt);
-      } else { b.x += (tx - b.x) / d * left; b.y += (ty - b.y) / d * left; left = 0; }
-      continue;
-    }
-    // boring: pick the next cell, break into it, then move onto it
-    if (!b.bore) {
-      const nb = nextBore(b);
-      if (!nb) { burnOut(b, "THE GOLDEN BALL IS WALLED IN"); return; }
-      const i = nb[1]*WORLD + nb[0], t = tier[i];
-      if (t === K_GOLD) b.hitGold = true;
-      else if (t) {
-        if (b.drill <= 0) {
-          const gx = GOLD_I % WORLD + .5, gy = ((GOLD_I / WORLD) | 0) + .5;
-          burnOut(b, "THE GOLDEN BALL BURNED OUT — " + Math.round(Math.hypot(gx - b.x, gy - b.y)) + " CELLS SHORT");
-          return;
-        }
-        b.drill--; breakCell(nb[0], nb[1]); flash(nb[0], nb[1], 0);
-      }
-      b.bore = nb; b.bored.add(i);
-    }
-    const tx = b.bore[0] + .5, ty = b.bore[1] + .5, d = Math.hypot(tx - b.x, ty - b.y);
-    if (b.hitGold && d <= 0.6 + left) { collectGold(b.bore[0], b.bore[1]); burnOut(b); return; }
-    if (d <= left) { b.x = tx; b.y = ty; left -= d; b.bore = null; }
-    else { b.x += (tx - b.x) / d * left; b.y += (ty - b.y) / d * left; left = 0; }
-  }
-}
-
-// GoldenBall.GravitateTowardsGoldenPixel: pull = lerp(0, 20000, f^18) where f
-// runs 0 at 500 cells to 1 at the pixel, applied as a per-step force at mass 0.5.
-// The eighteenth power means it does almost nothing until it is close.
+// The golden ball is a hint, not a digger. Fired from anywhere, it turns toward
+// the golden pixel as it flies, breaks nothing, and fizzles out after
+// GOLDEN_LIFE seconds or on the first thing it touches -- wall or rock alike,
+// since it moves under the same collision as every other ball. Where it goes
+// out, an arrow lingers pointing at the pixel, so the player knows which way to
+// dig. The demo's golden ball only felt the pixel's pull within a few dozen
+// cells (20000*f^18 over 500), which read as flying in a straight line.
+// Touching the golden pixel itself still breaks it.
 function homeGolden(b, dt) {
+  b.life = (b.life === undefined ? GOLDEN_LIFE : b.life) - dt;
+  if (b.life <= 0) { fizzle(b); return; }
+  let a = Math.atan2(b.vy, b.vx);
   if (GOLD_I >= 0 && !S.goldFound) {
     const gx = GOLD_I % WORLD + 0.5, gy = ((GOLD_I / WORLD) | 0) + 0.5;
-    const dx = gx - b.x, dy = gy - b.y, d = Math.hypot(dx, dy) || 1;
-    if (d < 500) {
-      const f = 1 - d/500, pull = 20000 * Math.pow(f, 18);
-      const acc = pull * FIXED / 0.5;
-      b.vx += dx/d * acc * dt; b.vy += dy/d * acc * dt;
-    }
+    let d = Math.atan2(gy - b.y, gx - b.x) - a;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    a += Math.max(-GOLDEN_TURN * dt, Math.min(GOLDEN_TURN * dt, d));
   }
-  const m = Math.hypot(b.vx, b.vy);
-  if (m > GOLDEN_MAX) { b.vx *= GOLDEN_MAX/m; b.vy *= GOLDEN_MAX/m; }
+  b.vx = Math.cos(a) * GOLDEN_LAUNCH; b.vy = Math.sin(a) * GOLDEN_LAUNCH;
+}
+function fizzle(b) {
+  b.dying = 0.5; b.vx = b.vy = 0;
+  spawnSpark(Math.floor(b.x), Math.floor(b.y), [255, 215, 94], 10);
+  addHint(b.x, b.y);
+}
+const hints = [];
+const HINT_LIFE = 6;
+function addHint(x, y) {
+  if (GOLD_I < 0 || S.goldFound) return;
+  const gx = GOLD_I % WORLD + 0.5, gy = ((GOLD_I / WORLD) | 0) + 0.5;
+  hints.push({ x, y, a: Math.atan2(gy - y, gx - x), t: 0 });
+  if (hints.length > 8) hints.shift();
+  toast("THE GOLDEN PIXEL LIES THAT WAY");
 }
 
 // PhysicsAgent.OnCollisionEnter2D + PhysicsTile.GotHit. Returns true if the ball
@@ -1425,9 +1313,8 @@ function impact(b, x, y) {
   const t = (x < 0 || y < 0 || x >= WORLD || y >= WORLD) ? K_WALL : tier[i];
   if (t !== K_WALL) b.tsc = 0;
   if (b.k === GOLDEN) {
-    if (t === K_GOLD) collectGold(x, y);
-    b.dying = 0.5;                                     // a golden ball dies on any contact
-    b.vx = b.vy = 0;
+    if (t === K_GOLD) { collectGold(x, y); b.dying = 0.5; b.vx = b.vy = 0; }
+    else fizzle(b);                                    // a golden ball dies on any contact, breaking nothing
     return false;
   }
   if (t === K_WALL) return false;
@@ -1450,7 +1337,6 @@ function impact(b, x, y) {
 // PhysicsTile.SmashNearbyTiles: walk the eight neighbours in shuffled order and
 // strike visible rock until hitSpread pixels have been hit.
 const OFF8 = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
-const OFF4 = [[0,-1],[-1,0],[1,0],[0,1]];
 function shuffled8() {
   const a = OFF8.slice();
   for (let i = a.length-1; i > 0; i--) { const j = (Math.random()*(i+1))|0; const t = a[i]; a[i] = a[j]; a[j] = t; }
@@ -1717,6 +1603,21 @@ function draw(dt) {
   const goldenOut = balls.some(b => b.k === GOLDEN && !b.dying);
   blackout += ((goldenOut ? 0.85 : 0) - blackout) * Math.min(1, dt * (goldenOut ? 10 : 6));
   if (blackout > 0.01) { ctx.fillStyle = "rgba(0,0,0," + blackout.toFixed(3) + ")"; ctx.fillRect(0, 0, W, H); }
+
+  // golden-ball hints: an arrow where each one fizzled, pointing at the pixel
+  for (let i = hints.length-1; i >= 0; i--) {
+    const h = hints[i]; h.t += dt;
+    if (h.t > HINT_LIFE || S.goldFound) { hints.splice(i, 1); continue; }
+    const P = toS(h.x, h.y), L = Math.max(70, z * 9), ca = Math.cos(h.a), sa = Math.sin(h.a);
+    const hx = P[0] + ca*L, hy = P[1] + sa*L;
+    ctx.globalAlpha = Math.min(1, (HINT_LIFE - h.t) / 1.5) * (0.75 + 0.25 * Math.sin(h.t * 6));
+    ctx.strokeStyle = "#ffd75e"; ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.moveTo(P[0], P[1]); ctx.lineTo(hx, hy); ctx.stroke(); ctx.setLineDash([]);
+    ctx.lineWidth = 2.5; ctx.beginPath();
+    ctx.moveTo(hx - Math.cos(h.a-0.5)*13, hy - Math.sin(h.a-0.5)*13); ctx.lineTo(hx, hy);
+    ctx.lineTo(hx - Math.cos(h.a+0.5)*13, hy - Math.sin(h.a+0.5)*13); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
 
   // the golden pixel, once seen, shines through everything
   if (GOLD_I >= 0 && S.goldSeen && (!S.goldFound || goldBreak > 0)) {
@@ -2198,7 +2099,7 @@ function save() {
     const cr = []; for (let i = 0; i < chunkReady.length; i++) if (chunkReady[i]) cr.push(i);
     const bl = [];
     for (const b of balls) if (!b.dying) bl.push(b.k, +b.x.toFixed(3), +b.y.toFixed(3), +b.vx.toFixed(3), +b.vy.toFixed(3),
-                                                 b.k === GRAY ? +b.gx.toFixed(4) : b.seek ? b.drill : 0, b.k === GRAY ? +b.gy.toFixed(4) : b.seek ? 1 : 0);
+                                                 b.k === GRAY ? +b.gx.toFixed(4) : 0, b.k === GRAY ? +b.gy.toFixed(4) : 0);
     localStorage.setItem(SAVEKEY, JSON.stringify({
       v:2, seed:RUNSEED, pic:PIC_ID, px:S.px, points:S.points, pf:S.pointsFound, golden:S.golden, gf:S.goldenFound,
       bought:Object.keys(S.bought).map(Number), bench:S.bench, cost:S.cost, free:S.free, recallT:S.recallT,
@@ -2244,7 +2145,7 @@ function load() {
       const b = { k:bl[k], x:bl[k+1], y:bl[k+2], vx:bl[k+3], vy:bl[k+4], tsc:0, trail:[], rx:bl[k+1], ry:bl[k+2], rt:0 };
       if (b.k === GRAY) { b.gx = bl[k+5]; b.gy = bl[k+6]; }
       if (b.k === BLUE) { if (b.vy === 0) b.lockY = b.y; else b.lockX = b.x; }
-      if (b.k === GOLDEN && bl[k+6] === 1 && !S.goldFound) { b.seek = true; b.drill = bl[k+5]; }  // re-plans its route
+      if (b.k === GOLDEN) b.life = GOLDEN_LIFE;
       if (b.k >= 0 && b.k < NB) balls.push(b);
     }
     return true;
@@ -2300,7 +2201,7 @@ function resetGame() {
     minedCount:0, playtime:0, shots:0, goldFound:false, goldSeen:false, ext:{ x0:SX, x1:SX, y0:SY, y1:SY } });
   ST = freshStats();
   freshWorld();
-  sparks.length = 0; bolts.length = 0; flashes.length = 0; dirty.length = 0; balls = []; selKind = ORANGE; dockSig = "";
+  sparks.length = 0; bolts.length = 0; flashes.length = 0; hints.length = 0; dirty.length = 0; balls = []; selKind = ORANGE; dockSig = "";
   bb.x0 = SX-12; bb.y0 = SY-12; bb.x1 = SX+12; bb.y1 = SY+12;
   relight(); introBreak(); repaintReady();
   cam.manual = false; focusX = SX; focusY = SY;
