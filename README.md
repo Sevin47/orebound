@@ -177,9 +177,10 @@ read as solid, so balls can never see unbuilt world as open space.
   `Mathf.PerlinNoise`. It's calibrated to the same rock mix, but the patterns
   are not the same.
 - **Sound.** The sound effects are Orebound's own, not the demo's. Each one is
-  synthesized with Web Audio when it plays, so there are no audio files. Each
-  sound has a minimum gap between plays, so heavy mining doesn't turn into
-  noise. Sounds pan toward where they happen and play quieter off screen. The
+  synthesized with Web Audio when it plays, so there are no audio files. At most
+  six sounds play at once. The constant rock sounds get at most two of those, at
+  most about eleven a second, and only for rock on screen, so finds and the
+  golden pixel always come through. Sounds pan toward where they happen. The
   menu's toggle or `M` turns sound off, and that choice is kept separately from
   the world save.
 - **No tutorial, no offline progress.** The demo has no offline progress

@@ -1069,11 +1069,38 @@ const SOUND_KEY = "orebound.sound";
 const sfx = (() => {
   let on = true;
   try { on = localStorage.getItem(SOUND_KEY) !== "off"; } catch (err) {}
-  let ac = null, master = null, noise = null, voices = 0;
+  let ac = null, master = null, noise = null, voices = 0, keepAlive = null;
   const lastAt = {};
+  // iPhones play Web Audio on the ringer channel, so the silent switch mutes it
+  // while other sites' video still plays. Asking for the media ("playback")
+  // session fixes that on iOS 16.4+. Older iOS only switches session when an
+  // <audio> element plays, so there a silent one loops quietly underneath.
+  const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+              (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (err) {}
+  function silentLoop() {
+    if (keepAlive || !IOS || navigator.audioSession) return;
+    try {
+      const n = 4000, buf = new ArrayBuffer(44 + n*2), dv = new DataView(buf);
+      const str = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+      str(0, "RIFF"); dv.setUint32(4, 36 + n*2, true); str(8, "WAVEfmt ");
+      dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+      dv.setUint32(24, 8000, true); dv.setUint32(28, 16000, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
+      str(36, "data"); dv.setUint32(40, n*2, true);
+      keepAlive = new Audio(URL.createObjectURL(new Blob([buf], { type: "audio/wav" })));
+      keepAlive.loop = true; keepAlive.setAttribute("playsinline", "");
+    } catch (err) { keepAlive = null; return; }
+    const p = keepAlive.play(); if (p && p.catch) p.catch(() => { keepAlive = null; });
+  }
+  // Browsers only start audio inside a tap or key press, and phones only count
+  // the END of a touch. Called on every press, so a context that was suspended
+  // or "interrupted" (a call, the app going to the background) comes back on the
+  // next tap. A one-sample silent sound played inside the gesture is what
+  // actually unlocks older iOS.
   function unlock() {
     if (!on) return;
     try {
+      if (ac && ac.state === "running") return;
       if (!ac) {
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return;
@@ -1086,29 +1113,44 @@ const sfx = (() => {
         const d = noise.getChannelData(0);
         for (let i = 0; i < d.length; i++) d[i] = Math.random()*2 - 1;
       }
-      if (ac.state === "suspended") ac.resume();
+      const s = ac.createBufferSource();
+      s.buffer = ac.createBuffer(1, 1, ac.sampleRate); s.connect(ac.destination); s.start(0);
+      if (ac.state !== "running" && ac.resume) { const p = ac.resume(); if (p && p.catch) p.catch(() => {}); }
+      silentLoop();
     } catch (err) {}
   }
+  // The mix plays at most MAX_VOICES sounds at once. The constant rock sounds
+  // (chips, cracks, zaps, smashes, poison) share a smaller budget: no more than
+  // ROCK_VOICES at once, ROCK_GAP apart, and only for rock on screen. That keeps
+  // the rare sounds -- a find, the golden pixel -- clear of the mining.
+  const MAX_VOICES = 6, ROCK_VOICES = 2, ROCK_GAP = 0.09;
+  const ROCK = new Set(["chip", "brk", "zap", "smash", "poison"]);
+  let rockVoices = 0, rockAt = -1;
   // One voice: a gain (and panner) feeding the mix, or null if this sound played
-  // too recently, the mix is full, or sound is off.
+  // too recently, its budget is full, or sound is off.
   function voice(name, gap, len, vol, x, y) {
     if (!on || !ac || ac.state !== "running") return null;
-    const t = ac.currentTime;
+    const t = ac.currentTime, rock = ROCK.has(name);
     if (lastAt[name] !== undefined && t - lastAt[name] < gap) return null;
-    if (voices >= 28) return null;
-    lastAt[name] = t;
+    if (voices >= MAX_VOICES) return null;
+    if (rock && (rockVoices >= ROCK_VOICES || t - rockAt < ROCK_GAP)) return null;
     let pan = 0;
     if (x !== undefined) {
       const sx = (x - cam.x)*cam.z + W/2, sy = (y - cam.y)*cam.z + H/2;
+      const off = sx < -40 || sy < -40 || sx > W + 40 || sy > H + 40;
+      if (off && rock) return null;
+      if (off) vol *= 0.3;
       pan = Math.max(-1, Math.min(1, (sx - W/2) / (W/2))) * 0.6;
-      if (sx < -40 || sy < -40 || sx > W + 40 || sy > H + 40) vol *= 0.25;
     }
+    lastAt[name] = t;
+    if (rock) { rockAt = t; rockVoices++; }
     const out = ac.createGain(); out.gain.value = vol;
     let p = null;
     if (pan && ac.createStereoPanner) { p = ac.createStereoPanner(); p.pan.value = pan; out.connect(p); p.connect(master); }
     else out.connect(master);
     voices++;
-    setTimeout(() => { voices--; out.disconnect(); if (p) p.disconnect(); }, (len + 0.15) * 1000);
+    setTimeout(() => { voices--; if (rock) rockVoices--; }, len * 1000);
+    setTimeout(() => { out.disconnect(); if (p) p.disconnect(); }, (len + 0.15) * 1000);
     return { t, out };
   }
   function env(g, t, a, d, peak) {
@@ -1137,18 +1179,18 @@ const sfx = (() => {
   const play = {
     // a pixel chipped but standing: a light tick, higher the less HP is left
     chip(hpLeft, x, y) {
-      const v = voice("chip", 0.05, 0.08, 0.35, x, y); if (!v) return;
+      const v = voice("chip", 0.15, 0.08, 0.35, x, y); if (!v) return;
       const f = rnd(1150, 1250) - hpLeft*70;
       tone(v, "triangle", f, f*0.7, 0, 0.035, 0.4); hiss(v, "highpass", 3500, 3500, 0, 0.015, 0.2);
     },
     // a pixel broken: a crack, deeper for harder rock
     brk(hp, x, y) {
-      const v = voice("brk", 0.035, 0.12, 0.45, x, y); if (!v) return;
+      const v = voice("brk", 0.09, 0.12, 0.45, x, y); if (!v) return;
       const f = rnd(1900, 2100) - hp*180;
       hiss(v, "bandpass", f, f*0.5, 0, 0.06, 0.7, 1.6); tone(v, "sine", 260 - hp*18, 70, 0, 0.06, 0.45);
     },
     shoot(k, x, y) {
-      const v = voice("shoot", 0.04, 0.4, 0.45, x, y); if (!v) return;
+      const v = voice("shoot", 0.08, 0.4, 0.45, x, y); if (!v) return;
       if (k === GOLDEN) {
         [1046.5, 1318.5, 1568, 2093].forEach((f, i) => tone(v, "sine", f, f, i*0.045, 0.32, 0.22));
         hiss(v, "highpass", 5000, 8000, 0, 0.3, 0.06, 1, 0.05);
@@ -1200,15 +1242,15 @@ const sfx = (() => {
       tone(v, "sine", 1760, 1760, 0.22, 0.4, 0.18); tone(v, "sine", 2637, 2637, 0.3, 0.3, 0.08);
     },
     zap(x, y) {
-      const v = voice("zap", 0.05, 0.1, 0.3, x, y); if (!v) return;
+      const v = voice("zap", 0.2, 0.1, 0.3, x, y); if (!v) return;
       hiss(v, "highpass", 2500, 2500, 0, 0.045, 0.6); tone(v, "square", 1400, 180, 0, 0.045, 0.12);
     },
     smash(x, y) {
-      const v = voice("smash", 0.06, 0.2, 0.45, x, y); if (!v) return;
+      const v = voice("smash", 0.2, 0.2, 0.45, x, y); if (!v) return;
       tone(v, "sine", 140, 45, 0, 0.12, 0.5); hiss(v, "lowpass", 900, 200, 0, 0.09, 0.35);
     },
     poison(x, y) {
-      const v = voice("poison", 0.12, 0.15, 0.22, x, y); if (!v) return;
+      const v = voice("poison", 0.3, 0.15, 0.22, x, y); if (!v) return;
       tone(v, "sine", 280, 620, 0, 0.06, 0.4); tone(v, "sine", 420, 840, 0.05, 0.05, 0.25);
     },
     buy(newBall) {
@@ -1232,7 +1274,11 @@ const sfx = (() => {
   function setOn(v) {
     on = !!v;
     try { localStorage.setItem(SOUND_KEY, on ? "on" : "off"); } catch (err) {}
-    if (on) unlock(); else if (ac && ac.state === "running") ac.suspend();
+    if (on) unlock();
+    else {
+      if (ac && ac.state === "running") ac.suspend();
+      if (keepAlive) { keepAlive.pause(); keepAlive = null; }
+    }
   }
   play.unlock = unlock; play.setOn = setOn;
   Object.defineProperty(play, "on", { get: () => on });
