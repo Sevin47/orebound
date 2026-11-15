@@ -151,6 +151,8 @@
   .mcard button.danger { border-color:#e55; color:#e88 }
   .mcard button.danger:hover { background:#e552 }
   .mcard button.armed { background:#e55; color:#fff; border-color:#e55 }
+  .mcard button.toggle { border-color:#1f6a4a; color:#9fe }
+  .mcard button.toggle.off { border-color:#1f4a2c; color:#5a8; opacity:.75 }
   .mnote { font-size:10px; opacity:.45; margin-top:6px; min-height:13px; line-height:1.4 }
 
   /* ---------- touch controls ---------- */
@@ -211,7 +213,7 @@
 <div class="hud" id="prompt">PRESS IN OPEN GROUND &middot; DRAG BACK &middot; RELEASE</div>
 <div id="dock"></div>
 <div class="hud" id="toast"></div>
-<div class="hud" id="hint">[press+drag back] shoot &middot; [right-drag / drag rock] pan &middot; [right-click a ball] recycle &middot; [1-7] ball &middot; [G] golden &middot; [wheel] zoom &middot; [F] refit &middot; [U / Tab] skill tree &middot; [S] stats &middot; [Esc] menu</div>
+<div class="hud" id="hint">[press+drag back] shoot &middot; [right-drag / drag rock] pan &middot; [right-click a ball] recycle &middot; [1-7] ball &middot; [G] golden &middot; [wheel] zoom &middot; [F] refit &middot; [U / Tab] skill tree &middot; [S] stats &middot; [M] sound &middot; [Esc] menu</div>
 
 <div id="mobibar">
   <button data-a="upg">TREE</button>
@@ -234,6 +236,7 @@
   <div class="msub">ten million pixels &middot; one is golden</div>
   <div id="msave"></div>
   <button id="mcont">CONTINUE</button>
+  <button id="msound" class="toggle">SOUND: ON</button>
   <button id="mnew" class="danger">NEW GAME</button>
   <div class="mnote" id="mnote"></div>
 </div></div>
@@ -1034,6 +1037,7 @@ function fire(k, ang, ox, oy) {
   if (k === GRAY) { b.gx = vx; b.gy = vy; }
   if (k === GOLDEN) b.life = GOLDEN_LIFE;
   balls.push(b);
+  sfx.shoot(k, ox, oy);
   if (k === GOLDEN) toast("GOLDEN BALL — WATCH WHERE IT TURNS");
   return true;
 }
@@ -1051,8 +1055,191 @@ function recall(k) {
   if (!best) { toast("NO " + BALLS[k].name.toUpperCase() + " BALLS OUT"); return; }
   balls.splice(balls.indexOf(best), 1);
   S.free[k]++; S.recallT[k] = 0;
+  sfx.recall();
   toast(BALLS[k].name.toUpperCase() + " BALL RECYCLED — NEXT SHOT FREE");
 }
+
+//===================================================================== sound
+// Orebound's own sound effects, all synthesized with Web Audio -- no files. The
+// demo's audio is not used. Browsers only allow sound after a press or a key, so
+// the context starts on the first one. Mining can break thousands of pixels a
+// second, so every sound has a minimum gap between plays and the mix has a voice
+// cap. A sound pans toward where it happened, and plays quieter off screen.
+const SOUND_KEY = "orebound.sound";
+const sfx = (() => {
+  let on = true;
+  try { on = localStorage.getItem(SOUND_KEY) !== "off"; } catch (err) {}
+  let ac = null, master = null, noise = null, voices = 0;
+  const lastAt = {};
+  function unlock() {
+    if (!on) return;
+    try {
+      if (!ac) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        ac = new AC();
+        const comp = ac.createDynamicsCompressor();
+        comp.threshold.value = -16; comp.ratio.value = 6;
+        master = ac.createGain(); master.gain.value = 0.6;
+        master.connect(comp); comp.connect(ac.destination);
+        noise = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+        const d = noise.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random()*2 - 1;
+      }
+      if (ac.state === "suspended") ac.resume();
+    } catch (err) {}
+  }
+  // One voice: a gain (and panner) feeding the mix, or null if this sound played
+  // too recently, the mix is full, or sound is off.
+  function voice(name, gap, len, vol, x, y) {
+    if (!on || !ac || ac.state !== "running") return null;
+    const t = ac.currentTime;
+    if (lastAt[name] !== undefined && t - lastAt[name] < gap) return null;
+    if (voices >= 28) return null;
+    lastAt[name] = t;
+    let pan = 0;
+    if (x !== undefined) {
+      const sx = (x - cam.x)*cam.z + W/2, sy = (y - cam.y)*cam.z + H/2;
+      pan = Math.max(-1, Math.min(1, (sx - W/2) / (W/2))) * 0.6;
+      if (sx < -40 || sy < -40 || sx > W + 40 || sy > H + 40) vol *= 0.25;
+    }
+    const out = ac.createGain(); out.gain.value = vol;
+    let p = null;
+    if (pan && ac.createStereoPanner) { p = ac.createStereoPanner(); p.pan.value = pan; out.connect(p); p.connect(master); }
+    else out.connect(master);
+    voices++;
+    setTimeout(() => { voices--; out.disconnect(); if (p) p.disconnect(); }, (len + 0.15) * 1000);
+    return { t, out };
+  }
+  function env(g, t, a, d, peak) {
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + a);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + a + d);
+  }
+  // an oscillator gliding f0 -> f1, rising over a seconds and dying over d
+  function tone(v, type, f0, f1, at, d, peak, a = 0.004) {
+    const o = ac.createOscillator(), g = ac.createGain(), t = v.t + at;
+    o.type = type; o.frequency.setValueAtTime(f0, t);
+    if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + a + d);
+    env(g, t, a, d, peak); o.connect(g); g.connect(v.out);
+    o.start(t); o.stop(t + a + d + 0.02);
+  }
+  // filtered noise, the filter sweeping f0 -> f1
+  function hiss(v, type, f0, f1, at, d, peak, q = 1, a = 0.002) {
+    const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(), t = v.t + at;
+    s.buffer = noise; s.loop = true;
+    f.type = type; f.Q.value = q; f.frequency.setValueAtTime(f0, t);
+    if (f1 !== f0) f.frequency.exponentialRampToValueAtTime(f1, t + a + d);
+    env(g, t, a, d, peak); s.connect(f); f.connect(g); g.connect(v.out);
+    s.start(t, Math.random()*0.9); s.stop(t + a + d + 0.02);
+  }
+  const rnd = (a, b) => a + Math.random()*(b - a);
+  const play = {
+    // a pixel chipped but standing: a light tick, higher the less HP is left
+    chip(hpLeft, x, y) {
+      const v = voice("chip", 0.05, 0.08, 0.35, x, y); if (!v) return;
+      const f = rnd(1150, 1250) - hpLeft*70;
+      tone(v, "triangle", f, f*0.7, 0, 0.035, 0.4); hiss(v, "highpass", 3500, 3500, 0, 0.015, 0.2);
+    },
+    // a pixel broken: a crack, deeper for harder rock
+    brk(hp, x, y) {
+      const v = voice("brk", 0.035, 0.12, 0.45, x, y); if (!v) return;
+      const f = rnd(1900, 2100) - hp*180;
+      hiss(v, "bandpass", f, f*0.5, 0, 0.06, 0.7, 1.6); tone(v, "sine", 260 - hp*18, 70, 0, 0.06, 0.45);
+    },
+    shoot(k, x, y) {
+      const v = voice("shoot", 0.04, 0.4, 0.45, x, y); if (!v) return;
+      if (k === GOLDEN) {
+        [1046.5, 1318.5, 1568, 2093].forEach((f, i) => tone(v, "sine", f, f, i*0.045, 0.32, 0.22));
+        hiss(v, "highpass", 5000, 8000, 0, 0.3, 0.06, 1, 0.05);
+        return;
+      }
+      const f = 190 + (k|0)*28;
+      hiss(v, "bandpass", 500, 2600, 0, 0.13, 0.4, 2); tone(v, "triangle", f, f*3, 0, 0.1, 0.25);
+    },
+    upgrade(x, y) {
+      const v = voice("upgrade", 0.15, 0.7, 0.5, x, y); if (!v) return;
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+        tone(v, "triangle", f, f, i*0.07, 0.24, 0.35); tone(v, "sine", f*2, f*2, i*0.07, 0.16, 0.08);
+      });
+    },
+    gball(x, y) {
+      const v = voice("gball", 0.15, 1.2, 0.55, x, y); if (!v) return;
+      [1318.5, 1975.5, 2637].forEach((f, i) => {
+        tone(v, "sine", f, f, i*0.09, 0.7, 0.3); tone(v, "sine", f*2.76, f*2.76, i*0.09, 0.25, 0.05);
+      });
+    },
+    // an ordinary ball chipping a golden ball off the golden pixel
+    goldChip(x, y) {
+      const v = voice("goldChip", 0.1, 0.5, 0.4, x, y); if (!v) return;
+      tone(v, "sine", 1568, 1568, 0, 0.35, 0.4); tone(v, "sine", 3136, 3136, 0, 0.15, 0.1);
+    },
+    goldSeen() {
+      const v = voice("goldSeen", 1, 3, 0.65); if (!v) return;
+      tone(v, "sine", 110, 108, 0, 2.6, 0.5, 0.02); tone(v, "sine", 165, 164, 0.05, 2.1, 0.22, 0.02);
+      tone(v, "sine", 440*2.76, 440*2.76, 0.1, 1.2, 0.04, 0.2);
+      hiss(v, "highpass", 6000, 6000, 0, 1.4, 0.05, 1, 0.4);
+    },
+    // GoldenPixelManager.breakingTime: three seconds of rising rumble
+    goldBreaking() {
+      const v = voice("goldBreaking", 1, 3.4, 0.55); if (!v) return;
+      tone(v, "triangle", 55, 330, 0, 0.3, 0.45, 2.7);
+      tone(v, "sawtooth", 27.5, 165, 0, 0.3, 0.12, 2.7);
+      hiss(v, "lowpass", 150, 3500, 0, 0.3, 0.4, 1, 2.7);
+    },
+    win() {
+      const v = voice("win", 1, 3, 0.6); if (!v) return;
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(v, "triangle", f, f, i*0.12, 2.2, 0.22, 0.01));
+      tone(v, "sine", 261.6, 261.6, 0, 2.6, 0.3, 0.01);
+      hiss(v, "highpass", 4000, 9000, 0, 1.6, 0.08, 1, 0.01);
+    },
+    // the golden ball going out, then the hint's ping
+    fizzle(x, y) {
+      const v = voice("fizzle", 0.1, 0.7, 0.45, x, y); if (!v) return;
+      tone(v, "sine", 1200, 260, 0, 0.33, 0.3); hiss(v, "highpass", 4500, 1500, 0, 0.28, 0.12);
+      tone(v, "sine", 1760, 1760, 0.22, 0.4, 0.18); tone(v, "sine", 2637, 2637, 0.3, 0.3, 0.08);
+    },
+    zap(x, y) {
+      const v = voice("zap", 0.05, 0.1, 0.3, x, y); if (!v) return;
+      hiss(v, "highpass", 2500, 2500, 0, 0.045, 0.6); tone(v, "square", 1400, 180, 0, 0.045, 0.12);
+    },
+    smash(x, y) {
+      const v = voice("smash", 0.06, 0.2, 0.45, x, y); if (!v) return;
+      tone(v, "sine", 140, 45, 0, 0.12, 0.5); hiss(v, "lowpass", 900, 200, 0, 0.09, 0.35);
+    },
+    poison(x, y) {
+      const v = voice("poison", 0.12, 0.15, 0.22, x, y); if (!v) return;
+      tone(v, "sine", 280, 620, 0, 0.06, 0.4); tone(v, "sine", 420, 840, 0.05, 0.05, 0.25);
+    },
+    buy(newBall) {
+      const v = voice("buy", 0.05, 0.6, 0.45); if (!v) return;
+      const notes = newBall ? [392, 523.25, 659.25, 783.99] : [659.25, 987.77];
+      notes.forEach((f, i) => tone(v, "triangle", f, f, i*0.07, 0.14, 0.3));
+    },
+    recall() {
+      const v = voice("recall", 0.1, 0.3, 0.4); if (!v) return;
+      tone(v, "triangle", 1200, 300, 0, 0.2, 0.35); hiss(v, "bandpass", 3000, 600, 0, 0.2, 0.2, 2);
+    },
+    deny() {
+      const v = voice("deny", 0.25, 0.25, 0.3); if (!v) return;
+      tone(v, "square", 150, 140, 0, 0.08, 0.2); tone(v, "square", 110, 105, 0.09, 0.09, 0.2);
+    },
+    click() {
+      const v = voice("click", 0.03, 0.05, 0.3); if (!v) return;
+      tone(v, "triangle", 1500, 1200, 0, 0.025, 0.3);
+    },
+  };
+  function setOn(v) {
+    on = !!v;
+    try { localStorage.setItem(SOUND_KEY, on ? "on" : "off"); } catch (err) {}
+    if (on) unlock(); else if (ac && ac.state === "running") ac.suspend();
+  }
+  play.unlock = unlock; play.setOn = setOn;
+  Object.defineProperty(play, "on", { get: () => on });
+  return play;
+})();
+for (const ev of ["pointerdown", "pointerup", "touchend", "keydown", "click"])
+  addEventListener(ev, sfx.unlock, { capture: true, passive: true });
 
 //==================================================================== mining
 let dirty = [];
@@ -1070,9 +1257,10 @@ function hitCell(x, y, amount) {
   const i = y*WORLD + x, t = tier[i];
   if (!t || t === K_WALL || t === K_GOLD) return false;
   const hp = curHP(i);
-  if (amount >= hp) { breakCell(x, y); flash(x, y, 0); return true; }
+  if (amount >= hp) { breakCell(x, y); flash(x, y, 0); sfx.brk(t === K_UPG || t === K_GBALL ? 1 : t, x + .5, y + .5); return true; }
   dmg.set(i, (dmg.get(i) || 0) + amount);
   flash(x, y, hp - amount);
+  sfx.chip(hp - amount, x + .5, y + .5);
   markDirty(x, y);
   return false;
 }
@@ -1084,10 +1272,10 @@ function breakCell(x, y) {
   S.px++; S.minedCount++; pxTick++;
   if (t === K_UPG) {
     S.points++; S.pointsFound++;
-    spawnBurst(x, y, [151, 66, 255]); toast("UPGRADE PIXEL — +1 SKILL POINT");
+    spawnBurst(x, y, [151, 66, 255]); toast("UPGRADE PIXEL — +1 SKILL POINT"); sfx.upgrade(x + .5, y + .5);
   } else if (t === K_GBALL) {
     S.golden++; S.goldenFound++;
-    spawnBurst(x, y, [134, 241, 255]); toast("GOLDEN BALL FOUND");
+    spawnBurst(x, y, [134, 241, 255]); toast("GOLDEN BALL FOUND"); sfx.gball(x + .5, y + .5);
   }
   stampLight(x, y);
   growBounds(x, y);
@@ -1299,6 +1487,7 @@ function homeGolden(b, dt) {
 function fizzle(b) {
   b.dying = 0.5; b.vx = b.vy = 0;
   spawnSpark(Math.floor(b.x), Math.floor(b.y), [255, 215, 94], 10);
+  sfx.fizzle(b.x, b.y);
   addHint(b.x, b.y);
 }
 const hints = [];
@@ -1326,7 +1515,7 @@ function impact(b, x, y) {
   if (t === K_GOLD) {                                  // any other ball chips off a golden ball
     S.golden++; S.goldenFound++;
     flash(x, y, 0); spawnSpark(x, y, [255, 215, 94], 4);
-    toast("+1 GOLDEN BALL"); dockSig = "";
+    toast("+1 GOLDEN BALL"); dockSig = ""; sfx.goldChip(x + .5, y + .5);
     return false;
   }
   const s = ST[b.k], hpBefore = curHP(i);
@@ -1348,6 +1537,7 @@ function shuffled8() {
   return a;
 }
 function smash(x, y) {
+  sfx.smash(x + .5, y + .5);
   let left = ST[RED].hitSpread;
   for (const [dx, dy] of shuffled8()) {
     const nx = x+dx, ny = y+dy;
@@ -1370,6 +1560,7 @@ function poisonCell(i) {
   if (poison.size >= POISON_CAP) return;
   poison.set(i, { at: simT + Math.random()*0.5, left: ST[GREEN].poisonDamage });
   markDirty(i % WORLD, (i / WORLD) | 0);
+  sfx.poison(i % WORLD + .5, ((i / WORLD) | 0) + .5);
 }
 function tickPoison() {
   if (!poison.size) return;
@@ -1416,7 +1607,7 @@ function tickLightning() {
         const t = (tx < 0 || ty < 0 || tx >= WORLD || ty >= WORLD) ? K_WALL : tier[ty*WORLD + tx];
         if (t === K_WALL || t === K_GOLD) break;
         hitCell(tx, ty, ST[YELLOW].lightningDamage);
-        addBolt(b.x, b.y, tx + .5, ty + .5);
+        addBolt(b.x, b.y, tx + .5, ty + .5); sfx.zap(tx + .5, ty + .5);
         done = true; break;
       }
       if (done) break;
@@ -1440,13 +1631,14 @@ function discoverGold(live) {
   S.goldSeen = true;
   const gx = GOLD_I % WORLD, gy = (GOLD_I / WORLD) | 0;
   markDirty(gx, gy);
-  if (live) { goldShake = 1; toast("THE GOLDEN PIXEL — ONLY A GOLDEN BALL CAN BREAK IT"); }
+  if (live) { goldShake = 1; sfx.goldSeen(); toast("THE GOLDEN PIXEL — ONLY A GOLDEN BALL CAN BREAK IT"); }
 }
 function collectGold(x, y) {
   if (S.goldFound) return;
   S.goldFound = true;
   goldBreak = 3;                                      // GoldenPixelManager.breakingTime
   goldShake = 0.6;
+  sfx.goldBreaking();
   toast("THE GOLDEN PIXEL IS BREAKING");
 }
 function finishGold() {
@@ -1455,6 +1647,7 @@ function finishGold() {
     const x = GOLD_I % WORLD, y = (GOLD_I / WORLD) | 0;
     stampLight(x, y); growBounds(x, y); extend(x, y); markDirty(x, y); spawnBurst(x, y, [255, 215, 94]);
   }
+  sfx.win();
   showGolden();
 }
 
@@ -1930,10 +2123,11 @@ function buyNode(n) {
   if (!n) return;
   const st = nodeState(n);
   if (st === "taken" || st === "hidden") return;
-  if (S.points < n.cost) { toast("NOT ENOUGH SKILL POINTS"); return; }
+  if (S.points < n.cost) { toast("NOT ENOUGH SKILL POINTS"); sfx.deny(); return; }
   S.points -= n.cost;
   S.bought[n.id] = 1;
   applyNode(n);
+  sfx.buy(n.type === UT.NEW);
   if (n.type === UT.NEW) { selKind = n.ball; toast("NEW BALL — " + BALLS[n.ball].name.toUpperCase()); }
   else toast(BALLS[n.ball].name.toUpperCase() + " — " + header(n).toUpperCase());
   dockSig = ""; drawDock(); save();
@@ -2059,7 +2253,7 @@ function endPointer(e) {
   ptrs.delete(e.pointerId);
   if (ptrs.size < 2) { pinchLen = 0; pinchMid = null; }
   if (paused) { aimFrom = null; return; }
-  if (tapNote && ptrs.size === 0 && p.moved < TAP_SLOP) toast(tapNote);
+  if (tapNote && ptrs.size === 0 && p.moved < TAP_SLOP) { toast(tapNote); sfx.deny(); }
   if (!panning && aimFrom && ptrs.size === 0) {
     const dx = aim[0]-aimFrom[0], dy = aim[1]-aimFrom[1];
     if (Math.hypot(dx, dy) >= DRAG_MIN) fire(selKind, Math.atan2(-dy, -dx), aimFrom[0], aimFrom[1]);
@@ -2094,6 +2288,7 @@ addEventListener("keydown", e => {
     else openMenu();
     return;
   }
+  if (k === "m" && !e.repeat) { toggleSound(); if (!paused) toast(sfx.on ? "SOUND ON" : "SOUND OFF"); return; }
   if (paused) return;
   if (k === "tab") { e.preventDefault(); openPanel("upg"); return; }
   if (k >= "1" && k <= "7") { const n = +k-1; if (n < S.bench.length) { selKind = S.bench[n]; dockSig = ""; } }
@@ -2260,6 +2455,15 @@ function openMenu() {
 }
 function closeMenu() { $("menu").classList.remove("on"); paused = false; sessionStarted = true; last = performance.now(); }
 $("mcont").onclick = () => { if (!$("mcont").disabled) closeMenu(); };
+function showSound() {
+  $("msound").textContent = "SOUND: " + (sfx.on ? "ON" : "OFF");
+  $("msound").classList.toggle("off", !sfx.on);
+}
+function toggleSound() { sfx.setOn(!sfx.on); showSound(); }
+$("msound").onclick = toggleSound;
+showSound();
+// every button clicks
+document.addEventListener("click", e => { if (e.target.closest && e.target.closest("button")) sfx.click(); });
 $("mnew").onclick = () => {
   if (!armed) {
     armed = 1; $("mnew").classList.add("armed"); $("mnew").textContent = "ERASE EVERYTHING?";

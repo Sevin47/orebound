@@ -49,6 +49,7 @@ nodes it has bought.
 | Wheel / pinch | Zoom (a pinch zooms about the point between your fingers) |
 | `F` / Space | Return camera to auto-fit |
 | `U` / `Tab` | Skill tree · `S` Stats |
+| `M` / menu | Sound on or off |
 | `Esc` / `R` | Start menu (pauses) |
 
 A drag shorter than a tenth of a cell cancels the shot. How far you pull does
@@ -175,8 +176,14 @@ read as solid, so balls can never see unbuilt world as open space.
 - **Noise.** This uses improved Perlin noise, not Unity's exact
   `Mathf.PerlinNoise`. It's calibrated to the same rock mix, but the patterns
   are not the same.
-- **No audio, no tutorial, no offline progress.** The demo has no offline
-  progress either. Balls simply resume from the save.
+- **Sound.** The sound effects are Orebound's own, not the demo's. Each one is
+  synthesized with Web Audio when it plays, so there are no audio files. Each
+  sound has a minimum gap between plays, so heavy mining doesn't turn into
+  noise. Sounds pan toward where they happen and play quieter off screen. The
+  menu's toggle or `M` turns sound off, and that choice is kept separately from
+  the world save.
+- **No tutorial, no offline progress.** The demo has no offline progress
+  either. Balls simply resume from the save.
 
 ## Local development
 
