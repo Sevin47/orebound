@@ -151,13 +151,14 @@ piercing, poison, lightning and speed. All of them are enabled here, for 78
 points in total. Three of the disabled nodes overlapped enabled ones and two
 could not be reached, so those five moved by one cell.
 
-**One node is weakened.** The demo's last Basic piercing node gives +6, for 9
-piercing in all. Basic damage tops out at 8, so the ball then breaks every rock
-and passes through all of it. One cheap ball beats every other kind. Here that
-node gives +1, so piercing tops out at 4. A Basic ball still goes through the
-soft rock it breaks, but the hard seams (HP 5–7, about a third of all rock)
-always turn it back. Making the node more expensive wouldn't help: there is one
-upgrade pixel per point, so every node gets bought in the end.
+**Basic piercing is capped at 2.** The demo's four Basic piercing nodes give
++1, +1, +1 and +6, for 9 piercing in all. Basic damage tops out at 8, so the ball
+then breaks every rock and passes through all of it. One cheap ball beats every
+other kind. Here only the first two nodes pierce, so piercing tops out at 2. A
+Basic ball goes through HP 1–2 rock and bounces off anything harder. The last
+two nodes give Basic speed instead (+10%, +20%) at the same cost, so the tree
+still costs 78 points. Making the nodes more expensive wouldn't help: there is
+one upgrade pixel per point, so every node gets bought in the end.
 
 ## Architecture
 
