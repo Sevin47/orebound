@@ -152,6 +152,7 @@
   .mcard button.danger:hover { background:#e552 }
   .mcard button.armed { background:#e55; color:#fff; border-color:#e55 }
   .mcard button.toggle { border-color:#1f6a4a; color:#9fe }
+  .mrow { display:flex; gap:9px } .mrow button { flex:1; min-width:0 }
   .mcard button.toggle.off { border-color:#1f4a2c; color:#5a8; opacity:.75 }
   .mnote { font-size:10px; opacity:.45; margin-top:6px; min-height:13px; line-height:1.4 }
 
@@ -213,7 +214,7 @@
 <div class="hud" id="prompt">PRESS IN OPEN GROUND &middot; DRAG BACK &middot; RELEASE</div>
 <div id="dock"></div>
 <div class="hud" id="toast"></div>
-<div class="hud" id="hint">[press+drag back] shoot &middot; [right-drag / drag rock] pan &middot; [right-click a ball] recycle &middot; [1-7] ball &middot; [G] golden &middot; [wheel] zoom &middot; [F] refit &middot; [U / Tab] skill tree &middot; [S] stats &middot; [M] sound &middot; [Esc] menu</div>
+<div class="hud" id="hint">[press+drag back] shoot &middot; [right-drag / drag rock] pan &middot; [right-click a ball] recycle &middot; [1-7] ball &middot; [G] golden &middot; [wheel] zoom &middot; [F] refit &middot; [U / Tab] skill tree &middot; [S] stats &middot; [M] sound &middot; [N] sound style &middot; [Esc] menu</div>
 
 <div id="mobibar">
   <button data-a="upg">TREE</button>
@@ -236,7 +237,7 @@
   <div class="msub">ten million pixels &middot; one is golden</div>
   <div id="msave"></div>
   <button id="mcont">CONTINUE</button>
-  <button id="msound" class="toggle">SOUND: ON</button>
+  <div class="mrow"><button id="msound" class="toggle">SOUND: ON</button><button id="mstyle" class="toggle">BUBBLES</button></div>
   <button id="mnew" class="danger">NEW GAME</button>
   <div class="mnote" id="mnote"></div>
 </div></div>
@@ -1060,17 +1061,25 @@ function recall(k) {
 }
 
 //===================================================================== sound
-// Orebound's own sound effects: soft bubble pops, all synthesized with Web
-// Audio -- no files. The
-// demo's audio is not used. Browsers only allow sound after a press or a key, so
-// the context starts on the first one. Mining can break thousands of pixels a
-// second, so every sound has a minimum gap between plays and the mix has a voice
-// cap. A sound pans toward where it happened, and plays quieter off screen.
-const SOUND_KEY = "orebound.sound";
+// Orebound's own sound effects, all synthesized with Web Audio -- no files. The
+// demo's audio is not used. There are three styles to choose from in the menu:
+// bubble pops, raindrops and crystal chimes. Each style plays the same events.
+// Browsers only allow sound after a press or a key, so the context starts on
+// the first one. Mining can break thousands of pixels a second, so every sound
+// has a minimum gap between plays and the mix has a voice cap. A sound pans
+// toward where it happened, and plays quieter off screen.
+const SOUND_KEY = "orebound.sound", STYLE_KEY = "orebound.soundStyle";
+const SOUND_STYLES = ["bubbles", "rain", "crystal"];
 const sfx = (() => {
-  let on = true;
-  try { on = localStorage.getItem(SOUND_KEY) !== "off"; } catch (err) {}
-  let ac = null, master = null, voices = 0, keepAlive = null;
+  let on = true, style = "bubbles";
+  try {
+    on = localStorage.getItem(SOUND_KEY) !== "off";
+    const st = localStorage.getItem(STYLE_KEY);
+    if (SOUND_STYLES.includes(st)) style = st;
+  } catch (err) {}
+  let ac = null, master = null, soft = null, noise = null, voices = 0, keepAlive = null;
+  // how much top end each style keeps: pops are soft, rain needs its sparkle
+  const TOP = { bubbles: 3200, rain: 9000, crystal: 7500 };
   const lastAt = {};
   // iPhones play Web Audio on the ringer channel, so the silent switch mutes it
   // while other sites' video still plays. Asking for the media ("playback")
@@ -1108,10 +1117,13 @@ const sfx = (() => {
         ac = new AC();
         const comp = ac.createDynamicsCompressor();
         comp.threshold.value = -16; comp.ratio.value = 6;
-        // a gentle lowpass takes the click off the front of every pop
-        const soft = ac.createBiquadFilter(); soft.type = "lowpass"; soft.frequency.value = 3200; soft.Q.value = 0.5;
+        // a gentle lowpass takes the click off the front of every sound
+        soft = ac.createBiquadFilter(); soft.type = "lowpass"; soft.frequency.value = TOP[style]; soft.Q.value = 0.5;
         master = ac.createGain(); master.gain.value = 0.5;
         master.connect(soft); soft.connect(comp); comp.connect(ac.destination);
+        noise = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+        const nd = noise.getChannelData(0);
+        for (let i = 0; i < nd.length; i++) nd[i] = Math.random()*2 - 1;
       }
       const s = ac.createBufferSource();
       s.buffer = ac.createBuffer(1, 1, ac.sampleRate); s.connect(ac.destination); s.start(0);
@@ -1168,8 +1180,9 @@ const sfx = (() => {
     o.start(t); o.stop(t + d + 0.02);
   }
   const rnd = (a, b) => a + Math.random()*(b - a);
-  const C = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.7, 1318.5, 1568, 1760];  // pentatonic-ish C
-  const play = {
+  const C = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.7, 1318.5, 1568, 1760];  // C pentatonic
+  //---------------------------------------------------------------- bubbles
+  const bubbles = {
     // a pixel chipped but standing: the smallest pop, higher the less HP is left
     chip(hpLeft, x, y) {
       const v = voice("chip", 0.15, 0.06, 0.22, x, y); if (!v) return;
@@ -1254,6 +1267,223 @@ const sfx = (() => {
       pop(v, 1150, 0, 0.022, 0.35, 1.7);
     },
   };
+
+  // Filtered noise: the patter of rain, a splash, distant thunder. The filter
+  // sweeps f0 -> f1; the sound rises over a seconds and dies over d.
+  function wash(v, type, f0, f1, at, a, d, peak, q = 1) {
+    const sr = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(), t = v.t + at;
+    sr.buffer = noise; sr.loop = true;
+    f.type = type; f.Q.value = q;
+    f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + a + d);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + a);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + a + d);
+    sr.connect(f); f.connect(g); g.connect(v.out);
+    sr.start(t, Math.random()*0.9); sr.stop(t + a + d + 0.02);
+  }
+  //------------------------------------------------------------------- rain
+  // A raindrop: the tiny tick of it landing, then a short, high "plink" as it
+  // hits water -- higher, shorter and brighter than a bubble, and climbing less.
+  function drop(v, f, at = 0, d = 0.04, peak = 0.4, rise = 1.35, tick = 0.18) {
+    if (tick) wash(v, "bandpass", 6500, 5500, at, 0.001, 0.006, tick, 1.2);
+    pop(v, f, at + 0.004, d, peak, rise);
+  }
+  // n drops scattered over span seconds, pitches picked from a list
+  function patter(v, n, span, notes, peak, at = 0) {
+    for (let i = 0; i < n; i++)
+      drop(v, notes[(Math.random()*notes.length)|0] * rnd(0.99, 1.01), at + Math.random()*span, rnd(0.03, 0.05), peak*rnd(0.6, 1));
+  }
+  const HI = C.map(f => f*2);
+  const rain = {
+    chip(hpLeft, x, y) {
+      const v = voice("chip", 0.15, 0.05, 0.2, x, y); if (!v) return;
+      drop(v, rnd(2700, 3100) - hpLeft*60, 0, 0.018, 0.25, 1.25, 0.12);
+    },
+    brk(hp, x, y) {
+      const v = voice("brk", 0.09, 0.08, 0.26, x, y); if (!v) return;
+      drop(v, rnd(1550, 1750) * (1 - hp*0.05), 0, 0.045, 0.45, 1.4, 0.22);
+    },
+    shoot(k, x, y) {
+      const v = voice("shoot", 0.08, 0.2, 0.3, x, y); if (!v) return;
+      if (k === GOLDEN) { [HI[2], HI[3], HI[5], HI[7]].forEach((f, i) => drop(v, f, i*0.05, 0.04, 0.35)); return; }
+      wash(v, "lowpass", 2600, 600, 0, 0.004, 0.11, 0.3);
+      drop(v, 820 + (k|0)*40, 0.01, 0.06, 0.35, 1.5, 0);
+    },
+    upgrade(x, y) {
+      const v = voice("upgrade", 0.15, 0.5, 0.36, x, y); if (!v) return;
+      [C[5], C[7], C[8], HI[5]].forEach((f, i) => { drop(v, f, i*0.08, 0.05, 0.42); drop(v, f*1.5, i*0.08 + 0.035, 0.03, 0.12, 1.3, 0); });
+    },
+    gball(x, y) {
+      const v = voice("gball", 0.15, 0.45, 0.36, x, y); if (!v) return;
+      [C[8], C[9], HI[5], HI[6], HI[7], HI[8]].forEach((f, i) => drop(v, f, i*0.045, 0.04, 0.36));
+    },
+    goldChip(x, y) {
+      const v = voice("goldChip", 0.1, 0.15, 0.3, x, y); if (!v) return;
+      drop(v, HI[5], 0, 0.04, 0.4); drop(v, HI[7], 0.05, 0.04, 0.35);
+    },
+    // the golden pixel coming into view: thunder far off, and three heavy drops
+    goldSeen() {
+      const v = voice("goldSeen", 1, 2.6, 0.5); if (!v) return;
+      wash(v, "lowpass", 160, 70, 0, 0.35, 2.1, 0.6, 0.7);
+      [C[0], C[2], C[3]].forEach((f, i) => drop(v, f, 0.25 + i*0.22, 0.09, 0.4, 1.4, 0.1));
+    },
+    // three seconds of rain coming on harder and harder
+    goldBreaking() {
+      const v = voice("goldBreaking", 1, 3.1, 0.32); if (!v) return;
+      wash(v, "bandpass", 2500, 4000, 0, 2.8, 0.25, 0.35, 0.6);
+      for (let t = 0; t < 3; ) {
+        const k = t / 3;
+        drop(v, rnd(1300, 2600) * (1 + k*0.6), t, 0.04, 0.25 + k*0.25);
+        t += 0.2 - k*0.17 + Math.random()*0.03;
+      }
+    },
+    // a shower passing over, then a last low roll of thunder
+    win() {
+      const v = voice("win", 1, 2.6, 0.4); if (!v) return;
+      wash(v, "bandpass", 3500, 2000, 0, 0.3, 1.4, 0.3, 0.6);
+      for (let i = 0; i < 16; i++) drop(v, C[Math.min(C.length - 1, (i*0.6)|0)] * 2, i*0.07, 0.05, 0.38);
+      wash(v, "lowpass", 140, 60, 1.0, 0.3, 1.3, 0.5, 0.7);
+    },
+    fizzle(x, y) {
+      const v = voice("fizzle", 0.1, 0.5, 0.34, x, y); if (!v) return;
+      [2600, 2000, 1500].forEach((f, i) => drop(v, f, i*0.06, 0.035, 0.32, 1.2));
+      drop(v, HI[7], 0.3, 0.06, 0.4);
+    },
+    zap(x, y) {
+      const v = voice("zap", 0.2, 0.04, 0.18, x, y); if (!v) return;
+      wash(v, "highpass", 7000, 7000, 0, 0.001, 0.008, 0.3); pop(v, rnd(3000, 3400), 0.003, 0.014, 0.25, 1.2);
+    },
+    // a drop into a puddle
+    smash(x, y) {
+      const v = voice("smash", 0.2, 0.12, 0.26, x, y); if (!v) return;
+      wash(v, "lowpass", 1600, 400, 0, 0.003, 0.08, 0.4); drop(v, 700, 0.01, 0.06, 0.35, 1.5, 0);
+    },
+    poison(x, y) {
+      const v = voice("poison", 0.3, 0.08, 0.15, x, y); if (!v) return;
+      drop(v, 1100, 0, 0.03, 0.35, 1.3, 0.08); drop(v, 1320, 0.035, 0.025, 0.25, 1.3, 0);
+    },
+    buy(newBall) {
+      const v = voice("buy", 0.05, 0.35, 0.34); if (!v) return;
+      (newBall ? [C[5], C[7], C[8], HI[5]] : [C[7], HI[5]]).forEach((f, i) => drop(v, f, i*0.06, 0.05, 0.4));
+    },
+    recall() {
+      const v = voice("recall", 0.1, 0.15, 0.3); if (!v) return;
+      drop(v, 2400, 0, 0.09, 0.4, 0.55, 0.1);
+    },
+    deny() {
+      const v = voice("deny", 0.25, 0.2, 0.26); if (!v) return;
+      drop(v, 420, 0, 0.06, 0.45, 1.1, 0); drop(v, 330, 0.09, 0.06, 0.45, 1.1, 0);
+    },
+    click() {
+      const v = voice("click", 0.03, 0.03, 0.18); if (!v) return;
+      drop(v, 2600, 0, 0.014, 0.3, 1.2, 0.1);
+    },
+  };
+  //---------------------------------------------------------------- crystal
+  // A struck crystal: a pure note with two faint inharmonic overtones, like a
+  // glass rod or a wind chime. It rings longer than a pop. Every note comes from
+  // one pentatonic scale, so the mining turns into a slow, random melody.
+  function ting(v, f, at = 0, d = 0.2, peak = 0.35) {
+    const t = v.t + at;
+    [[1, 1, 1], [2.76, 0.22, 0.5], [5.4, 0.07, 0.25]].forEach(([m, pk, dd]) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = "sine"; o.frequency.setValueAtTime(f*m, t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(peak*pk, t + 0.002);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.002 + d*dd);
+      o.connect(g); g.connect(v.out);
+      o.start(t); o.stop(t + d*dd + 0.03);
+    });
+  }
+  const SC = [];                                         // C pentatonic, C4 to C7
+  for (let o = 0; o < 3; o++) for (const f of [261.63, 293.66, 329.63, 392, 440]) SC.push(f * 2**o);
+  SC.push(2093);
+  const pick = (lo, hi) => SC[lo + ((Math.random()*(hi - lo + 1))|0)];
+  const crystal = {
+    chip(hpLeft, x, y) {
+      const v = voice("chip", 0.15, 0.1, 0.16, x, y); if (!v) return;
+      ting(v, pick(12, 15), 0, 0.09, 0.3);
+    },
+    brk(hp, x, y) {
+      const v = voice("brk", 0.09, 0.16, 0.22, x, y); if (!v) return;
+      const top = Math.max(5, 13 - hp);                  // harder rock rings lower
+      ting(v, pick(top - 4, top), 0, 0.16, 0.4);
+    },
+    shoot(k, x, y) {
+      const v = voice("shoot", 0.08, 0.3, 0.26, x, y); if (!v) return;
+      if (k === GOLDEN) { [SC[10], SC[12], SC[13], SC[15]].forEach((f, i) => ting(v, f, i*0.05, 0.3, 0.3)); return; }
+      const f = SC[3 + ((k|0) % 7)];
+      ting(v, f, 0, 0.16, 0.35); ting(v, f*1.5, 0.03, 0.12, 0.18);
+    },
+    upgrade(x, y) {
+      const v = voice("upgrade", 0.15, 0.8, 0.34, x, y); if (!v) return;
+      [SC[5], SC[7], SC[8], SC[10]].forEach((f, i) => ting(v, f, i*0.08, 0.6, 0.38));
+    },
+    gball(x, y) {
+      const v = voice("gball", 0.15, 0.8, 0.32, x, y); if (!v) return;
+      [SC[10], SC[11], SC[12], SC[13], SC[15]].forEach((f, i) => ting(v, f, i*0.05, 0.55, 0.32));
+    },
+    goldChip(x, y) {
+      const v = voice("goldChip", 0.1, 0.4, 0.28, x, y); if (!v) return;
+      ting(v, SC[13], 0, 0.35, 0.38); ting(v, SC[15], 0.05, 0.3, 0.3);
+    },
+    // the golden pixel coming into view: a low bell
+    goldSeen() {
+      const v = voice("goldSeen", 1, 2.6, 0.42); if (!v) return;
+      ting(v, 130.81, 0, 2.4, 0.55); ting(v, 196, 0.12, 2, 0.3); ting(v, SC[10], 0.3, 1.2, 0.12);
+    },
+    // three seconds of chimes ringing faster and higher
+    goldBreaking() {
+      const v = voice("goldBreaking", 1, 3.3, 0.28); if (!v) return;
+      for (let t = 0, i = 0; t < 3; i++) {
+        const k = t / 3;
+        ting(v, pick(Math.floor(k*9), Math.floor(k*9) + 6), t, 0.25, 0.25 + k*0.2);
+        t += 0.22 - k*0.17 + Math.random()*0.02;
+      }
+    },
+    // the golden pixel broken: a slow cascade over a ringing chord
+    win() {
+      const v = voice("win", 1, 2.8, 0.36); if (!v) return;
+      [SC[0], SC[2], SC[3], SC[5]].forEach(f => ting(v, f, 0, 2.4, 0.22));
+      for (let i = 0; i < 12; i++) ting(v, SC[4 + i], 0.1 + i*0.09, 0.7, 0.3);   // SC[4..15]
+    },
+    fizzle(x, y) {
+      const v = voice("fizzle", 0.1, 0.7, 0.3, x, y); if (!v) return;
+      [SC[13], SC[11], SC[9]].forEach((f, i) => ting(v, f, i*0.06, 0.15, 0.3));
+      ting(v, SC[15], 0.3, 0.4, 0.35);
+    },
+    zap(x, y) {
+      const v = voice("zap", 0.2, 0.06, 0.14, x, y); if (!v) return;
+      ting(v, SC[15] * 1.5, 0, 0.04, 0.3);
+    },
+    smash(x, y) {
+      const v = voice("smash", 0.2, 0.16, 0.24, x, y); if (!v) return;
+      ting(v, SC[3], 0, 0.14, 0.4); ting(v, SC[3]*1.5, 0, 0.12, 0.25);
+    },
+    poison(x, y) {
+      const v = voice("poison", 0.3, 0.12, 0.13, x, y); if (!v) return;
+      ting(v, SC[8], 0, 0.08, 0.3); ting(v, SC[9], 0.04, 0.07, 0.22);
+    },
+    buy(newBall) {
+      const v = voice("buy", 0.05, 0.5, 0.3); if (!v) return;
+      (newBall ? [SC[5], SC[7], SC[8], SC[10]] : [SC[8], SC[10]]).forEach((f, i) => ting(v, f, i*0.06, 0.35, 0.38));
+    },
+    recall() {
+      const v = voice("recall", 0.1, 0.25, 0.28); if (!v) return;
+      [SC[12], SC[9], SC[6]].forEach((f, i) => ting(v, f, i*0.04, 0.12, 0.3));
+    },
+    deny() {
+      const v = voice("deny", 0.25, 0.25, 0.22); if (!v) return;
+      ting(v, 220, 0, 0.16, 0.4); ting(v, 233.08, 0, 0.16, 0.3);   // a soft clash
+    },
+    click() {
+      const v = voice("click", 0.03, 0.05, 0.16); if (!v) return;
+      ting(v, SC[15], 0, 0.035, 0.3);
+    },
+  };
+  const PACKS = { bubbles, rain, crystal };
+  const play = {};
+  for (const name of Object.keys(bubbles)) play[name] = (...args) => PACKS[style][name](...args);
   function setOn(v) {
     on = !!v;
     try { localStorage.setItem(SOUND_KEY, on ? "on" : "off"); } catch (err) {}
@@ -1263,8 +1493,15 @@ const sfx = (() => {
       if (keepAlive) { keepAlive.pause(); keepAlive = null; }
     }
   }
-  play.unlock = unlock; play.setOn = setOn;
+  function setStyle(st) {
+    if (!SOUND_STYLES.includes(st)) return;
+    style = st;
+    try { localStorage.setItem(STYLE_KEY, style); } catch (err) {}
+    if (soft) soft.frequency.value = TOP[style];
+  }
+  play.unlock = unlock; play.setOn = setOn; play.setStyle = setStyle;
   Object.defineProperty(play, "on", { get: () => on });
+  Object.defineProperty(play, "style", { get: () => style });
   return play;
 })();
 for (const ev of ["pointerdown", "pointerup", "touchend", "keydown", "click"])
@@ -2318,6 +2555,7 @@ addEventListener("keydown", e => {
     return;
   }
   if (k === "m" && !e.repeat) { toggleSound(); if (!paused) toast(sfx.on ? "SOUND ON" : "SOUND OFF"); return; }
+  if (k === "n" && !e.repeat) { nextStyle(); if (!paused) toast("SOUND — " + STYLE_NAMES[sfx.style]); return; }
   if (paused) return;
   if (k === "tab") { e.preventDefault(); openPanel("upg"); return; }
   if (k >= "1" && k <= "7") { const n = +k-1; if (n < S.bench.length) { selKind = S.bench[n]; dockSig = ""; } }
@@ -2484,12 +2722,24 @@ function openMenu() {
 }
 function closeMenu() { $("menu").classList.remove("on"); paused = false; sessionStarted = true; last = performance.now(); }
 $("mcont").onclick = () => { if (!$("mcont").disabled) closeMenu(); };
+const STYLE_NAMES = { bubbles: "BUBBLES", rain: "RAINDROPS", crystal: "CRYSTAL" };
 function showSound() {
   $("msound").textContent = "SOUND: " + (sfx.on ? "ON" : "OFF");
   $("msound").classList.toggle("off", !sfx.on);
+  $("mstyle").textContent = "\u266A " + STYLE_NAMES[sfx.style];
+  $("mstyle").classList.toggle("off", !sfx.on);
 }
 function toggleSound() { sfx.setOn(!sfx.on); showSound(); }
+// The style button steps to the next style and plays a sample of it. Picking a
+// style while sound is off turns it on, since that is clearly what you want.
+function nextStyle() {
+  sfx.setStyle(SOUND_STYLES[(SOUND_STYLES.indexOf(sfx.style) + 1) % SOUND_STYLES.length]);
+  if (!sfx.on) sfx.setOn(true);
+  showSound();
+  setTimeout(() => sfx.upgrade(), 60);                // after the button's own click
+}
 $("msound").onclick = toggleSound;
+$("mstyle").onclick = nextStyle;
 showSound();
 // every button clicks
 document.addEventListener("click", e => { if (e.target.closest && e.target.closest("button")) sfx.click(); });
